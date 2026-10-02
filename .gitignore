@@ -6,3 +6,12 @@ __pycache__/
 .ipynb_checkpoints/
 .venv/
 env/
+.env*
+*.env
+checkpoints/
+byt5_geez_checkpoint/
+*.safetensors
+*.pt
+*.bin
+runs/
+wandb/
