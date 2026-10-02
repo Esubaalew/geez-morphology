@@ -1,0 +1,1026 @@
+[
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "2",
+      "stem": "basic",
+      "tense": "imperative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0I-C1I-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ቅትላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "2",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0a-C1a-C2I-[ክን]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ቀተልክን"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "2",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ት]-C0a-C1I-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትቀትላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "2",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ት]-C0I-C1I-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትቅትላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "3",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይ]-C0I-C1I-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይቅትላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0a-C1a-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ቀተላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "3",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይቀትላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "3",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይቀትላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "imperative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0I-C1I-C2i",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ቅትሊ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2A-[ኪ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድጋኪ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0a-C1a-C2I-[ኪ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ቀተልኪ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "C0a-C1a-C2A-[ኪ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ኀደጋኪ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ት]-C0a-C1I-C2i",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትቀትሊ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[የ]-C0a-C1I-C2A-[ኪ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "የኀድጋኪ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ት]-C0I-C1I-C2i",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትቅትሊ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2A-[ኪ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድጋኪ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ት]-C0I-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትቅትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድጋ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0a-C1a-C2a-[ት]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ቀተለት"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "C0a-C1a-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ኀደጋ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ት]-C0a-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትቀትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድጋ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ት]-C0I-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትቅትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድጋ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "2",
+      "stem": "basic",
+      "tense": "imperative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0I-C1I-C2u",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ቅትሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "2",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0a-C1a-C2I-[ክሙ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ቀተልክሙ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "2",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ት]-C0a-C1I-C2u",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትቀትሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "2",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ት]-C0I-C1I-C2u",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትቅትሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "3",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይ]-C0I-C1I-C2u",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይቅትሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "irregular"
+    },
+    "pattern_spec": "C0I-C1I-C2u",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ብህሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0a-C1a-C2u",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ቀተሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "3",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2u",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይቀትሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "3",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2u",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይቀትሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "imperative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0I-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ቅትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "imperative",
+      "verb_type": "strong_B"
+    },
+    "pattern_spec": "C0A-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ባርክ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "imperative",
+      "verb_type": "weak_middle"
+    },
+    "pattern_spec": "C0u-C1I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ኩን"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "irregular"
+    },
+    "pattern_spec": "C0I-C1I-C2I-[ከ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ብህልከ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0a-C1a-C2I-[ከ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ቀተልከ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "weak_middle"
+    },
+    "pattern_spec": "C0a-[ይ]-C1I-[ከ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ሠይምከ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ት]-C0a-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትቀትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "strong_B"
+    },
+    "pattern_spec": "[ት]-C0A-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትባርክ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ት]-C0I-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትቅትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "strong_B"
+    },
+    "pattern_spec": "[ት]-C0A-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ትባርክ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይ]-C0I-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይቅትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "strong_B"
+    },
+    "pattern_spec": "[ይ]-C0A-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይባርክ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድግ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "weak_middle"
+    },
+    "pattern_spec": "[ይ]-C0a-[ይ]-C1I",
+    "observations": 1,
+    "consistent": false,
+    "examples": [
+      "ይሠይም"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "weak_middle"
+    },
+    "pattern_spec": "[ይ]-C0u-C1I",
+    "observations": 1,
+    "consistent": false,
+    "examples": [
+      "ይኩን"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "irregular"
+    },
+    "pattern_spec": "C0I-C1I-C2a",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ብህለ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0a-C1a-C2a",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ቀተለ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "strong_B"
+    },
+    "pattern_spec": "C0A-C1a-C2a",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ባረከ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "C0a-C1a-C2a",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ኀደገ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "weak_middle"
+    },
+    "pattern_spec": "C0e-C1a",
+    "observations": 1,
+    "consistent": false,
+    "examples": [
+      "ሤመ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "weak_middle"
+    },
+    "pattern_spec": "C0a-C1a",
+    "observations": 1,
+    "consistent": false,
+    "examples": [
+      "ከነ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይቀትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "strong_B"
+    },
+    "pattern_spec": "[ይ]-C0A-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይባርክ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድግ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "weak_middle"
+    },
+    "pattern_spec": "[ይ]-C0a-[ይ]-C1I",
+    "observations": 1,
+    "consistent": false,
+    "examples": [
+      "ይሠይም"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "weak_middle"
+    },
+    "pattern_spec": "[ይ]-C0a-[ው]-C1I",
+    "observations": 1,
+    "consistent": false,
+    "examples": [
+      "ይከውን"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይቀትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "strong_B"
+    },
+    "pattern_spec": "[ይ]-C0A-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይባርክ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድግ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "weak_middle"
+    },
+    "pattern_spec": "[ይ]-C0a-[ይ]-C1I",
+    "observations": 1,
+    "consistent": false,
+    "examples": [
+      "ይሠይም"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "weak_middle"
+    },
+    "pattern_spec": "[ይ]-C0a-[ው]-C1I",
+    "observations": 1,
+    "consistent": false,
+    "examples": [
+      "ይከውን"
+    ]
+  }
+]
