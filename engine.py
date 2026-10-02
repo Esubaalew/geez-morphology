@@ -25,9 +25,9 @@ which maps (consonant, vowel) pairs to characters. For Ge'ez this uses
 Unicode vowel-order arithmetic on the Ethiopic block; for Arabic it would
 map to consonant + diacritic sequences.
 
-This separation is the thesis contribution: the interdigitation mechanism
-is universal across Semitic languages; only the renderer and the pattern
-inventory are language-specific.
+This architecture separates the universal interdigitation mechanism
+across Semitic languages from language-specific renderers and pattern
+inventories.
 """
 
 from dataclasses import dataclass, field

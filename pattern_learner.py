@@ -29,8 +29,8 @@ be traced back to the alignment that produced it.
 
 from typing import List, Tuple, Dict, Optional, Callable
 from dataclasses import dataclass, field
-import sys
-sys.path.insert(0, '/home/hatch/workspace/thesis-data/geez-morphology-model')
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from engine import Pattern, make_root_slot, make_fixed, spec_from_slots
 
 
