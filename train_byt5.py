@@ -32,44 +32,34 @@ except ImportError:
 class GeezMorphologyDataset(Dataset if TRANSFORMERS_AVAILABLE else object):
     """
     Dataset wrapper for Ge'ez morphological analysis and translation tasks.
+    Uses dynamic tokenization without manual label masking bugs.
     """
 
-    def __init__(self, data: List[Dict[str, str]], tokenizer, max_input_length: int = 128, max_target_length: int = 128):
+    def __init__(self, data: List[Dict[str, str]], tokenizer, max_length: int = 128):
         self.data = data
         self.tokenizer = tokenizer
-        self.max_input_length = max_input_length
-        self.max_target_length = max_target_length
+        self.max_length = max_length
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
         item = self.data[idx]
-        inputs = self.tokenizer(
+        model_inputs = self.tokenizer(
             item["input_text"],
-            max_length=self.max_input_length,
-            padding="max_length",
-            truncation=True,
-            return_tensors="pt"
+            max_length=self.max_length,
+            truncation=True
         )
-        targets = self.tokenizer(
-            item["target_text"],
-            max_length=self.max_target_length,
-            padding="max_length",
-            truncation=True,
-            return_tensors="pt"
+        labels = self.tokenizer(
+            text_target=item["target_text"],
+            max_length=self.max_length,
+            truncation=True
         )
-        labels = targets["input_ids"].squeeze(0)
-        labels[labels == self.tokenizer.pad_token_id] = -100
-
-        return {
-            "input_ids": inputs["input_ids"].squeeze(0),
-            "attention_mask": inputs["attention_mask"].squeeze(0),
-            "labels": labels
-        }
+        model_inputs["labels"] = labels["input_ids"]
+        return model_inputs
 
 
-def load_morphology_training_data(dataset_dir: str, limit: int = 50000) -> List[Dict[str, str]]:
+def load_morphology_training_data(dataset_dir: str, limit: int = 30000) -> List[Dict[str, str]]:
     """
     Load bidirectional training samples from synthetic_morphology_train.jsonl.
     """
@@ -87,7 +77,6 @@ def load_morphology_training_data(dataset_dir: str, limit: int = 50000) -> List[
             feat = d.get("features", {})
             surface = d.get("surface_form", "")
             
-            # Task: Analysis (surface -> root + features)
             root = feat.get("root", "")
             tense = feat.get("tense", "")
             person = feat.get("person", "")
@@ -113,7 +102,8 @@ def main():
     parser.add_argument("--output_dir", default="./byt5_geez_checkpoint", help="Checkpoint output directory")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size per device")
     parser.add_argument("--epochs", type=int, default=3, help="Training epochs")
-    parser.add_argument("--sample_limit", type=int, default=20000, help="Number of training samples to load")
+    parser.add_argument("--sample_limit", type=int, default=25000, help="Number of training samples to load")
+    parser.add_argument("--learning_rate", type=float, default=1e-3, help="Learning rate (default: 1e-3 for ByT5)")
     args = parser.parse_args()
 
     if not TRANSFORMERS_AVAILABLE:
@@ -122,7 +112,7 @@ def main():
         print("  pip install torch transformers datasets accelerate")
         return
 
-    print(f"Loading ByT5 tokenizer: {args.model_name}...")
+    print(f"Loading ByT5 model & tokenizer: {args.model_name}...")
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(args.model_name)
 
@@ -130,7 +120,6 @@ def main():
     raw_data = load_morphology_training_data(args.dataset_dir, limit=args.sample_limit)
     print(f"Loaded {len(raw_data)} training examples.")
 
-    # Split train/eval
     split_idx = int(len(raw_data) * 0.9)
     train_data = raw_data[:split_idx]
     eval_data = raw_data[split_idx:]
@@ -138,22 +127,30 @@ def main():
     train_dataset = GeezMorphologyDataset(train_data, tokenizer)
     eval_dataset = GeezMorphologyDataset(eval_data, tokenizer)
 
+    use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+
     training_args = Seq2SeqTrainingArguments(
         output_dir=args.output_dir,
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
-        learning_rate=5e-4,
+        learning_rate=args.learning_rate,
         num_train_epochs=args.epochs,
-        logging_steps=100,
+        logging_steps=50,
         eval_strategy="epoch",
         save_strategy="epoch",
         save_total_limit=2,
-        predict_with_generate=True,
-        fp16=torch.cuda.is_available() or torch.backends.mps.is_available(),
+        predict_with_generate=False,
+        fp16=False,   # Must be False on T5/ByT5 to avoid NaN underflow
+        bf16=use_bf16,
         report_to="none"
     )
 
-    data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
+    data_collator = DataCollatorForSeq2Seq(
+        tokenizer,
+        model=model,
+        padding=True,
+        label_pad_token_id=-100
+    )
 
     trainer = Seq2SeqTrainer(
         model=model,
@@ -164,7 +161,7 @@ def main():
         data_collator=data_collator
     )
 
-    print("Beginning ByT5 fine-tuning...")
+    print("Beginning ByT5 fine-tuning with active gradient tracking...")
     trainer.train()
     print(f"Model checkpoint saved to: {args.output_dir}")
 
