@@ -1022,5 +1022,434 @@
     "examples": [
       "ይከውን"
     ]
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "m",
+      "number": "s",
+      "tense": "past",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2a"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "f",
+      "number": "s",
+      "tense": "past",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2a-[ት]"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "m",
+      "number": "p",
+      "tense": "past",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2u"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "f",
+      "number": "p",
+      "tense": "past",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2A"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "m",
+      "number": "s",
+      "tense": "past",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2I-[ከ]"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "f",
+      "number": "s",
+      "tense": "past",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2I-[ኪ]"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "m",
+      "number": "p",
+      "tense": "past",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2I-[ክሙ]"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "f",
+      "number": "p",
+      "tense": "past",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2I-[ክን]"
+  },
+  {
+    "features": {
+      "person": "1",
+      "gender": "c",
+      "number": "s",
+      "tense": "past",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2I-[ኩ]"
+  },
+  {
+    "features": {
+      "person": "1",
+      "gender": "c",
+      "number": "p",
+      "tense": "past",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2I-[ነ]"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "m",
+      "number": "s",
+      "tense": "present",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይት]-C0a-C1a-C2I"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "f",
+      "number": "s",
+      "tense": "present",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ትት]-C0a-C1a-C2I"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "m",
+      "number": "p",
+      "tense": "present",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይት]-C0a-C1a-C2u"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "f",
+      "number": "p",
+      "tense": "present",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይት]-C0a-C1a-C2A"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "f",
+      "number": "s",
+      "tense": "present",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ትት]-C0a-C1a-C2i"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "m",
+      "number": "p",
+      "tense": "present",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ትት]-C0a-C1a-C2u"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "f",
+      "number": "p",
+      "tense": "present",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ትት]-C0a-C1a-C2A"
+  },
+  {
+    "features": {
+      "person": "1",
+      "gender": "c",
+      "number": "s",
+      "tense": "present",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[እት]-C0a-C1a-C2I"
+  },
+  {
+    "features": {
+      "person": "1",
+      "gender": "c",
+      "number": "p",
+      "tense": "present",
+      "stem": "passive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ንት]-C0a-C1a-C2I"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "m",
+      "number": "s",
+      "tense": "past",
+      "stem": "causative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1a-C2a"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "f",
+      "number": "s",
+      "tense": "past",
+      "stem": "causative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1a-C2a-[ት]"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "m",
+      "number": "p",
+      "tense": "past",
+      "stem": "causative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1a-C2u"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "f",
+      "number": "p",
+      "tense": "past",
+      "stem": "causative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1a-C2A"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "m",
+      "number": "s",
+      "tense": "past",
+      "stem": "causative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1a-C2I-[ከ]"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "f",
+      "number": "s",
+      "tense": "past",
+      "stem": "causative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1a-C2I-[ኪ]"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "m",
+      "number": "p",
+      "tense": "past",
+      "stem": "causative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1a-C2I-[ክሙ]"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "f",
+      "number": "p",
+      "tense": "past",
+      "stem": "causative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1a-C2I-[ክን]"
+  },
+  {
+    "features": {
+      "person": "1",
+      "gender": "c",
+      "number": "s",
+      "tense": "past",
+      "stem": "causative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1a-C2I-[ኩ]"
+  },
+  {
+    "features": {
+      "person": "1",
+      "gender": "c",
+      "number": "p",
+      "tense": "past",
+      "stem": "causative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1a-C2I-[ነ]"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "m",
+      "number": "s",
+      "tense": "past",
+      "stem": "causative_intensive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አስ]-C0I-C1a-C2a"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "f",
+      "number": "s",
+      "tense": "past",
+      "stem": "causative_intensive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አስ]-C0I-C1a-C2a-[ት]"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "m",
+      "number": "p",
+      "tense": "past",
+      "stem": "causative_intensive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አስ]-C0I-C1a-C2u"
+  },
+  {
+    "features": {
+      "person": "3",
+      "gender": "f",
+      "number": "p",
+      "tense": "past",
+      "stem": "causative_intensive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አስ]-C0I-C1a-C2A"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "m",
+      "number": "s",
+      "tense": "past",
+      "stem": "causative_intensive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አስ]-C0I-C1a-C2I-[ከ]"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "f",
+      "number": "s",
+      "tense": "past",
+      "stem": "causative_intensive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አስ]-C0I-C1a-C2I-[ኪ]"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "m",
+      "number": "p",
+      "tense": "past",
+      "stem": "causative_intensive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አስ]-C0I-C1a-C2I-[ክሙ]"
+  },
+  {
+    "features": {
+      "person": "2",
+      "gender": "f",
+      "number": "p",
+      "tense": "past",
+      "stem": "causative_intensive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አስ]-C0I-C1a-C2I-[ክን]"
+  },
+  {
+    "features": {
+      "person": "1",
+      "gender": "c",
+      "number": "s",
+      "tense": "past",
+      "stem": "causative_intensive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አስ]-C0I-C1a-C2I-[ኩ]"
+  },
+  {
+    "features": {
+      "person": "1",
+      "gender": "c",
+      "number": "p",
+      "tense": "past",
+      "stem": "causative_intensive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አስ]-C0I-C1a-C2I-[ነ]"
   }
 ]

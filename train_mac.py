@@ -137,9 +137,9 @@ def main():
         save_total_limit=2,
         predict_with_generate=False,
         fp16=False,
-        use_mps_device=(device == "mps"),
         report_to="none"
     )
+    # Note: transformers 5.x removed use_mps_device; MPS is selected automatically when available.
 
     data_collator = DataCollatorForSeq2Seq(tokenizer, model=model, padding=True, label_pad_token_id=-100)
 
@@ -148,7 +148,7 @@ def main():
         args=training_args,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         data_collator=data_collator
     )
 
