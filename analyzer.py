@@ -132,6 +132,15 @@ class GeezMorphologicalAnalyzer:
 
         slots = compiled_p["slots"]
         max_idx = max(s[1] for s in slots if s[0] == "R")
+
+        # Recover elided medial glide for weak_middle patterns (e.g. ቆመ -> q-w-m, ሤመ -> s-y-m)
+        if max_idx == 2 and 1 not in root_map and compiled_p["features"].get("verb_type") == "weak_middle":
+            spec = compiled_p.get("pattern_spec", "")
+            if any(x in spec for x in ("C0o", "C0u", "[ው]")):
+                root_map[1] = "w"
+            else:
+                root_map[1] = "y"
+
         if len(root_map) != max_idx + 1:
             return None
 
