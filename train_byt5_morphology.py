@@ -8,6 +8,9 @@ Data (read from --dataset_dir, the geez-dataset checkout):
   data/paradigms/synthetic_morphology_train.jsonl        synthetic pairs
   data/paradigms/merho_ges_gold_train_tense_filled.jsonl  Merho Ges gold-train paradigms
       (falls back to merho_ges_gold_train.jsonl)
+Root labels are corrected at load time from <dataset>/data/corrections/ (gold_filters.py; the
+data files are not changed): skipped records, fixed roots, 1st-order letters, excluded forms, and
+the synthetic ተ-ረ-ጰ -> ተ-ረ-ፐ fix. The tables are required unless --allow_missing_corrections.
 All gold-train pairs go to training. The eval split is 10% of the synthetic pairs
 (seed 42), so eval loss never includes gold rows. The held-out gold test file is
 not read here; use evaluate_gold.py for that.
@@ -44,6 +47,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 
 from geez_config import to_ethiopic_root  # one shared definition
+import gold_filters  # load-time root corrections (data/corrections/), shared with evaluate_gold.py
 
 MODEL_NAME = "google/byt5-small"
 SEED = 42
@@ -77,8 +81,13 @@ def gold_train_file(dataset_dir: str) -> Optional[str]:
     return None
 
 
-def load_data(dataset_dir: str, limit: int = 0) -> List[Dict]:
-    """Synthetic pairs (optionally a uniform sample of `limit`) plus all gold-train pairs, shuffled with seed 42."""
+def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None,
+              corrections: Optional["gold_filters.Corrections"] = None) -> List[Dict]:
+    """Synthetic pairs (optionally a uniform sample of `limit`) plus all gold-train pairs, shuffled with seed 42.
+    Roots are corrected through gold_filters; `stats` (a Counter) receives the counts."""
+    import collections
+    stats = stats if stats is not None else collections.Counter()
+    corrections = corrections or gold_filters.Corrections.from_dataset(dataset_dir)
     train_file = os.path.join(dataset_dir, SYNTHETIC_FILE)
     if not os.path.exists(train_file):
         raise FileNotFoundError(f"Training data not found at: {train_file}")
@@ -97,7 +106,8 @@ def load_data(dataset_dir: str, limit: int = 0) -> List[Dict]:
 
     samples = []
     for line in selected_lines:
-        d = json.loads(line)
+        d, changed = corrections.synthetic_record(json.loads(line))
+        stats["synthetic pairs fixed"] += changed
         feat = d.get("features", {})
         surface = d.get("surface_form", "")
         eth_root = to_ethiopic_root(feat.get("root", ""))
@@ -111,9 +121,9 @@ def load_data(dataset_dir: str, limit: int = 0) -> List[Dict]:
     if gold_file:
         gold_count = 0
         with open(gold_file, "r", encoding="utf-8") as f_gold:
-            for line in f_gold:
-                rec = json.loads(line)
-                eth_root = to_ethiopic_root(rec.get("root", ""))
+            records = corrections.gold_records((json.loads(line) for line in f_gold), stats)
+            for rec in records:
+                eth_root = rec["root"]          # corrected, 1st order, checked (gold_filters)
                 stem = rec.get("stem", "basic")
                 for row in rec.get("table_data", []):
                     form_raw = row.get("geez_form", "")
@@ -121,6 +131,9 @@ def load_data(dataset_dir: str, limit: int = 0) -> List[Dict]:
                         continue
                     variants = [v.strip(" :፡።()[]") for v in form_raw.split("/") if v.strip(" :፡።()[]")]
                     for v in variants:
+                        if gold_filters.is_excluded(row, v):
+                            stats["pairs excluded: pending (relabel proposals)"] += 1
+                            continue
                         tense = row.get("tense", "")
                         tense = "subjunctive" if tense == "jussive" else tense  # one label, as in the synthetic data
                         # Merho Ges "causative_intensive" mixes አስተ- forms (the synthetic "aste"
@@ -263,6 +276,10 @@ def parse_args(argv=None):
     p.add_argument("--num_workers", type=int, default=0, help="DataLoader workers")
     p.add_argument("--device", choices=["auto", "cuda", "mps", "cpu"], default="auto")
     p.add_argument("--load_only", action="store_true", help="Load and split the data, print counts, exit")
+    p.add_argument("--allow_missing_corrections", action="store_true",
+                   help="Train even if <dataset>/data/corrections/ is missing (roots then only get 1st-order letters and the guard)")
+    p.add_argument("--export_dir", default=None,
+                   help="Write the loaded train and eval pairs (train.jsonl, eval.jsonl) to this folder")
     p.add_argument("--no_test_inference", action="store_true", help="Skip the sample predictions after training")
     args = p.parse_args(argv)
     if args.full:
@@ -278,12 +295,29 @@ def main(argv=None) -> int:
     args.dataset_dir = os.path.abspath(args.dataset_dir)
     args.output_dir = os.path.abspath(args.output_dir)
 
-    samples = load_data(args.dataset_dir, limit=args.sample_limit)
+    import collections
+    corrections = gold_filters.Corrections.from_dataset(args.dataset_dir, required=not args.allow_missing_corrections)
+    load_stats = collections.Counter()
+    samples = load_data(args.dataset_dir, limit=args.sample_limit, stats=load_stats, corrections=corrections)
     train_samples, eval_samples, n_syn, n_gold = split_samples(samples)
     if args.max_eval_samples and args.max_eval_samples < len(eval_samples):
         eval_samples = eval_samples[:args.max_eval_samples]
+    print(f"Corrections: {corrections.folder}" + ("" if corrections.present else "  [!] tables missing"))
+    for name, sha in sorted(corrections.sha256.items()):
+        print(f"  {name}  sha256 {sha}")
+    print("Gold-train load counts:")
+    for line in gold_filters.format_stats({k: v for k, v in load_stats.items() if k.split(" ")[0] in ("records", "pairs")}):
+        print(line)
+    print(f"Synthetic pairs fixed at load: {load_stats['synthetic pairs fixed']}")
     print(f"Synthetic pairs: {n_syn}. Gold-train pairs: {n_gold}.")
     print(f"Train: {len(train_samples)} pairs ({n_gold} gold). Eval: {len(eval_samples)} synthetic pairs.")
+    if args.export_dir:
+        os.makedirs(args.export_dir, exist_ok=True)
+        for name, rows in (("train", train_samples), ("eval", eval_samples)):
+            with open(os.path.join(args.export_dir, name + ".jsonl"), "w", encoding="utf-8") as f:
+                for x in rows:
+                    f.write(json.dumps(x, ensure_ascii=False) + "\n")
+        print(f"Exported train/eval pairs to {args.export_dir}")
     if args.load_only:
         return 0
 
@@ -342,6 +376,9 @@ def main(argv=None) -> int:
         "data_sha256": {k: (sha256_file(v) if v else None) for k, v in data_files.items()},
         "data_files": data_files,
         "counts": {"synthetic": n_syn, "gold_train": n_gold, "train": len(train_samples), "eval": len(eval_samples)},
+        "corrections_dir": corrections.folder,
+        "corrections_sha256": corrections.sha256,
+        "load_counts": dict(sorted(load_stats.items())),
         "device": device, "n_devices": n_devices, "precision": "fp32",
         "optimizer_steps": total_steps, "warmup_steps": warmup_steps,
         "resumed_from": resume,

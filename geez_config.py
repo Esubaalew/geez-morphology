@@ -169,6 +169,22 @@ def to_ethiopic_root(root_str: str) -> str:
     return "-".join(out)
 
 
+def first_order_root(root_str: str) -> str:
+    """Root -> every letter in the 1st order of its own series (a root label is
+    consonants only), e.g. ን-ስ-ሕ-ለ-ል -> ነ-ሰ-ሐ-ለ-ለ, ር-እ-የ -> ረ-አ-የ, ሦ -> ሠ.
+
+    Labialized series stay labialized: ቍ -> ቈ, ኵ -> ኰ, ጒ -> ጐ, ኍ -> ኈ. A 7th-order
+    ቆ/ኮ/ጎ is taken as written, i.e. in the plain series (ቀ/ከ/ገ) (the maintainers
+    rules). Latin roots go through to_ethiopic_root first. Letters that
+    are not in the consonant table (e.g. ጘ) are kept as written.
+    """
+    out = []
+    for part in to_ethiopic_root(root_str).split("-"):
+        cons = decompose_char(part)[0] if len(part) == 1 else None
+        out.append(render_unit(cons, "a") if cons else part)
+    return "-".join(out)
+
+
 def root_symbols(root_str: str) -> tuple:
     """Root in any script -> tuple of consonant symbols, e.g. ("q", "t", "l").
 

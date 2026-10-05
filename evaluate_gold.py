@@ -32,6 +32,7 @@ if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 import geez_config
+import gold_filters  # load-time root corrections, shared with train_byt5_morphology.py
 
 FIELDS = ["root", "stem", "tense", "person", "gender", "number"]
 TENSE_ALIASES = {"jussive": "subjunctive"}
@@ -53,10 +54,12 @@ def parse_prediction(pred_str):
 
 
 def root_key(root_str):
-    """Root in any script -> tuple of consonant symbols (or raw characters)."""
+    """Root in any script -> tuple of consonant symbols (or raw characters), after
+    writing every letter in the 1st order of its series (geez_config.first_order_root),
+    for gold and predicted roots alike."""
     if not root_str:
         return None
-    return geez_config.root_symbols(root_str) or None
+    return geez_config.root_symbols(geez_config.first_order_root(root_str)) or None
 
 
 def gold_root_keys(root_str):
@@ -138,39 +141,50 @@ def load_exclusions(path):
     return out
 
 
-def load_gold_test_pairs(test_file, exclude=None):
+def load_gold_test_pairs(test_file, exclude=None, corrections=None, stats=None):
+    """Scored pairs of a gold file. With `corrections` (gold_filters.Corrections) the records go
+    through the same load-time root corrections as training, and excluded forms are left out."""
     pairs, skipped, records = [], [], 0
     excluded = 0
+    stats = stats if stats is not None else defaultdict(int)
     with open(test_file, "r", encoding="utf-8") as f:
-        for line in f:
-            rec = json.loads(line)
-            if rec.get("category") != "verb_conjugation":
-                continue
-            records += 1
-            vclass = verb_class(rec)
-            for row in rec.get("table_data", []):
-                form_raw = row.get("geez_form") or ""
-                form_main = re.sub(r"\([^)]*\)", " ", form_raw)  # drop "(...)" notes
-                for v in form_main.split("/"):
-                    v = v.strip(" :፡።()[]፣,")
-                    if not v:
-                        continue
-                    if not is_single_ethiopic_word(v):
-                        skipped.append(v)
-                        continue
-                    if exclude and (geez_config.normalize_guttural_4th(v), rec.get("root")) in exclude:
-                        excluded += 1
-                        continue
-                    gold = normalize_row({"stem": rec.get("stem"), **row})
-                    if gold["stem"] == "causative_intensive" and ASTE_FORM.match(v):
-                        gold["stem"] = "aste"
-                    pairs.append({
-                        "surface": v,
-                        "root_keys": gold_root_keys(rec.get("canonical_root") or rec.get("root")),
-                        "root_raw": rec.get("root"),
-                        "verb_class": vclass,
-                        **gold,
-                    })
+        recs = [json.loads(line) for line in f]
+    if corrections is not None:
+        recs = corrections.gold_records(recs, stats)
+    for rec in recs:
+        if rec.get("category") != "verb_conjugation":
+            continue
+        records += 1
+        vclass = verb_class(rec)
+        for row in rec.get("table_data", []):
+            form_raw = row.get("geez_form") or ""
+            form_main = re.sub(r"\([^)]*\)", " ", form_raw)  # drop "(...)" notes
+            for v in form_main.split("/"):
+                v = v.strip(" :፡።()[]፣,")
+                if not v:
+                    continue
+                if not is_single_ethiopic_word(v):
+                    skipped.append(v)
+                    continue
+                if corrections is not None and gold_filters.is_excluded(row, v):
+                    stats["excluded_variants"] += 1
+                    continue
+                # proposals name the root as extracted; fixed records keep it in root_as_extracted
+                if exclude and (geez_config.normalize_guttural_4th(v),
+                                rec.get("root_as_extracted") or rec.get("root")) in exclude:
+                    excluded += 1
+                    continue
+                gold = normalize_row({"stem": rec.get("stem"), **row})
+                if gold["stem"] == "causative_intensive" and ASTE_FORM.match(v):
+                    gold["stem"] = "aste"
+                pairs.append({
+                    "surface": v,
+                    "root_keys": gold_root_keys(rec.get("canonical_root") or rec.get("root")),
+                    "root_raw": rec.get("root"),
+                    "root_as_extracted": rec.get("root_as_extracted", rec.get("root")),
+                    "verb_class": vclass,
+                    **gold,
+                })
     if exclude is not None:
         print(f"Excluded by --exclude_proposed: {excluded} scored variants")
     return pairs, skipped, records
@@ -265,13 +279,36 @@ def main():
                     help="Leave out gold rows the relabel proposals mark exclude_from_verb_scoring "
                          "(not verbs, or unusable until re-read from the scan). Default file: "
                          "notes/gold_proposals_2026-10-05.jsonl. The gold file is not changed.")
+    ap.add_argument("--no_corrections", action="store_true",
+                    help="Score the gold file as written (no data/corrections tables; the pre-2026-10-05 numbers)")
+    ap.add_argument("--corrections_dir", default=None,
+                    help="Default: <dataset>/data/corrections next to the test file")
+    ap.add_argument("--export_pairs", default=None, help="Write the scored pairs to this JSONL file")
     args = ap.parse_args()
 
     if not os.path.exists(args.test_file):
         sys.exit(f"[!] Test file not found: {args.test_file}")
 
     exclude = load_exclusions(args.exclude_proposed) if args.exclude_proposed else None
-    pairs, skipped, records = load_gold_test_pairs(args.test_file, exclude)
+    corrections, stats = None, defaultdict(int)
+    if not args.no_corrections:
+        corrections = gold_filters.Corrections(args.corrections_dir or os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(args.test_file)))),
+            gold_filters.CORRECTIONS_DIR), required=True)
+        print(f"Corrections: {corrections.folder}")
+        for name, sha in sorted(corrections.sha256.items()):
+            print(f"  {name}  sha256 {sha}")
+    pairs, skipped, records = load_gold_test_pairs(args.test_file, exclude, corrections, stats)
+    if corrections is not None:
+        print("Load counts (records/pairs as the trainer counts variants):")
+        for line in gold_filters.format_stats({k: v for k, v in stats.items() if k.split(" ")[0] in ("records", "pairs")}):
+            print(line)
+        print(f"Excluded scored variants (gold_excluded_records.tsv): {stats['excluded_variants']}")
+    if args.export_pairs:
+        with open(args.export_pairs, "w", encoding="utf-8") as f:
+            for p in pairs:
+                f.write(json.dumps({k: (sorted("-".join(x) for x in v) if k == "root_keys" else v)
+                                    for k, v in p.items()}, ensure_ascii=False) + "\n")
     print(f"Gold file: {args.test_file}")
     print(f"verb_conjugation records: {records}; scored variants: {len(pairs)}; skipped non-word variants: {len(skipped)} {skipped[:8]}")
     if args.limit and args.limit < len(pairs):
