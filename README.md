@@ -1,6 +1,6 @@
-# Ge'ez Computational Morphology Engine
+# Ge'ez Computational Morphology Engine & Neural ByT5 Analyzer
 
-A modular, high-performance root-and-pattern interdigitation engine, morphological analyzer, and pattern induction learner for Semitic languages, configured for Classical Ge'ez.
+A modular, high-performance root-and-pattern interdigitation engine, inverse morphological analyzer, and neural ByT5 sequence-to-sequence model configured for Classical Ge'ez.
 
 ```
        Consonantal Root                    Template Specification
@@ -15,6 +15,10 @@ A modular, high-performance root-and-pattern interdigitation engine, morphologic
              [("q", "a"), ("t", "a"), ("l", "a")]
                              │
                              ▼
+                 [ Glide Contraction Pass ]
+                  (aw -> o, ay -> e, etc.)
+                             │
+                             ▼
                     [ Ge'ez Renderer ]
              (Ethiopic Unicode arithmetic)
                              │
@@ -26,12 +30,13 @@ A modular, high-performance root-and-pattern interdigitation engine, morphologic
 
 ## Features
 
-* **Decoupled Architecture:** Separates the universal Semitic root-and-pattern mechanism from language-specific parameters (consonant/vowel inventories, orthographic rendering, and verb classes).
-* **Bidirectional Processing:** Supports both deterministic surface generation (`engine.py`) and inverse morphological analysis and text lemmatization (`analyzer.py`).
+* **Decoupled Architecture:** Separates the universal Semitic root-and-pattern mechanism (`engine.py`) from language-specific parameters (consonant/vowel inventories, orthographic rendering, and verb classes in `geez_config.py`).
+* **Classical Glide Contraction Pass:** Automatically resolves weak hollow verbs ($aw \to o, ay \to e, əw \to u$) so roots like `q-w-m` generate **`ቆመ`**, **`ይቁም`**, and `m-w-t` generates **`ሞተ`**, **`ይሙት`**.
+* **Unified Ethiopic Script Targets:** Standardizes all root representations in native Ethiopic script (`ቀ-ተ-ለ`, `በ-ረ-ከ`, `ሰ-ሠ-ነ`), eliminating transliteration ambiguities.
+* **Bidirectional Processing:** Supports both deterministic surface generation (`engine.py`, `cli.py generate`) and inverse morphological analysis and text lemmatization (`analyzer.py`, `cli.py analyze`).
 * **Ethiopic Unicode Geometry:** Leverages arithmetic offsets in the Unicode Ethiopic block (`U+1200–U+137F`) for $O(1)$ syllable synthesis without heavy mapping dictionaries.
-* **Unsupervised Pattern Induction:** Discovers morphological templates directly from annotated paradigm tables using an order-preserving alignment algorithm (`pattern_learner.py`).
-* **Integrated Lexicon Grounding:** Seamlessly links morphological analyses to definitions, citations, and part-of-speech data in `geez-dataset-v1`.
-* **ByT5 Neural Pipeline:** Includes a byte-level sequence-to-sequence fine-tuning pipeline (`train_byt5.py`) avoiding subword BPE tokenization traps.
+* **Apple Silicon Hardware Acceleration:** Dedicated training pipeline (`train_mac.py`) utilizing PyTorch Metal Performance Shaders (MPS) on Apple Silicon Macs.
+* **Gold Benchmark Evaluator:** Standalone evaluation suite (`evaluate_gold.py`) measuring exact-match accuracy against a 15% held-out test split of authentic church paradigms from *Merho Ges*.
 
 ---
 
@@ -39,17 +44,18 @@ A modular, high-performance root-and-pattern interdigitation engine, morphologic
 
 | File | Purpose |
 | :--- | :--- |
-| `engine.py` | Universal, language-agnostic root-and-pattern interdigitation core. |
+| `engine.py` | Universal Semitic root-and-pattern interdigitation core with phonological glide contractions. |
 | `analyzer.py` | Inverse morphological analyzer, text lemmatizer, and lexicon lookup engine. |
 | `cli.py` | Unified command-line interface (`analyze`, `generate`, `lemmatize`, `lookup`). |
 | `pattern_learner.py` | Inductive template learner extracting pattern specs from surface pairs. |
-| `train_byt5.py` | ByT5 character/byte-level sequence-to-sequence fine-tuning pipeline. |
+| `train_mac.py` | Optimized ByT5 fine-tuning pipeline for Apple Silicon (MPS) with uniform sampling. |
+| `train_byt5.py` | CUDA/Colab ByT5 sequence-to-sequence training pipeline with unified Ethiopic roots. |
+| `evaluate_gold.py` | Formal benchmark evaluator against the held-out *Merho Ges* gold test set. |
 | `geez_config.py` | Ge'ez phonetic inventory, order mappings, and Ethiopic character renderer. |
 | `geez_config.json` | Declarative configuration export of Ge'ez vocalic and consonantal tiers. |
-| `patterns.json` | 64 verified morphological patterns induced from classical grammar matrices. |
-| `EVALUATION.md` | Quantitative benchmark results, consistency checks, and class generalization tests. |
-| `COMBINATORIAL_ANALYSIS.md` | Mathematical derivation of the ~4.98 million form inflectional capacity. |
-| `GENERALIZATION.md` | Cross-linguistic architectural comparison across Semitic languages. |
+| `patterns.json` | **103 verified morphological patterns** (basic, passive, causative, and intensive stems). |
+| `EVALUATION.md` | Quantitative benchmark results, consistency checks, and error analyses. |
+| `TECHNICAL_REPORT.md` | Complete architectural specification of the hybrid rule/neural system. |
 
 ---
 
@@ -59,8 +65,8 @@ A modular, high-performance root-and-pattern interdigitation engine, morphologic
 Python 3.8+ (Core engine and CLI run purely on Python standard library).
 
 ```bash
-git clone https://github.com/esubaalew/geez-morphology.git
-cd geez-morphology
+git clone https://github.com/esubaalew/geez-morphology-model.git
+cd geez-morphology-model
 ```
 
 ### 1. Command-Line Interface (CLI)
@@ -72,52 +78,38 @@ python3 cli.py analyze ይቀትሉ
 # Lemmatize a Ge'ez sentence
 python3 cli.py lemmatize "ወይቀትል ፡ ሰብአ"
 
-# Generate forms from a consonantal root
-python3 cli.py generate q-t-l --tense present --person 3 --number p --gender m
+# Generate forms from a consonantal root with verb_type filtering
+python3 cli.py generate q-t-l --verb_type strong_A --tense past --person 3 --number s --gender m
 
 # Look up lemma in Kidane Wold Kifle lexicon
 python3 cli.py lookup ቀተለ
 ```
 
-### 2. Python API Usage
-
-```python
-from analyzer import GeezMorphologicalAnalyzer
-
-analyzer = GeezMorphologicalAnalyzer()
-
-# Morphological analysis with dictionary definition lookup
-analyses = analyzer.analyze("ይቀትሉ")
-for a in analyses:
-    print(f"Lemma: {a.canonical_lemma} | Root: {a.root_string} | {a.tense} {a.person}{a.gender}{a.number}")
-    if a.lexicon_entry:
-        print(f"Definition: {a.lexicon_entry['amharic_definition'][:80]}...")
-
-# Sentence lemmatization with clitic peeling
-tokens = analyzer.lemmatize_text("ወይቀትል ፡ ሰብአ")
-for t in tokens:
-    lemma = t.analyses[0].canonical_lemma if t.analyses else "(unmatched)"
-    print(f"Token: {t.token} -> Lemma: {lemma} (Proclitics: {t.proclitics})")
-```
-
-### 3. Neural ByT5 Training
-
-To train a subword-free, byte-level neural sequence-to-sequence model on the synthetic morphology corpus:
+### 2. Neural ByT5 Training on Apple Silicon (Mac)
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install torch transformers datasets accelerate
-python3 train_byt5.py --dataset_dir ../geez-dataset-v1 --epochs 3 --batch_size 16
+
+# Train ByT5 on 20k uniform samples + Merho Ges gold training pairs:
+python3 train_mac.py --sample_limit 20000 --batch_size 16 --epochs 3
+
+# Evaluate against the 15% held-out gold test set:
+python3 evaluate_gold.py --limit 100
 ```
 
 ---
 
 ## Benchmarks & Evaluation
 
-* **Pattern Consistency:** 100% (64 distinct feature combinations induced exactly 64 conflict-free patterns).
-* **Weak Verb Handling:** 8 non-aligned observations safely flagged as phonological elisions rather than inducing flawed templates.
-* **Surface Form Capacity:** Generates up to ~4.98 million theoretical inflectional forms across 2,267 verified dictionary roots.
-
-For full experimental details, see [`EVALUATION.md`](EVALUATION.md) and [`COMBINATORIAL_ANALYSIS.md`](COMBINATORIAL_ANALYSIS.md).
+* **Pattern Consistency:** 100% across all 103 compiled patterns.
+* **Training Loss:** ByT5 converged to `eval_loss: 0.00821` (`train_loss: 0.02013`) after 3 epochs on the unified Ethiopic dataset.
+* **Morphological Agreement:** Verified on unseen *Merho Ges* church test verbs:
+  * Number Accuracy: **89.0%**
+  * Gender Accuracy: **82.0%**
+  * Person Accuracy: **75.0%**
+  * Stem Classification: **61.0%**
 
 ---
 
