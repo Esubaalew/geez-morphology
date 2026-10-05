@@ -125,8 +125,7 @@ def verb_class(rec):
     return "unknown"
 
 
-def is_single_ethiopic_word(s):
-    return bool(s) and all(0x1200 <= ord(c) <= 0x137F for c in s)
+is_single_ethiopic_word = gold_filters.is_single_ethiopic_word
 
 
 def load_exclusions(path):
@@ -158,14 +157,9 @@ def load_gold_test_pairs(test_file, exclude=None, corrections=None, stats=None):
         vclass = verb_class(rec)
         for row in rec.get("table_data", []):
             form_raw = row.get("geez_form") or ""
-            form_main = re.sub(r"\([^)]*\)", " ", form_raw)  # drop "(...)" notes
-            for v in form_main.split("/"):
-                v = v.strip(" :፡።()[]፣,")
-                if not v:
-                    continue
-                if not is_single_ethiopic_word(v):
-                    skipped.append(v)
-                    continue
+            kept, rejected = gold_filters.clean_variants(form_raw)   # same reading as the trainer
+            skipped.extend(rejected)
+            for v in kept:
                 if corrections is not None and gold_filters.is_excluded(row, v):
                     stats["excluded_variants"] += 1
                     continue

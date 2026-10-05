@@ -133,7 +133,9 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None,
                     form_raw = row.get("geez_form", "")
                     if not form_raw:
                         continue
-                    variants = [v.strip(" :፡።()[]") for v in form_raw.split("/") if v.strip(" :፡።()[]")]
+                    # same reading as evaluate_gold.py: "(...)" notes dropped, single Ethiopic words only
+                    variants, rejected = gold_filters.clean_variants(form_raw)
+                    stats["gold variants dropped: notes or extra words (not one Ethiopic word)"] += len(rejected)
                     for v in variants:
                         if gold_filters.is_excluded(row, v):
                             stats["pairs excluded: pending (relabel proposals)"] += 1
@@ -316,6 +318,8 @@ def main(argv=None) -> int:
     for k, v in sorted(load_stats.items()):
         if k.startswith("synthetic pairs skipped"):
             print(f"Synthetic {k[len('synthetic '):]} (corrections table): {v}")
+    print(f"Gold variants dropped (notes or extra words, read as in evaluate_gold.py): "
+          f"{load_stats['gold variants dropped: notes or extra words (not one Ethiopic word)']}")
     print(f"Synthetic pairs: {n_syn}. Gold-train pairs: {n_gold}.")
     print(f"Train: {len(train_samples)} pairs ({n_gold} gold). Eval: {len(eval_samples)} synthetic pairs.")
     if args.export_dir:

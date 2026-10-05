@@ -49,8 +49,26 @@ def form_key(v):
 
 
 def variants(form_raw):
-    """The trainer's variants of a geez_form cell."""
+    """Raw "/"-variants of a geez_form cell (used for the correction counts)."""
     return [v.strip(" :፡።()[]") for v in (form_raw or "").split("/") if v.strip(" :፡።()[]")]
+
+
+def is_single_ethiopic_word(s):
+    return bool(s) and all(0x1200 <= ord(c) <= 0x137F for c in s)
+
+
+def clean_variants(form_raw):
+    """Scored variants of a geez_form cell, as evaluate_gold.py has always read them: "(...)" notes
+    dropped, split on "/", edge punctuation stripped, and only single Ethiopic words kept.
+    Returns (kept, rejected); rejected are the non-empty variants that are not one Ethiopic word
+    (bracketed notes left open, extra words, Latin)."""
+    kept, rejected = [], []
+    for v in re.sub(r"\([^)]*\)", " ", form_raw or "").split("/"):
+        v = v.strip(" :፡።()[]፣,")
+        if not v:
+            continue
+        (kept if is_single_ethiopic_word(v) else rejected).append(v)
+    return kept, rejected
 
 
 def split_of(path):
