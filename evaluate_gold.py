@@ -30,15 +30,14 @@ def parse_prediction(pred_str):
     return out
 
 
+from train_mac import to_ethiopic_root
+
 def normalize_root(r):
     if not r:
         return ""
-    # Remove parenthetical info or transliterations
-    r = r.split("(")[0].strip()
-    r = r.replace(" ", "")
-    # Normalize Ethiopic dashes or ascii dashes
-    r = re.sub(r"[-፡]", "-", r)
-    return r.lower()
+    eth = to_ethiopic_root(r)
+    eth = re.sub(r"[-፡\s]", "-", eth)
+    return eth.strip("-")
 
 
 def load_gold_test_pairs(test_file):
@@ -74,7 +73,8 @@ def load_gold_test_pairs(test_file):
 def main():
     parser = argparse.ArgumentParser(description="Evaluate ByT5 on Gold Merho Ges Test Set")
     parser.add_argument("--model_dir", default="./checkpoints", help="Path to checkpoint directory")
-    parser.add_argument("--test_file", default="../geez-dataset-v1/data/paradigms/merho_ges_gold_test.jsonl", help="Gold test set path")
+    default_test = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "geez-dataset-v1", "data", "paradigms", "merho_ges_gold_test.jsonl"))
+    parser.add_argument("--test_file", default=default_test, help="Gold test set path")
     parser.add_argument("--limit", type=int, default=100, help="Number of test pairs to evaluate (0 for all)")
     args = parser.parse_args()
 

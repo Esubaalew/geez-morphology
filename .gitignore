@@ -15,3 +15,5 @@ byt5_geez_checkpoint/
 *.bin
 runs/
 wandb/
+*.log
+training.log
