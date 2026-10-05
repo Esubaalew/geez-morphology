@@ -71,18 +71,50 @@ def load_data(dataset_dir: str, limit: int = 20000) -> List[Dict[str, str]]:
     if not os.path.exists(train_file):
         raise FileNotFoundError(f"Training data not found at: {train_file}")
 
-    samples = []
+    print(f"Reading synthetic dataset from {train_file}...")
     with open(train_file, "r", encoding="utf-8") as f:
-        for i, line in enumerate(f):
-            if i >= limit:
-                break
-            d = json.loads(line)
-            feat = d.get("features", {})
-            surface = d.get("surface_form", "")
-            
-            input_text = f"analyze: {surface}"
-            target_text = f"root: {feat.get('root', '')} | tense: {feat.get('tense', '')} | person: {feat.get('person', '')} | gender: {feat.get('gender', '')} | number: {feat.get('number', '')} | stem: {feat.get('stem', '')}"
-            samples.append({"input_text": input_text, "target_text": target_text})
+        all_lines = f.readlines()
+
+    import random
+    rng = random.Random(42)
+    if limit and limit < len(all_lines):
+        print(f"Uniformly sampling {limit} pairs across all roots (from {len(all_lines)} total)...")
+        selected_lines = rng.sample(all_lines, limit)
+    else:
+        selected_lines = all_lines
+        rng.shuffle(selected_lines)
+
+    samples = []
+    for line in selected_lines:
+        d = json.loads(line)
+        feat = d.get("features", {})
+        surface = d.get("surface_form", "")
+        
+        input_text = f"analyze: {surface}"
+        target_text = f"root: {feat.get('root', '')} | tense: {feat.get('tense', '')} | person: {feat.get('person', '')} | gender: {feat.get('gender', '')} | number: {feat.get('number', '')} | stem: {feat.get('stem', '')}"
+        samples.append({"input_text": input_text, "target_text": target_text})
+
+    # Inject authentic Merho Ges training pairs
+    gold_train_file = os.path.join(dataset_dir, "data", "paradigms", "merho_ges_gold_train.jsonl")
+    if os.path.exists(gold_train_file):
+        gold_count = 0
+        with open(gold_train_file, "r", encoding="utf-8") as f_gold:
+            for line in f_gold:
+                rec = json.loads(line)
+                root = rec.get("root", "")
+                stem = rec.get("stem", "basic")
+                for row in rec.get("table_data", []):
+                    form_raw = row.get("geez_form", "")
+                    if form_raw:
+                        variants = [v.strip(" :፡።()[]") for v in form_raw.split("/") if v.strip(" :፡።()[]")]
+                        for v in variants:
+                            input_text = f"analyze: {v}"
+                            target_text = f"root: {root} | tense: {row.get('tense', '')} | person: {row.get('person', '')} | gender: {row.get('gender', '')} | number: {row.get('number', '')} | stem: {stem}"
+                            samples.append({"input_text": input_text, "target_text": target_text})
+                            gold_count += 1
+        print(f"Injected {gold_count} authentic Merho Ges gold training pairs into training mix.")
+
+    rng.shuffle(samples)
     return samples
 
 

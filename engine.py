@@ -128,9 +128,46 @@ class InterdigitationEngine:
                     parts.append(text)
         return "".join(parts)
 
+    def contract_abstract(self, abstract: List[AbstractUnit]) -> List[AbstractUnit]:
+        """Apply Ge'ez glide phonological contractions for weak roots (e.g. ቆመ, ሤመ, ይቁም)."""
+        out = []
+        i = 0
+        n = len(abstract)
+        while i < n:
+            u = abstract[i]
+            # Middle w contraction in perfect: C0a + w(a) -> C0o (q-w-m -> ቆመ, m-w-t -> ሞተ)
+            if (i + 1 < n and u[0] == "C" and u[2] == "a" and 
+                abstract[i+1][0] == "C" and abstract[i+1][1] == "w" and abstract[i+1][2] == "a"):
+                out.append(("C", u[1], "o"))
+                i += 2
+                continue
+            # Middle y contraction in perfect: C0a + y(a) -> C0e (s-y-m -> ሤመ / ኬደ)
+            if (i + 1 < n and u[0] == "C" and u[2] == "a" and 
+                abstract[i+1][0] == "C" and abstract[i+1][1] == "y" and abstract[i+1][2] == "a"):
+                out.append(("C", u[1], "e"))
+                i += 2
+                continue
+            # Subjunctive/Jussive middle w: C0I + w(I) -> C0u (e.g. ይ-ቁ-ም, ይ-ሙ-ት)
+            if (i + 1 < n and u[0] == "C" and u[2] in ("I", "a") and 
+                abstract[i+1][0] == "C" and abstract[i+1][1] == "w"):
+                out.append(("C", u[1], "u"))
+                i += 2
+                continue
+            # Subjunctive/Jussive middle y: C0I + y(I) -> C0i (e.g. ይ-ሢ-ም, ይ-ኪ-ድ)
+            if (i + 1 < n and u[0] == "C" and u[2] in ("I", "a") and 
+                abstract[i+1][0] == "C" and abstract[i+1][1] == "y"):
+                out.append(("C", u[1], "i"))
+                i += 2
+                continue
+            out.append(u)
+            i += 1
+        return out
+
     def generate(self, root: Tuple[str, ...], pattern: Pattern) -> str:
         """Interdigitate then render: the full generation pipeline."""
-        return self.render(self.interdigitate(root, pattern))
+        abstract = self.interdigitate(root, pattern)
+        abstract = self.contract_abstract(abstract)
+        return self.render(abstract)
 
     # ------------------------------------------------------------------
     # Analysis (inverse) helpers
