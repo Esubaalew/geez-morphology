@@ -10,7 +10,7 @@ Data (read from --dataset_dir, the geez-dataset checkout):
       (falls back to merho_ges_gold_train.jsonl)
 Root labels are corrected at load time from <dataset>/data/corrections/ (gold_filters.py; the
 data files are not changed): skipped records, fixed roots, 1st-order letters, excluded forms, and
-the synthetic ተ-ረ-ጰ -> ተ-ረ-ፐ fix. The tables are required unless --allow_missing_corrections.
+the synthetic root fixes/skips (ተ-ረ-ጰ -> ተ-ረ-ፐ; ቀ-ረ-ሐ skipped). The tables are required unless --allow_missing_corrections.
 All gold-train pairs go to training. The eval split is 10% of the synthetic pairs
 (seed 42), so eval loss never includes gold rows. The held-out gold test file is
 not read here; use evaluate_gold.py for that.
@@ -106,7 +106,11 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None,
 
     samples = []
     for line in selected_lines:
-        d, changed = corrections.synthetic_record(json.loads(line))
+        raw = json.loads(line)
+        d, changed = corrections.synthetic_record(raw)
+        if d is None:
+            stats["synthetic pairs skipped: " + raw.get("features", {}).get("root", "?")] += 1
+            continue
         stats["synthetic pairs fixed"] += changed
         feat = d.get("features", {})
         surface = d.get("surface_form", "")
@@ -309,6 +313,9 @@ def main(argv=None) -> int:
     for line in gold_filters.format_stats({k: v for k, v in load_stats.items() if k.split(" ")[0] in ("records", "pairs")}):
         print(line)
     print(f"Synthetic pairs fixed at load: {load_stats['synthetic pairs fixed']}")
+    for k, v in sorted(load_stats.items()):
+        if k.startswith("synthetic pairs skipped"):
+            print(f"Synthetic {k[len('synthetic '):]} (corrections table): {v}")
     print(f"Synthetic pairs: {n_syn}. Gold-train pairs: {n_gold}.")
     print(f"Train: {len(train_samples)} pairs ({n_gold} gold). Eval: {len(eval_samples)} synthetic pairs.")
     if args.export_dir:
