@@ -47,6 +47,7 @@ CONSONANTS = {
     "t":  0x1270,
     "ch": 0x1278,
     "kh": 0x1280,
+    "khw": 0x1288,  # ኈ xʷ (labiovelar; was missing)
     "n":  0x1290,
     "ny": 0x1298,
     "a":  0x12A0,
@@ -59,6 +60,7 @@ CONSONANTS = {
     "y":  0x12E8,
     "d":  0x12F0,
     "g":  0x1308,
+    "gw": 0x1310,   # ጐ gʷ (labiovelar; was missing)
     "T":  0x1320,
     "p":  0x1330,
     "S":  0x1338,
@@ -66,6 +68,11 @@ CONSONANTS = {
     "f":  0x1348,
     "p2": 0x1350,
 }
+
+# Note: "qh" (ቈ) and "kh2" (ኰ) are labiovelars qʷ and kʷ, not aspirates; the
+# names are kept because the dictionary roots use them. Labiovelar rows have no
+# u or o order, so render_unit(qh/kh2/gw/khw, "u" or "o") gives an unassigned
+# code point; the generator drops such forms.
 
 BASE_TO_CONSONANT = {v: k for k, v in CONSONANTS.items()}
 
@@ -104,9 +111,78 @@ def decompose_char(ch: str):
     return (consonant, ORDER_TO_VOWEL[order])
 
 
+# the maintainers (2026-10-05): after a guttural, 1st and 4th order are spelling
+# variants. Generation writes the 1st order; comparison treats both as equal.
+GUTTURAL_4TH_TO_1ST = str.maketrans("ኣዓሓኃሃ", "አዐሐኀሀ")
+GUTTURAL_SYMBOLS = ("a", "a2", "h1", "h2", "kh")
+
+
+def normalize_guttural_4th(s: str) -> str:
+    """ኣ ዓ ሓ ኃ ሃ -> አ ዐ ሐ ኀ ሀ; nothing else changes."""
+    return s.translate(GUTTURAL_4TH_TO_1ST) if s else s
+
+
+def gutturals_equal(a: str, b: str) -> bool:
+    return normalize_guttural_4th(a) == normalize_guttural_4th(b)
+
+
 def decompose_string(s: str):
     """Decompose each character; returns list of (consonant, vowel) or (None, None)."""
     return [decompose_char(ch) for ch in s]
+
+
+# Scholarly transliteration used in the Merho Ges gold roots -> Ethiopic letter.
+TRANSLIT_TO_ETHIOPIC = {
+    "ʾ": "አ", "ʼ": "አ", "'": "አ", "ʔ": "አ",
+    "ʿ": "ዐ", "ʻ": "ዐ", "ʕ": "ዐ",
+    "h": "ሀ", "ḥ": "ሐ", "ħ": "ሐ", "ḫ": "ኀ",
+    "ś": "ሠ", "ṣ": "ጸ", "ḍ": "ፀ", "ṣ́": "ፀ", "ṭ": "ጠ",
+    "qʷ": "ቈ", "qw": "ቈ", "ḳʷ": "ቈ", "kʷ": "ኰ", "gʷ": "ጐ", "ḫʷ": "ኈ",
+}
+
+
+def to_ethiopic_root(root_str: str) -> str:
+    """Root string -> hyphenated Ethiopic first-order letters, e.g. ቀ-ተ-ለ.
+
+    Accepts Ethiopic roots ("ሰ-ነ-አ-ወ", "m-r-ḥ (መ-ር-ሐ)"), consonant symbols
+    ("q-t-l", "h2-S-b"; case matters: T = ጠ but t = ተ, S = ጸ but s = ሰ,
+    S2 = ፀ but s2 = ሠ), and the scholarly transliteration of the gold roots
+    ("ṭ-y-b", "m-m-ʿ"). Unknown parts are kept as written.
+    """
+    if not root_str:
+        return ""
+    if any(0x1200 <= ord(c) <= 0x137F for c in root_str):
+        return "-".join(c for c in root_str if 0x1200 <= ord(c) <= 0x137F)
+    out = []
+    for p in root_str.split("(")[0].split("-"):
+        p = p.strip()
+        if not p:
+            continue
+        if p in CONSONANTS:                      # exact, case-sensitive first
+            out.append(render_unit(p, "a"))
+        elif p in TRANSLIT_TO_ETHIOPIC:
+            out.append(TRANSLIT_TO_ETHIOPIC[p])
+        elif p.lower() in CONSONANTS:
+            out.append(render_unit(p.lower(), "a"))
+        else:
+            out.append(p)
+    return "-".join(out)
+
+
+def root_symbols(root_str: str) -> tuple:
+    """Root in any script -> tuple of consonant symbols, e.g. ("q", "t", "l").
+
+    Parts that are not a known letter are kept as written, so a bad root
+    stays visibly bad instead of silently losing a radical.
+    """
+    out = []
+    for part in to_ethiopic_root(root_str).split("-"):
+        part = part.strip()
+        if not part:
+            continue
+        cons = decompose_char(part)[0] if len(part) == 1 else None
+        out.append(cons or part)
+    return tuple(out)
 
 
 # ---------------------------------------------------------------------------
@@ -130,10 +206,11 @@ SUBJECT_PREFIXES = {
 
 VERB_TYPES = {
     "strong_A": "Triliteral, e.g. ቀተለ (q-t-l). Full 7-order contrast.",
-    "strong_B": "Triliteral with a-vowel in present stem, e.g. ባረከ.",
-    "weak_initial": "First radical is weak (ኀ, አ), e.g. ኀደገ, አዘዘ.",
+    "strong_B": "Type B, doubled middle radical, e.g. ቀደሰ (imperfect ይቄድስ). Class comes from the lexicon, not the spelling.",
+    "strong_C": "Type C, long a after the first radical, e.g. ባረከ (imperfect = subjunctive ይባርክ).",
+    "weak_initial": "First radical is w/y, e.g. ወለደ (ይወልድ; subjunctive ይለድ only for W_DROP roots).",
     "weak_middle": "Second radical is w/y, e.g. ሠይመ, ዐወቀ, ከወነ.",
-    "weak_final": "Third radical is w/y, e.g. ሀለወ.",
+    "weak_final": "Third radical is w/y, e.g. ተለወ (ይተሉ), ሰትየ (ይሰቲ).",
     "irregular": "Suppletive or highly irregular, e.g. ብህለ (to say).",
     "quadriliteral": "Four radicals, e.g. መስከረ.",
 }

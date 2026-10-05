@@ -38,6 +38,14 @@ from typing import List, Tuple, Union, Dict, Any, Callable
 # Abstract pattern representation
 # ---------------------------------------------------------------------------
 
+# Hollow-verb contraction: (vowel on C0, vowel on C1, middle glide) -> vowel on C0.
+HOLLOW_CONTRACTION = {
+    ("a", "a", "w"): "o", ("a", "a", "y"): "e",
+    ("I", "I", "w"): "u", ("I", "I", "y"): "i",
+}
+# Roots with middle w/y that keep it (ፈወሰ, ሐወጸ). Extend from the lexicon.
+NON_HOLLOW = {("f", "w", "s"), ("h2", "w", "S")}
+
 # A slot is either a root slot or fixed material.
 #   ("R", index, vowel)  -- index into the root, vowel is an abstract label
 #   ("F", text)          -- literal fixed string (affix, particle, etc.)
@@ -129,46 +137,38 @@ class InterdigitationEngine:
                     parts.append(text)
         return "".join(parts)
 
-    def contract_abstract(self, abstract: List[AbstractUnit]) -> List[AbstractUnit]:
-        """Apply Ge'ez glide phonological contractions for weak roots (e.g. ቆመ, ሤመ, ይቁም)."""
-        out = []
-        i = 0
-        n = len(abstract)
-        while i < n:
-            u = abstract[i]
-            # Middle w contraction in perfect: C0a + w(a) -> C0o (q-w-m -> ቆመ, m-w-t -> ሞተ)
-            if (i + 1 < n and u[0] == "C" and u[2] == "a" and 
-                abstract[i+1][0] == "C" and abstract[i+1][1] == "w" and abstract[i+1][2] == "a"):
-                out.append(("C", u[1], "o"))
-                i += 2
-                continue
-            # Middle y contraction in perfect: C0a + y(a) -> C0e (s-y-m -> ሤመ / ኬደ)
-            if (i + 1 < n and u[0] == "C" and u[2] == "a" and 
-                abstract[i+1][0] == "C" and abstract[i+1][1] == "y" and abstract[i+1][2] == "a"):
-                out.append(("C", u[1], "e"))
-                i += 2
-                continue
-            # Subjunctive/Jussive middle w: C0I + w(I) -> C0u (e.g. ይ-ቁ-ም, ይ-ሙ-ት)
-            if (i + 1 < n and u[0] == "C" and u[2] in ("I", "a") and 
-                abstract[i+1][0] == "C" and abstract[i+1][1] == "w"):
-                out.append(("C", u[1], "u"))
-                i += 2
-                continue
-            # Subjunctive/Jussive middle y: C0I + y(I) -> C0i (e.g. ይ-ሢ-ም, ይ-ኪ-ድ)
-            if (i + 1 < n and u[0] == "C" and u[2] in ("I", "a") and 
-                abstract[i+1][0] == "C" and abstract[i+1][1] == "y"):
-                out.append(("C", u[1], "i"))
-                i += 2
-                continue
-            out.append(u)
+    def contract_pattern(self, root: Tuple[str, ...], pattern: Pattern, stem: str = "basic") -> Pattern:
+        """Merge root slots 0 and 1 of a hollow root (middle radical w or y).
+
+        Only these vowel pairs contract, and only in the basic stem:
+          C0a + C1a -> C0o (w) / C0e (y)   perfect: ቆመ, ሞተ, ሤመ
+          C0I + C1I -> C0u (w) / C0i (y)   jussive and imperative: ይቁም, ይሙት, ይሢም
+        C0a + C1I (imperfect) stays uncontracted: ይቀውም. Final-weak roots
+        (ተለወ, ሀለወ) and roots in NON_HOLLOW (ፈወሰ) never contract. Derived
+        stems of hollow verbs follow other rules (causative of ቆመ is አቀመ),
+        so they are returned unchanged.
+        """
+        if stem != "basic" or len(root) < 3 or root[1] not in ("w", "y") or tuple(root) in NON_HOLLOW:
+            return pattern
+        out, i = [], 0
+        while i < len(pattern):
+            slot = pattern[i]
+            nxt = pattern[i + 1] if i + 1 < len(pattern) else None
+            if (nxt is not None and slot[0] == "R" and slot[1] == 0
+                    and nxt[0] == "R" and nxt[1] == 1):
+                merged = HOLLOW_CONTRACTION.get((slot[2], nxt[2], root[1]))
+                if merged:
+                    out.append(("R", 0, merged))
+                    i += 2
+                    continue
+            out.append(slot)
             i += 1
         return out
 
-    def generate(self, root: Tuple[str, ...], pattern: Pattern) -> str:
-        """Interdigitate then render: the full generation pipeline."""
-        abstract = self.interdigitate(root, pattern)
-        abstract = self.contract_abstract(abstract)
-        return self.render(abstract)
+    def generate(self, root: Tuple[str, ...], pattern: Pattern, stem: str = "basic") -> str:
+        """Contract (hollow roots only), interdigitate, render."""
+        pattern = self.contract_pattern(tuple(root), pattern, stem)
+        return self.render(self.interdigitate(root, pattern))
 
     # ------------------------------------------------------------------
     # Analysis (inverse) helpers

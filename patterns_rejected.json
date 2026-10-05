@@ -1,0 +1,206 @@
+[
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2A-[ኪ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድጋኪ"
+    ],
+    "rejected_reason": "audit 2026-10-05: hand-written weak_initial template; either a copy of a Type A template or wrong (3fp shapes labeled 3fs: ወለዳ, ይወልዳ; ወለዳኪ for 2fs; የ- prefix; jussive that keeps w). Type A templates and verb_class_paradigms.initial_w_drop cover these forms."
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "C0a-C1a-C2A-[ኪ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ኀደጋኪ"
+    ],
+    "rejected_reason": "audit 2026-10-05: hand-written weak_initial template; either a copy of a Type A template or wrong (3fp shapes labeled 3fs: ወለዳ, ይወልዳ; ወለዳኪ for 2fs; የ- prefix; jussive that keeps w). Type A templates and verb_class_paradigms.initial_w_drop cover these forms."
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[የ]-C0a-C1I-C2A-[ኪ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "የኀድጋኪ"
+    ],
+    "rejected_reason": "audit 2026-10-05: hand-written weak_initial template; either a copy of a Type A template or wrong (3fp shapes labeled 3fs: ወለዳ, ይወልዳ; ወለዳኪ for 2fs; የ- prefix; jussive that keeps w). Type A templates and verb_class_paradigms.initial_w_drop cover these forms."
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2A-[ኪ]",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድጋኪ"
+    ],
+    "rejected_reason": "audit 2026-10-05: hand-written weak_initial template; either a copy of a Type A template or wrong (3fp shapes labeled 3fs: ወለዳ, ይወልዳ; ወለዳኪ for 2fs; የ- prefix; jussive that keeps w). Type A templates and verb_class_paradigms.initial_w_drop cover these forms."
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድጋ"
+    ],
+    "rejected_reason": "audit 2026-10-05: hand-written weak_initial template; either a copy of a Type A template or wrong (3fp shapes labeled 3fs: ወለዳ, ይወልዳ; ወለዳኪ for 2fs; የ- prefix; jussive that keeps w). Type A templates and verb_class_paradigms.initial_w_drop cover these forms."
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "C0a-C1a-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ኀደጋ"
+    ],
+    "rejected_reason": "audit 2026-10-05: hand-written weak_initial template; either a copy of a Type A template or wrong (3fp shapes labeled 3fs: ወለዳ, ይወልዳ; ወለዳኪ for 2fs; የ- prefix; jussive that keeps w). Type A templates and verb_class_paradigms.initial_w_drop cover these forms."
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድጋ"
+    ],
+    "rejected_reason": "audit 2026-10-05: hand-written weak_initial template; either a copy of a Type A template or wrong (3fp shapes labeled 3fs: ወለዳ, ይወልዳ; ወለዳኪ for 2fs; የ- prefix; jussive that keeps w). Type A templates and verb_class_paradigms.initial_w_drop cover these forms."
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2A",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድጋ"
+    ],
+    "rejected_reason": "audit 2026-10-05: hand-written weak_initial template; either a copy of a Type A template or wrong (3fp shapes labeled 3fs: ወለዳ, ይወልዳ; ወለዳኪ for 2fs; የ- prefix; jussive that keeps w). Type A templates and verb_class_paradigms.initial_w_drop cover these forms."
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "jussive",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድግ"
+    ],
+    "rejected_reason": "audit 2026-10-05: hand-written weak_initial template; either a copy of a Type A template or wrong (3fp shapes labeled 3fs: ወለዳ, ይወልዳ; ወለዳኪ for 2fs; የ- prefix; jussive that keeps w). Type A templates and verb_class_paradigms.initial_w_drop cover these forms."
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "C0a-C1a-C2a",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ኀደገ"
+    ],
+    "rejected_reason": "audit 2026-10-05: hand-written weak_initial template; either a copy of a Type A template or wrong (3fp shapes labeled 3fs: ወለዳ, ይወልዳ; ወለዳኪ for 2fs; የ- prefix; jussive that keeps w). Type A templates and verb_class_paradigms.initial_w_drop cover these forms."
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድግ"
+    ],
+    "rejected_reason": "audit 2026-10-05: hand-written weak_initial template; either a copy of a Type A template or wrong (3fp shapes labeled 3fs: ወለዳ, ይወልዳ; ወለዳኪ for 2fs; የ- prefix; jussive that keeps w). Type A templates and verb_class_paradigms.initial_w_drop cover these forms."
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "weak_initial"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2I",
+    "observations": 1,
+    "consistent": true,
+    "examples": [
+      "ይኀድግ"
+    ],
+    "rejected_reason": "audit 2026-10-05: hand-written weak_initial template; either a copy of a Type A template or wrong (3fp shapes labeled 3fs: ወለዳ, ይወልዳ; ወለዳኪ for 2fs; የ- prefix; jussive that keeps w). Type A templates and verb_class_paradigms.initial_w_drop cover these forms."
+  }
+]

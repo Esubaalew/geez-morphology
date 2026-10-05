@@ -1,118 +1,93 @@
-# Ge'ez Computational Morphology Engine & Neural ByT5 Analyzer
+# geez-morphology
 
-A modular, high-performance root-and-pattern interdigitation engine, inverse morphological analyzer, and neural ByT5 sequence-to-sequence model configured for Classical Ge'ez.
+Morphological analysis and generation for Classical Ge'ez verbs: a root-and-pattern rule engine, a hybrid analyzer, a synthetic data generator, and ByT5 fine-tuning. The data lives in the companion repo **geez-dataset**, checked out next to this one as `../geez-dataset-v1`.
+
+## Layout
 
 ```
-       Consonantal Root                    Template Specification
-      ("q", "t", "l")                      "C0a-C1a-C2a"
-             │                                   │
-             └───────────────┬───────────────────┘
-                             ▼
-                 [ Interdigitation Engine ]
-                             │
-                             ▼
-                   Abstract Realization
-             [("q", "a"), ("t", "a"), ("l", "a")]
-                             │
-                             ▼
-                 [ Glide Contraction Pass ]
-                  (aw -> o, ay -> e, etc.)
-                             │
-                             ▼
-                    [ Ge'ez Renderer ]
-             (Ethiopic Unicode arithmetic)
-                             │
-                             ▼
-                    Surface Form: ቀተለ
+geez-morphology/
+├── engine.py                     root-and-pattern interdigitation (language-agnostic)
+├── pattern_learner.py            learns templates from (root, form) data
+├── geez_config.py                Ge'ez script, vowels, transliteration, to_ethiopic_root()
+├── patterns.json                 triliteral templates
+├── patterns_quadriliteral.json   quadriliteral templates
+├── patterns_rejected.json        templates removed in review (kept for reference)
+├── verb_class_paradigms.py       checked paradigms: Type B, Type C, final-weak, initial-weak
+├── verb_classes.py               class lookup and paradigm rows for generator and analyzer
+├── kw_verb_triples.py            parses Kidane Wold perfect/imperfect/subjunctive triples
+├── analyzer.py                   HybridAnalyzer: fast path -> pattern matcher -> ByT5 fallback
+├── cli.py                        analyze / lemmatize / generate / lookup
+├── generate_synthetic_fixed.py   writes the synthetic training data
+├── train_byt5_morphology.py      ByT5 fine-tuning (resumable)
+├── evaluate_gold.py              scores a system on the Merho Ges gold test set
+├── tests/                        unit and regression tests
+└── docs/
+    ├── grammar_rules.md          the language decisions behind the data, with sources
+    └── audit/                    notes (data_and_model_notes_2026-10-05.md),
+                                  checks/, eval/, logs/, patches/,
+                                  gold-label suspects and relabel proposals
 ```
 
----
+Not in git: `.venv/`, `checkpoints*/`, logs, `.env`.
 
-## Features
-
-* **Decoupled Architecture:** Separates the universal Semitic root-and-pattern mechanism (`engine.py`) from language-specific parameters (consonant/vowel inventories, orthographic rendering, and verb classes in `geez_config.py`).
-* **Classical Glide Contraction Pass:** Automatically resolves weak hollow verbs ($aw \to o, ay \to e, əw \to u$) so roots like `q-w-m` generate **`ቆመ`**, **`ይቁም`**, and `m-w-t` generates **`ሞተ`**, **`ይሙት`**.
-* **Unified Ethiopic Script Targets:** Standardizes all root representations in native Ethiopic script (`ቀ-ተ-ለ`, `በ-ረ-ከ`, `ሰ-ሠ-ነ`), eliminating transliteration ambiguities.
-* **Bidirectional Processing:** Supports both deterministic surface generation (`engine.py`, `cli.py generate`) and inverse morphological analysis and text lemmatization (`analyzer.py`, `cli.py analyze`).
-* **Ethiopic Unicode Geometry:** Leverages arithmetic offsets in the Unicode Ethiopic block (`U+1200–U+137F`) for $O(1)$ syllable synthesis without heavy mapping dictionaries.
-* **Apple Silicon Hardware Acceleration:** Dedicated training pipeline (`train_mac.py`) utilizing PyTorch Metal Performance Shaders (MPS) on Apple Silicon Macs.
-* **Gold Benchmark Evaluator:** Standalone evaluation suite (`evaluate_gold.py`) measuring exact-match accuracy against a 15% held-out test split of authentic church paradigms from *Merho Ges*.
-
----
-
-## Repository Structure
-
-| File | Purpose |
-| :--- | :--- |
-| `engine.py` | Universal Semitic root-and-pattern interdigitation core with phonological glide contractions. |
-| `analyzer.py` | Inverse morphological analyzer, text lemmatizer, and lexicon lookup engine. |
-| `cli.py` | Unified command-line interface (`analyze`, `generate`, `lemmatize`, `lookup`). |
-| `pattern_learner.py` | Inductive template learner extracting pattern specs from surface pairs. |
-| `train_mac.py` | Optimized ByT5 fine-tuning pipeline for Apple Silicon (MPS) with uniform sampling. |
-| `train_byt5.py` | CUDA/Colab ByT5 sequence-to-sequence training pipeline with unified Ethiopic roots. |
-| `evaluate_gold.py` | Formal benchmark evaluator against the held-out *Merho Ges* gold test set. |
-| `geez_config.py` | Ge'ez phonetic inventory, order mappings, and Ethiopic character renderer. |
-| `geez_config.json` | Declarative configuration export of Ge'ez vocalic and consonantal tiers. |
-| `patterns.json` | **103 verified morphological patterns** (basic, passive, causative, and intensive stems). |
-| `EVALUATION.md` | Quantitative benchmark results, consistency checks, and error analyses. |
-| `TECHNICAL_REPORT.md` | Complete architectural specification of the hybrid rule/neural system. |
-
----
-
-## Quickstart
-
-### Prerequisites
-Python 3.8+ (Core engine and CLI run purely on Python standard library).
-
-```bash
-git clone https://github.com/esubaalew/geez-morphology-model.git
-cd geez-morphology-model
-```
-
-### 1. Command-Line Interface (CLI)
-
-```bash
-# Analyze an inflected surface form
-python3 cli.py analyze ይቀትሉ
-
-# Lemmatize a Ge'ez sentence
-python3 cli.py lemmatize "ወይቀትል ፡ ሰብአ"
-
-# Generate forms from a consonantal root with verb_type filtering
-python3 cli.py generate q-t-l --verb_type strong_A --tense past --person 3 --number s --gender m
-
-# Look up lemma in Kidane Wold Kifle lexicon
-python3 cli.py lookup ቀተለ
-```
-
-### 2. Neural ByT5 Training on Apple Silicon (Mac)
+## Setup
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install torch transformers datasets accelerate
-
-# Train ByT5 on 20k uniform samples + Merho Ges gold training pairs:
-python3 train_mac.py --sample_limit 20000 --batch_size 16 --epochs 3
-
-# Evaluate against the 15% held-out gold test set:
-python3 evaluate_gold.py --limit 100
+pip install torch transformers accelerate pytest
 ```
 
----
+The rule engine, analyzer (rules only), CLI and generator need only the Python standard library; torch and transformers are for training and the ByT5 fallback, pytest for the tests.
 
-## Benchmarks & Evaluation
+## Use
 
-* **Pattern Consistency:** 100% across all 103 compiled patterns.
-* **Training Loss:** ByT5 converged to `eval_loss: 0.00821` (`train_loss: 0.02013`) after 3 epochs on the unified Ethiopic dataset.
-* **Morphological Agreement:** Verified on unseen *Merho Ges* church test verbs:
-  * Number Accuracy: **89.0%**
-  * Gender Accuracy: **82.0%**
-  * Person Accuracy: **75.0%**
-  * Stem Classification: **61.0%**
+```bash
+python cli.py analyze ይቀትል
+python cli.py generate q-t-l --verb_type strong_A --tense present
+python cli.py lookup ቀተለ
+```
 
----
+## Generate the data
+
+```bash
+python generate_synthetic_fixed.py
+```
+
+Writes `../geez-dataset-v1/output/` and copies the synthetic files to `../geez-dataset-v1/data/paradigms/`. Current output: 217,417 pairs from 2,015 roots (train file sha256 `7973b501bb41421b34a19aa6f06ff6a4b4807f7eb67c1d78683da02be0893e45`). Class and tense counts are in the dataset README.
+
+## Test
+
+```bash
+python -m pytest tests/
+```
+
+## Train
+
+```bash
+python train_byt5_morphology.py
+```
+
+- Reads `data/paradigms/synthetic_morphology_train.jsonl` and the Merho Ges gold-train tables (3,322 pairs). All gold pairs go to training; eval is 10% of the synthetic pairs (seed 42).
+- ByT5-small, fp32, lr 3e-4, 3% warmup, 3 epochs, batch 16. Device: cuda, then mps, then cpu.
+- Saves a checkpoint every 1000 steps (keeps 2) in `--output_dir` (default `checkpoints_full/`), resumes from the latest one automatically, and saves before exiting on SIGTERM. `run_info.json` records the git commits, data sha256 and arguments.
+- Other machines: `--dataset_dir /path/to/geez-dataset --output_dir /path/out`; `--resume_from` points at an earlier run's checkpoints; `--batch_size 8 --grad_accum 2` keeps the effective batch at 16.
+- Dry run: `python train_byt5_morphology.py --max_steps 5 --sample_limit 200 --max_eval_samples 32 --output_dir /tmp/dry_run`
+
+## Evaluate
+
+```bash
+python evaluate_gold.py --system hybrid --no_neural                      # rules only
+python evaluate_gold.py --system byt5 --model_dir checkpoints_full       # trained model
+```
+
+Current rules-only result on the Merho Ges test split: exact match 193/377 (51.2%), root 248/394. With the proposed gold relabels excluded (`--exclude_proposed`): 193/360. Model results will follow after training.
+
+## Rules and notes
+
+- Language decisions and their sources: [`docs/grammar_rules.md`](docs/grammar_rules.md)
+- notes with every change and check: [`data_and_model_notes_2026-10-05.md`](data_and_model_notes_2026-10-05.md)
 
 ## License
 
-Apache License 2.0. Developed for Classical Ge'ez NLP and Semitic Computational Linguistics research.
+Apache License 2.0.

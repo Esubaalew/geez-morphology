@@ -1,20 +1,29 @@
+# OS and editor files
 .DS_Store
+.ipynb_checkpoints/
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
-.ipynb_checkpoints/
 .venv/
 env/
+
+# Local secrets
 .env*
 *.env
-checkpoints/
+
+# Model checkpoints and weights (kept locally, never committed)
+checkpoints*/
 byt5_geez_checkpoint/
 *.safetensors
 *.pt
 *.bin
 runs/
 wandb/
+
+# Training logs
 *.log
-training.log
-checkpoints_backup*/
+# ...except the small check logs that the notes cites
+!notes/logs/*.log

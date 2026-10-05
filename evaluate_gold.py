@@ -1,8 +1,23 @@
 #!/usr/bin/env python3
 """
 evaluate_gold.py
-Evaluates ByT5 morphology model against the 15% held-out gold test set from Merho Ges.
-Reports exact accuracy on root, stem, tense, person, gender, number, and overall match.
+Score a system on the held-out Merho Ges gold test set.
+
+Systems:
+  --system byt5    the ByT5 checkpoint alone (default; latest checkpoint-N in --model_dir)
+  --system hybrid  HybridAnalyzer: fast path -> pattern matcher -> ByT5 fallback
+                   (add --no_neural to switch the ByT5 fallback off)
+
+What is scored (no hidden misses):
+  - Every verb_conjugation row in the test file, every "/" variant. Variants
+    that are not a single Ethiopic word (notes, "(?)", Latin, spaces) are
+    skipped and counted.
+  - A field counts only where the gold row has a value; empty gold tense or
+    person is reported as "unlabeled", not scored as wrong.
+  - jussive and subjunctive are one label (subjunctive) on both sides.
+  - Roots are compared as consonant sequences, whatever script the gold uses
+    (Ethiopic, q-t-l symbols, or ṭ-y-b transliteration).
+  - Results are broken down by verb class, tense, and (hybrid) by which tier answered.
 """
 
 import os
@@ -10,164 +25,291 @@ import sys
 import json
 import re
 import argparse
+from collections import defaultdict
 
-try:
-    import torch
-    from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-except ImportError:
-    print("[!] PyTorch and Transformers required.")
-    sys.exit(1)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
+import geez_config
+
+FIELDS = ["root", "stem", "tense", "person", "gender", "number"]
+TENSE_ALIASES = {"jussive": "subjunctive"}
+# Merho Ges "causative_intensive" = አስተ- forms (synthetic stem "aste") plus
+# reduplicated causatives (አንጸብረቀ). Only the አስተ- forms are scored as "aste".
+ASTE_FORM = re.compile(r"^(ኢ)?[አያታናእይትን]ስተ")
+CLASS_ORDER = ["Type A", "Type B", "Type C", "hollow", "initial-weak",
+               "final-weak", "quadriliteral", "unknown"]
 
 
 def parse_prediction(pred_str):
-    """Parse key-value target string into a dictionary."""
+    """'root: ቀ-ተ-ለ | tense: past | ...' -> dict."""
     out = {}
-    parts = pred_str.split("|")
-    for p in parts:
+    for p in pred_str.split("|"):
         if ":" in p:
             k, v = p.split(":", 1)
             out[k.strip()] = v.strip()
     return out
 
 
-from train_mac import to_ethiopic_root
-
-def normalize_root(r):
-    if not r:
-        return ""
-    eth = to_ethiopic_root(r)
-    eth = re.sub(r"[-፡\s]", "-", eth)
-    return eth.strip("-")
+def root_key(root_str):
+    """Root in any script -> tuple of consonant symbols (or raw characters)."""
+    if not root_str:
+        return None
+    return geez_config.root_symbols(root_str) or None
 
 
-def load_gold_test_pairs(test_file):
-    pairs = []
+def gold_root_keys(root_str):
+    """Gold roots may list alternatives ("ጤበ / ጠየበ"); any of them counts."""
+    if not root_str:
+        return set()
+    keys = {root_key(r) for r in root_str.split("/")}
+    keys.discard(None)
+    return keys
+
+
+def clean_label(v):
+    if v is None:
+        return None
+    v = str(v).strip()
+    if v.lower() in ("", "none", "null", "n/a"):
+        return None
+    return TENSE_ALIASES.get(v, v)
+
+
+def normalize_row(d):
+    """Shared label normalization for gold and predictions."""
+    d = {k: clean_label(d.get(k)) for k in ("stem", "tense", "person", "gender", "number")}
+    if d["person"] == "1" and d["gender"] is None:
+        d["gender"] = "c"
+    return d
+
+
+def verb_class(rec):
+    """Verb class from the gold paradigm class name, then the root shape.
+
+    Order: Type C (ባረከ), Type B (ቀደሰ), quadriliteral (4+ radicals or a
+    quadriliteral class name), then initial-weak, hollow, final-weak by
+    where w/y sits in the root, else Type A.
+    """
+    pc = rec.get("paradigm_class") or ""
+    keys = gold_root_keys(rec.get("canonical_root") or rec.get("root"))
+    root = max(keys, key=len) if keys else ()
+    weak = ("w", "y")
+    if "ባረከ" in pc:
+        return "Type C"
+    if "ቀደሰ" in pc:
+        return "Type B"
+    quad_names = ("ደንገፀ", "ደንገጸ", "ተመንደበ", "ጠብለለ", "ጠንበለለ", "አንቀልቀለ", "ሰንደወ")
+    if len(root) >= 4 or "quadri" in pc.lower() or any(n in pc for n in quad_names):
+        return "quadriliteral"
+    if len(root) == 3:
+        if root[0] in weak:
+            return "initial-weak"
+        if root[1] in weak:
+            return "hollow"
+        if root[2] in weak:
+            return "final-weak"
+        return "Type A"
+    if any(n in pc for n in ("ቆመ", "ጾመ", "ሤመ")):
+        return "hollow"
+    if "ወገረ" in pc:
+        return "initial-weak"
+    if any(n in pc for n in ("ሴሰየ", "ሰተየ", "ሠረየ", "tertiae", "Tertiae")):
+        return "final-weak"
+    if "ቀተለ" in pc:
+        return "Type A"
+    return "unknown"
+
+
+def is_single_ethiopic_word(s):
+    return bool(s) and all(0x1200 <= ord(c) <= 0x137F for c in s)
+
+
+def load_exclusions(path):
+    """(form, gold root) pairs that a relabel-proposals file marks as not verbs
+    or unusable (exclude_from_verb_scoring); test split only."""
+    out = set()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            r = json.loads(line)
+            if r.get("split") == "test" and r.get("exclude_from_verb_scoring"):
+                out.add((geez_config.normalize_guttural_4th(r["form"]), r.get("root")))
+    return out
+
+
+def load_gold_test_pairs(test_file, exclude=None):
+    pairs, skipped, records = [], [], 0
+    excluded = 0
     with open(test_file, "r", encoding="utf-8") as f:
         for line in f:
             rec = json.loads(line)
-            parent_root = rec.get("root", "")
-            parent_stem = rec.get("stem", "basic")
-            
+            if rec.get("category") != "verb_conjugation":
+                continue
+            records += 1
+            vclass = verb_class(rec)
             for row in rec.get("table_data", []):
-                form_raw = row.get("geez_form", "")
-                if not form_raw:
-                    continue
-                # If multiple variants given e.g. "ሃልሀ / ሀልሀ", take each
-                variants = [v.strip() for v in form_raw.split("/") if v.strip()]
-                for v in variants:
-                    # Clean punctuation
-                    v_clean = v.strip(" :፡።()[]")
-                    if v_clean:
-                        pairs.append({
-                            "surface": v_clean,
-                            "root": parent_root,
-                            "stem": parent_stem,
-                            "tense": row.get("tense", ""),
-                            "person": str(row.get("person", "")),
-                            "gender": row.get("gender", ""),
-                            "number": row.get("number", "")
-                        })
-    return pairs
+                form_raw = row.get("geez_form") or ""
+                form_main = re.sub(r"\([^)]*\)", " ", form_raw)  # drop "(...)" notes
+                for v in form_main.split("/"):
+                    v = v.strip(" :፡።()[]፣,")
+                    if not v:
+                        continue
+                    if not is_single_ethiopic_word(v):
+                        skipped.append(v)
+                        continue
+                    if exclude and (geez_config.normalize_guttural_4th(v), rec.get("root")) in exclude:
+                        excluded += 1
+                        continue
+                    gold = normalize_row({"stem": rec.get("stem"), **row})
+                    if gold["stem"] == "causative_intensive" and ASTE_FORM.match(v):
+                        gold["stem"] = "aste"
+                    pairs.append({
+                        "surface": v,
+                        "root_keys": gold_root_keys(rec.get("canonical_root") or rec.get("root")),
+                        "root_raw": rec.get("root"),
+                        "verb_class": vclass,
+                        **gold,
+                    })
+    if exclude is not None:
+        print(f"Excluded by --exclude_proposed: {excluded} scored variants")
+    return pairs, skipped, records
+
+
+class ByT5System:
+    def __init__(self, model_dir):
+        import torch
+        from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+        chkpt = model_dir
+        if os.path.isdir(model_dir):
+            subdirs = [os.path.join(model_dir, d) for d in os.listdir(model_dir) if d.startswith("checkpoint-")]
+            if subdirs:
+                chkpt = sorted(subdirs, key=lambda x: int(x.split("-")[-1]))[-1]
+        print(f"Loading model checkpoint from: {chkpt}")
+        self.torch = torch
+        self.device = "mps" if torch.backends.mps.is_available() else "cpu"
+        self.tok = AutoTokenizer.from_pretrained(chkpt)
+        self.model = AutoModelForSeq2SeqLM.from_pretrained(chkpt).to(self.device)
+        self.model.eval()
+
+    def predict(self, surface):
+        inp = self.tok(f"analyze: {surface}", return_tensors="pt").to(self.device)
+        with self.torch.no_grad():
+            out = self.model.generate(**inp, max_length=128, num_beams=2)
+        text = self.tok.decode(out[0], skip_special_tokens=True)
+        pred = parse_prediction(text)
+        return {"root": pred.get("root"), **normalize_row(pred), "tier": "byt5", "raw": text}
+
+
+class HybridSystem:
+    def __init__(self, no_neural=False):
+        from analyzer import HybridAnalyzer
+        self.a = HybridAnalyzer()
+        if no_neural:
+            self.a.checkpoint_dir = None
+
+    def predict(self, surface):
+        res = self.a.analyze(surface)
+        if not res:
+            return {"root": None, **normalize_row({}), "tier": "no_answer", "raw": ""}
+        best = res[0]
+        spec = best.pattern_spec or ""
+        tier = ("fast_path" if spec.startswith("fast_path") else
+                "neural" if spec.startswith("neural") else "pattern")
+        pred = {"stem": best.stem, "tense": best.tense, "person": best.person,
+                "gender": best.gender, "number": best.number}
+        return {"root": best.root_string, **normalize_row(pred), "tier": tier,
+                "raw": f"{best.root_string} {best.stem} {best.tense} {best.person}{best.gender or ''}{best.number or ''}"}
+
+
+def score(pairs, system):
+    totals = defaultdict(lambda: defaultdict(lambda: [0, 0]))  # group -> field -> [correct, labeled]
+    examples = []
+    for item in pairs:
+        pred = system.predict(item["surface"])
+        ok = {}
+        pk = root_key(pred["root"]) if pred["root"] else None
+        ok["root"] = (pk in item["root_keys"]) if item["root_keys"] else None
+        for f in FIELDS[1:]:
+            ok[f] = (pred[f] == item[f]) if item[f] is not None else None
+        labeled_all = all(ok[f] is not None for f in FIELDS)
+        ok["exact"] = all(ok[f] for f in FIELDS) if labeled_all else None
+        groups = ["ALL", "class:" + item["verb_class"], "tense:" + str(item["tense"]), "tier:" + pred["tier"]]
+        for g in groups:
+            totals[g]["rows"][1] += 1
+            for f, v in ok.items():
+                if v is not None:
+                    totals[g][f][1] += 1
+                    totals[g][f][0] += int(v)
+        if len(examples) < 15 and not ok.get("exact"):
+            examples.append((item, pred))
+    return totals, examples
+
+
+def pct(c, n):
+    return f"{100 * c / n:5.1f}% ({c}/{n})" if n else "   n/a"
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Evaluate ByT5 on Gold Merho Ges Test Set")
-    parser.add_argument("--model_dir", default="./checkpoints", help="Path to checkpoint directory")
-    default_test = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "geez-dataset-v1", "data", "paradigms", "merho_ges_gold_test.jsonl"))
-    parser.add_argument("--test_file", default=default_test, help="Gold test set path")
-    parser.add_argument("--limit", type=int, default=100, help="Number of test pairs to evaluate (0 for all)")
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser(description="Evaluate on the Merho Ges gold test set")
+    ap.add_argument("--system", choices=["byt5", "hybrid"], default="byt5")
+    ap.add_argument("--no_neural", action="store_true", help="hybrid only: no ByT5 fallback")
+    ap.add_argument("--model_dir", default=os.path.join(SCRIPT_DIR, "checkpoints"))
+    default_test = os.path.join(SCRIPT_DIR, "..", "geez-dataset-v1", "data", "paradigms", "merho_ges_gold_test.jsonl")
+    ap.add_argument("--test_file", default=os.path.normpath(default_test),
+                    help="Must be the split whose *_train.jsonl the model saw (train_byt5_morphology.py injects data/paradigms/merho_ges_gold_train.jsonl)")
+    ap.add_argument("--limit", type=int, default=0, help="Random sample of N pairs (0 = all, the default)")
+    ap.add_argument("--out_json", default=None, help="Write the metrics table to this JSON file")
+    ap.add_argument("--exclude_proposed", nargs="?", default=None,
+                    const=os.path.join(SCRIPT_DIR, "notes", "gold_proposals_2026-10-05.jsonl"),
+                    help="Leave out gold rows the relabel proposals mark exclude_from_verb_scoring "
+                         "(not verbs, or unusable until re-read from the scan). Default file: "
+                         "notes/gold_proposals_2026-10-05.jsonl. The gold file is not changed.")
+    args = ap.parse_args()
 
     if not os.path.exists(args.test_file):
-        print(f"[!] Test file not found: {args.test_file}")
-        sys.exit(1)
+        sys.exit(f"[!] Test file not found: {args.test_file}")
 
-    # Find latest checkpoint in model_dir
-    chkpt = args.model_dir
-    if os.path.exists(args.model_dir):
-        subdirs = [os.path.join(args.model_dir, d) for d in os.listdir(args.model_dir) if d.startswith("checkpoint-")]
-        if subdirs:
-            chkpt = sorted(subdirs, key=lambda x: int(x.split("-")[-1]))[-1]
-
-    print(f"Loading model checkpoint from: {chkpt}...")
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
-    tokenizer = AutoTokenizer.from_pretrained(chkpt)
-    model = AutoModelForSeq2SeqLM.from_pretrained(chkpt).to(device)
-    model.eval()
-
-    test_pairs = load_gold_test_pairs(args.test_file)
-    if args.limit > 0 and args.limit < len(test_pairs):
+    exclude = load_exclusions(args.exclude_proposed) if args.exclude_proposed else None
+    pairs, skipped, records = load_gold_test_pairs(args.test_file, exclude)
+    print(f"Gold file: {args.test_file}")
+    print(f"verb_conjugation records: {records}; scored variants: {len(pairs)}; skipped non-word variants: {len(skipped)} {skipped[:8]}")
+    if args.limit and args.limit < len(pairs):
         import random
-        rng = random.Random(42)
-        test_pairs = rng.sample(test_pairs, args.limit)
-    print(f"Evaluating on {len(test_pairs)} authentic gold test pairs (random sample, seed 42)...")
+        pairs = random.Random(42).sample(pairs, args.limit)
+        print(f"[!] --limit {args.limit}: scoring a random sample, not the full set")
 
-    metrics = {
-        "total": len(test_pairs),
-        "exact_match": 0,
-        "stem_match": 0,
-        "tense_match": 0,
-        "person_match": 0,
-        "gender_match": 0,
-        "number_match": 0,
-        "root_match": 0
-    }
+    system = ByT5System(args.model_dir) if args.system == "byt5" else HybridSystem(args.no_neural)
+    totals, examples = score(pairs, system)
 
-    examples = []
+    name = args.system + (" (no neural)" if args.no_neural else "")
+    print("\n" + "=" * 72)
+    print(f"GOLD TEST RESULTS: {name}   (accuracy over rows where gold has the field)")
+    print("=" * 72)
+    cols = ["root", "stem", "tense", "person", "gender", "number", "exact"]
 
-    for item in test_pairs:
-        surface = item["surface"]
-        inp = tokenizer(f"analyze: {surface}", return_tensors="pt").to(device)
-        with torch.no_grad():
-            out = model.generate(**inp, max_length=128, num_beams=2)
-        pred_text = tokenizer.decode(out[0], skip_special_tokens=True)
-        pred = parse_prediction(pred_text)
+    def show(group_names):
+        for g in group_names:
+            if g not in totals:
+                continue
+            t = totals[g]
+            print(f"\n[{g}]  rows={t['rows'][1]}")
+            for c in cols:
+                print(f"   {c:7s} {pct(*t[c])}")
 
-        # Compare
-        stem_ok = (pred.get("stem") == item["stem"])
-        tense_ok = (pred.get("tense") == item["tense"])
-        person_ok = (str(pred.get("person")) == str(item["person"]))
-        gender_ok = (pred.get("gender") == item["gender"])
-        number_ok = (pred.get("number") == item["number"])
-        root_ok = normalize_root(pred.get("root")) == normalize_root(item["root"])
+    show(["ALL"])
+    show(["class:" + c for c in CLASS_ORDER])
+    show(sorted(g for g in totals if g.startswith("tense:")))
+    show(sorted(g for g in totals if g.startswith("tier:")))
 
-        if stem_ok: metrics["stem_match"] += 1
-        if tense_ok: metrics["tense_match"] += 1
-        if person_ok: metrics["person_match"] += 1
-        if gender_ok: metrics["gender_match"] += 1
-        if number_ok: metrics["number_match"] += 1
-        if root_ok: metrics["root_match"] += 1
+    print("\nSample misses:")
+    for item, pred in examples:
+        print(f"  {item['surface']}  gold: {item['root_raw']} {item['stem']} {item['tense']} "
+              f"{item['person']}{item['gender'] or ''}{item['number'] or ''} [{item['verb_class']}]  -> {pred['raw']}")
 
-        all_ok = stem_ok and tense_ok and person_ok and gender_ok and number_ok
-        if all_ok and root_ok:
-            metrics["exact_match"] += 1
-
-        if len(examples) < 10:
-            examples.append({
-                "surface": surface,
-                "gold_root": item["root"],
-                "gold_stem": item["stem"],
-                "gold_tense": item["tense"],
-                "pred": pred_text
-            })
-
-    print("\n" + "="*50)
-    print("GOLD HELD-OUT BENCHMARK RESULTS (MERHO GES)")
-    print("="*50)
-    n = metrics["total"]
-    if n > 0:
-        print(f"Stem Accuracy:         {metrics['stem_match']/n*100:6.2f}% ({metrics['stem_match']}/{n})")
-        print(f"Tense Accuracy:        {metrics['tense_match']/n*100:6.2f}% ({metrics['tense_match']}/{n})")
-        print(f"Person Accuracy:       {metrics['person_match']/n*100:6.2f}% ({metrics['person_match']}/{n})")
-        print(f"Gender Accuracy:       {metrics['gender_match']/n*100:6.2f}% ({metrics['gender_match']}/{n})")
-        print(f"Number Accuracy:       {metrics['number_match']/n*100:6.2f}% ({metrics['number_match']}/{n})")
-        print(f"Root Match Accuracy:   {metrics['root_match']/n*100:6.2f}% ({metrics['root_match']}/{n})")
-        print(f"Overall Exact Match:   {metrics['exact_match']/n*100:6.2f}% ({metrics['exact_match']}/{n})")
-
-    print("\nSample Predictions on Held-Out Authentic Forms:")
-    for ex in examples:
-        print(f"  {ex['surface']} (gold: {ex['gold_root']} | {ex['gold_tense']} | {ex['gold_stem']})")
-        print(f"    -> {ex['pred']}")
+    if args.out_json:
+        with open(args.out_json, "w", encoding="utf-8") as f:
+            json.dump({g: {k: v for k, v in t.items()} for g, t in totals.items()}, f, ensure_ascii=False, indent=1)
 
 
 if __name__ == "__main__":

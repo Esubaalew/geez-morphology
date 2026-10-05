@@ -120,7 +120,7 @@
       "tense": "subjunctive",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[ይ]-C0a-C1I-C2A",
+    "pattern_spec": "[ይ]-C0I-C1I-C2A",
     "observations": 1,
     "consistent": true,
     "examples": [
@@ -149,22 +149,6 @@
       "number": "s",
       "person": "2",
       "stem": "basic",
-      "tense": "jussive",
-      "verb_type": "weak_initial"
-    },
-    "pattern_spec": "[ይ]-C0a-C1I-C2A-[ኪ]",
-    "observations": 1,
-    "consistent": true,
-    "examples": [
-      "ይኀድጋኪ"
-    ]
-  },
-  {
-    "features": {
-      "gender": "f",
-      "number": "s",
-      "person": "2",
-      "stem": "basic",
       "tense": "past",
       "verb_type": "strong_A"
     },
@@ -173,22 +157,6 @@
     "consistent": true,
     "examples": [
       "ቀተልኪ"
-    ]
-  },
-  {
-    "features": {
-      "gender": "f",
-      "number": "s",
-      "person": "2",
-      "stem": "basic",
-      "tense": "past",
-      "verb_type": "weak_initial"
-    },
-    "pattern_spec": "C0a-C1a-C2A-[ኪ]",
-    "observations": 1,
-    "consistent": true,
-    "examples": [
-      "ኀደጋኪ"
     ]
   },
   {
@@ -213,22 +181,6 @@
       "number": "s",
       "person": "2",
       "stem": "basic",
-      "tense": "present",
-      "verb_type": "weak_initial"
-    },
-    "pattern_spec": "[የ]-C0a-C1I-C2A-[ኪ]",
-    "observations": 1,
-    "consistent": true,
-    "examples": [
-      "የኀድጋኪ"
-    ]
-  },
-  {
-    "features": {
-      "gender": "f",
-      "number": "s",
-      "person": "2",
-      "stem": "basic",
       "tense": "subjunctive",
       "verb_type": "strong_A"
     },
@@ -237,22 +189,6 @@
     "consistent": true,
     "examples": [
       "ትቅትሊ"
-    ]
-  },
-  {
-    "features": {
-      "gender": "f",
-      "number": "s",
-      "person": "2",
-      "stem": "basic",
-      "tense": "subjunctive",
-      "verb_type": "weak_initial"
-    },
-    "pattern_spec": "[ይ]-C0a-C1I-C2A-[ኪ]",
-    "observations": 1,
-    "consistent": true,
-    "examples": [
-      "ይኀድጋኪ"
     ]
   },
   {
@@ -269,22 +205,6 @@
     "consistent": true,
     "examples": [
       "ትቅትል"
-    ]
-  },
-  {
-    "features": {
-      "gender": "f",
-      "number": "s",
-      "person": "3",
-      "stem": "basic",
-      "tense": "jussive",
-      "verb_type": "weak_initial"
-    },
-    "pattern_spec": "[ይ]-C0a-C1I-C2A",
-    "observations": 1,
-    "consistent": true,
-    "examples": [
-      "ይኀድጋ"
     ]
   },
   {
@@ -309,22 +229,6 @@
       "number": "s",
       "person": "3",
       "stem": "basic",
-      "tense": "past",
-      "verb_type": "weak_initial"
-    },
-    "pattern_spec": "C0a-C1a-C2A",
-    "observations": 1,
-    "consistent": true,
-    "examples": [
-      "ኀደጋ"
-    ]
-  },
-  {
-    "features": {
-      "gender": "f",
-      "number": "s",
-      "person": "3",
-      "stem": "basic",
       "tense": "present",
       "verb_type": "strong_A"
     },
@@ -341,22 +245,6 @@
       "number": "s",
       "person": "3",
       "stem": "basic",
-      "tense": "present",
-      "verb_type": "weak_initial"
-    },
-    "pattern_spec": "[ይ]-C0a-C1I-C2A",
-    "observations": 1,
-    "consistent": true,
-    "examples": [
-      "ይኀድጋ"
-    ]
-  },
-  {
-    "features": {
-      "gender": "f",
-      "number": "s",
-      "person": "3",
-      "stem": "basic",
       "tense": "subjunctive",
       "verb_type": "strong_A"
     },
@@ -365,22 +253,6 @@
     "consistent": true,
     "examples": [
       "ትቅትል"
-    ]
-  },
-  {
-    "features": {
-      "gender": "f",
-      "number": "s",
-      "person": "3",
-      "stem": "basic",
-      "tense": "subjunctive",
-      "verb_type": "weak_initial"
-    },
-    "pattern_spec": "[ይ]-C0a-C1I-C2A",
-    "observations": 1,
-    "consistent": true,
-    "examples": [
-      "ይኀድጋ"
     ]
   },
   {
@@ -520,7 +392,7 @@
       "tense": "subjunctive",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[ይ]-C0a-C1I-C2u",
+    "pattern_spec": "[ይ]-C0I-C1I-C2u",
     "observations": 1,
     "consistent": true,
     "examples": [
@@ -550,7 +422,7 @@
       "person": "2",
       "stem": "basic",
       "tense": "imperative",
-      "verb_type": "strong_B"
+      "verb_type": "strong_C"
     },
     "pattern_spec": "C0A-C1I-C2I",
     "observations": 1,
@@ -646,7 +518,7 @@
       "person": "2",
       "stem": "basic",
       "tense": "present",
-      "verb_type": "strong_B"
+      "verb_type": "strong_C"
     },
     "pattern_spec": "[ት]-C0A-C1I-C2I",
     "observations": 1,
@@ -678,7 +550,7 @@
       "person": "2",
       "stem": "basic",
       "tense": "subjunctive",
-      "verb_type": "strong_B"
+      "verb_type": "strong_C"
     },
     "pattern_spec": "[ት]-C0A-C1I-C2I",
     "observations": 1,
@@ -710,29 +582,13 @@
       "person": "3",
       "stem": "basic",
       "tense": "jussive",
-      "verb_type": "strong_B"
+      "verb_type": "strong_C"
     },
     "pattern_spec": "[ይ]-C0A-C1I-C2I",
     "observations": 1,
     "consistent": true,
     "examples": [
       "ይባርክ"
-    ]
-  },
-  {
-    "features": {
-      "gender": "m",
-      "number": "s",
-      "person": "3",
-      "stem": "basic",
-      "tense": "jussive",
-      "verb_type": "weak_initial"
-    },
-    "pattern_spec": "[ይ]-C0a-C1I-C2I",
-    "observations": 1,
-    "consistent": true,
-    "examples": [
-      "ይኀድግ"
     ]
   },
   {
@@ -806,29 +662,13 @@
       "person": "3",
       "stem": "basic",
       "tense": "past",
-      "verb_type": "strong_B"
+      "verb_type": "strong_C"
     },
     "pattern_spec": "C0A-C1a-C2a",
     "observations": 1,
     "consistent": true,
     "examples": [
       "ባረከ"
-    ]
-  },
-  {
-    "features": {
-      "gender": "m",
-      "number": "s",
-      "person": "3",
-      "stem": "basic",
-      "tense": "past",
-      "verb_type": "weak_initial"
-    },
-    "pattern_spec": "C0a-C1a-C2a",
-    "observations": 1,
-    "consistent": true,
-    "examples": [
-      "ኀደገ"
     ]
   },
   {
@@ -886,29 +726,13 @@
       "person": "3",
       "stem": "basic",
       "tense": "present",
-      "verb_type": "strong_B"
+      "verb_type": "strong_C"
     },
     "pattern_spec": "[ይ]-C0A-C1I-C2I",
     "observations": 1,
     "consistent": true,
     "examples": [
       "ይባርክ"
-    ]
-  },
-  {
-    "features": {
-      "gender": "m",
-      "number": "s",
-      "person": "3",
-      "stem": "basic",
-      "tense": "present",
-      "verb_type": "weak_initial"
-    },
-    "pattern_spec": "[ይ]-C0a-C1I-C2I",
-    "observations": 1,
-    "consistent": true,
-    "examples": [
-      "ይኀድግ"
     ]
   },
   {
@@ -952,7 +776,7 @@
       "tense": "subjunctive",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[ይ]-C0a-C1I-C2I",
+    "pattern_spec": "[ይ]-C0I-C1I-C2I",
     "observations": 1,
     "consistent": true,
     "examples": [
@@ -966,29 +790,13 @@
       "person": "3",
       "stem": "basic",
       "tense": "subjunctive",
-      "verb_type": "strong_B"
+      "verb_type": "strong_C"
     },
     "pattern_spec": "[ይ]-C0A-C1I-C2I",
     "observations": 1,
     "consistent": true,
     "examples": [
       "ይባርክ"
-    ]
-  },
-  {
-    "features": {
-      "gender": "m",
-      "number": "s",
-      "person": "3",
-      "stem": "basic",
-      "tense": "subjunctive",
-      "verb_type": "weak_initial"
-    },
-    "pattern_spec": "[ይ]-C0a-C1I-C2I",
-    "observations": 1,
-    "consistent": true,
-    "examples": [
-      "ይኀድግ"
     ]
   },
   {
@@ -1032,7 +840,11 @@
       "stem": "passive",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[ተ]-C0a-C1a-C2a"
+    "pattern_spec": "[ተ]-C0a-C1I-C2a",
+    "examples": [
+      "ተቀትለ"
+    ],
+    "source": "geez_language_reference_2026-10-05"
   },
   {
     "features": {
@@ -1043,7 +855,11 @@
       "stem": "passive",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[ተ]-C0a-C1a-C2a-[ት]"
+    "pattern_spec": "[ተ]-C0a-C1I-C2a-[ት]",
+    "examples": [
+      "ተቀትለት"
+    ],
+    "source": "geez_language_reference_2026-10-05"
   },
   {
     "features": {
@@ -1054,7 +870,11 @@
       "stem": "passive",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[ተ]-C0a-C1a-C2u"
+    "pattern_spec": "[ተ]-C0a-C1I-C2u",
+    "examples": [
+      "ተቀትሉ"
+    ],
+    "source": "geez_language_reference_2026-10-05"
   },
   {
     "features": {
@@ -1065,7 +885,11 @@
       "stem": "passive",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[ተ]-C0a-C1a-C2A"
+    "pattern_spec": "[ተ]-C0a-C1I-C2A",
+    "examples": [
+      "ተቀትላ"
+    ],
+    "source": "geez_language_reference_2026-10-05"
   },
   {
     "features": {
@@ -1348,10 +1172,10 @@
       "gender": "m",
       "number": "s",
       "tense": "past",
-      "stem": "causative_intensive",
+      "stem": "aste",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[አስ]-C0I-C1a-C2a"
+    "pattern_spec": "[አስተ]-C0I-C1a-C2a"
   },
   {
     "features": {
@@ -1359,10 +1183,10 @@
       "gender": "f",
       "number": "s",
       "tense": "past",
-      "stem": "causative_intensive",
+      "stem": "aste",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[አስ]-C0I-C1a-C2a-[ት]"
+    "pattern_spec": "[አስተ]-C0I-C1a-C2a-[ት]"
   },
   {
     "features": {
@@ -1370,10 +1194,10 @@
       "gender": "m",
       "number": "p",
       "tense": "past",
-      "stem": "causative_intensive",
+      "stem": "aste",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[አስ]-C0I-C1a-C2u"
+    "pattern_spec": "[አስተ]-C0I-C1a-C2u"
   },
   {
     "features": {
@@ -1381,10 +1205,10 @@
       "gender": "f",
       "number": "p",
       "tense": "past",
-      "stem": "causative_intensive",
+      "stem": "aste",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[አስ]-C0I-C1a-C2A"
+    "pattern_spec": "[አስተ]-C0I-C1a-C2A"
   },
   {
     "features": {
@@ -1392,10 +1216,10 @@
       "gender": "m",
       "number": "s",
       "tense": "past",
-      "stem": "causative_intensive",
+      "stem": "aste",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[አስ]-C0I-C1a-C2I-[ከ]"
+    "pattern_spec": "[አስተ]-C0I-C1a-C2I-[ከ]"
   },
   {
     "features": {
@@ -1403,10 +1227,10 @@
       "gender": "f",
       "number": "s",
       "tense": "past",
-      "stem": "causative_intensive",
+      "stem": "aste",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[አስ]-C0I-C1a-C2I-[ኪ]"
+    "pattern_spec": "[አስተ]-C0I-C1a-C2I-[ኪ]"
   },
   {
     "features": {
@@ -1414,10 +1238,10 @@
       "gender": "m",
       "number": "p",
       "tense": "past",
-      "stem": "causative_intensive",
+      "stem": "aste",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[አስ]-C0I-C1a-C2I-[ክሙ]"
+    "pattern_spec": "[አስተ]-C0I-C1a-C2I-[ክሙ]"
   },
   {
     "features": {
@@ -1425,10 +1249,10 @@
       "gender": "f",
       "number": "p",
       "tense": "past",
-      "stem": "causative_intensive",
+      "stem": "aste",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[አስ]-C0I-C1a-C2I-[ክን]"
+    "pattern_spec": "[አስተ]-C0I-C1a-C2I-[ክን]"
   },
   {
     "features": {
@@ -1436,10 +1260,10 @@
       "gender": "c",
       "number": "s",
       "tense": "past",
-      "stem": "causative_intensive",
+      "stem": "aste",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[አስ]-C0I-C1a-C2I-[ኩ]"
+    "pattern_spec": "[አስተ]-C0I-C1a-C2I-[ኩ]"
   },
   {
     "features": {
@@ -1447,10 +1271,10 @@
       "gender": "c",
       "number": "p",
       "tense": "past",
-      "stem": "causative_intensive",
+      "stem": "aste",
       "verb_type": "strong_A"
     },
-    "pattern_spec": "[አስ]-C0I-C1a-C2I-[ነ]"
+    "pattern_spec": "[አስተ]-C0I-C1a-C2I-[ነ]"
   },
   {
     "pattern_spec": "C0o-C2a",
@@ -1473,5 +1297,680 @@
       "tense": "imperative",
       "verb_type": "weak_middle"
     }
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "passive",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ትት]-C0a-C1a-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ትትቀተል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "passive",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይት]-C0a-C1a-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ይትቀተል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "passive",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ትት]-C0a-C1a-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ትትቀተል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "passive",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ትት]-C0a-C1a-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ትትቀተል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "passive",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ትት]-C0a-C1a-C2i",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ትትቀተሊ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "c",
+      "number": "s",
+      "person": "1",
+      "stem": "passive",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[እት]-C0a-C1a-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "እትቀተል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "3",
+      "stem": "passive",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይት]-C0a-C1a-C2u",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ይትቀተሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "3",
+      "stem": "passive",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ይት]-C0a-C1a-C2A",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ይትቀተላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "2",
+      "stem": "passive",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ትት]-C0a-C1a-C2u",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ትትቀተሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "2",
+      "stem": "passive",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ትት]-C0a-C1a-C2A",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ትትቀተላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "c",
+      "number": "p",
+      "person": "1",
+      "stem": "passive",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ንት]-C0a-C1a-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ንትቀተል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "passive",
+      "tense": "imperative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ተቀተል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "passive",
+      "tense": "imperative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2i",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ተቀተሊ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "2",
+      "stem": "passive",
+      "tense": "imperative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2u",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ተቀተሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "2",
+      "stem": "passive",
+      "tense": "imperative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ተ]-C0a-C1a-C2A",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ተቀተላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "causative",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ያ]-C0a-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ያቀትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "causative",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ታ]-C0a-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ታቀትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "causative",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ታ]-C0a-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ታቀትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "causative",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ታ]-C0a-C1I-C2i",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ታቀትሊ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "c",
+      "number": "s",
+      "person": "1",
+      "stem": "causative",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0a-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "አቀትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "3",
+      "stem": "causative",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ያ]-C0a-C1I-C2u",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ያቀትሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "3",
+      "stem": "causative",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ያ]-C0a-C1I-C2A",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ያቀትላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "2",
+      "stem": "causative",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ታ]-C0a-C1I-C2u",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ታቀትሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "2",
+      "stem": "causative",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ታ]-C0a-C1I-C2A",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ታቀትላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "c",
+      "number": "p",
+      "person": "1",
+      "stem": "causative",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ና]-C0a-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ናቀትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "causative",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ያ]-C0I-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ያቅትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "3",
+      "stem": "causative",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ታ]-C0I-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ታቅትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "causative",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ታ]-C0I-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ታቅትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "causative",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ታ]-C0I-C1I-C2i",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ታቅትሊ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "c",
+      "number": "s",
+      "person": "1",
+      "stem": "causative",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "አቅትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "3",
+      "stem": "causative",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ያ]-C0I-C1I-C2u",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ያቅትሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "3",
+      "stem": "causative",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ያ]-C0I-C1I-C2A",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ያቅትላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "2",
+      "stem": "causative",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ታ]-C0I-C1I-C2u",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ታቅትሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "2",
+      "stem": "causative",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ታ]-C0I-C1I-C2A",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ታቅትላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "c",
+      "number": "p",
+      "person": "1",
+      "stem": "causative",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ና]-C0I-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ናቅትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "causative",
+      "tense": "imperative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "አቅትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "causative",
+      "tense": "imperative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1I-C2i",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "አቅትሊ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "2",
+      "stem": "causative",
+      "tense": "imperative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1I-C2u",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "አቅትሉ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "2",
+      "stem": "causative",
+      "tense": "imperative",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[አ]-C0I-C1I-C2A",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "አቅትላ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "c",
+      "number": "s",
+      "person": "1",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0a-C1a-C2I-[ኩ]",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ቀተልኩ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "c",
+      "number": "p",
+      "person": "1",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "C0a-C1a-C2I-[ነ]",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ቀተልነ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "c",
+      "number": "s",
+      "person": "1",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[እ]-C0a-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "እቀትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "c",
+      "number": "p",
+      "person": "1",
+      "stem": "basic",
+      "tense": "present",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ን]-C0a-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ንቀትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "c",
+      "number": "s",
+      "person": "1",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[እ]-C0I-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "እቅትል"
+    ]
+  },
+  {
+    "features": {
+      "gender": "c",
+      "number": "p",
+      "person": "1",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "strong_A"
+    },
+    "pattern_spec": "[ን]-C0I-C1I-C2I",
+    "source": "geez_language_reference_2026-10-05",
+    "examples": [
+      "ንቅትል"
+    ]
   }
 ]
