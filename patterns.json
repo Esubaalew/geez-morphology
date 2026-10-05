@@ -568,7 +568,7 @@
       "tense": "imperative",
       "verb_type": "weak_middle"
     },
-    "pattern_spec": "C0u-C1I",
+    "pattern_spec": "C0u-C2I",
     "observations": 1,
     "consistent": true,
     "examples": [
@@ -616,7 +616,7 @@
       "tense": "past",
       "verb_type": "weak_middle"
     },
-    "pattern_spec": "C0a-[ይ]-C1I-[ከ]",
+    "pattern_spec": "C0a-[ይ]-C2I-[ከ]",
     "observations": 1,
     "consistent": true,
     "examples": [
@@ -744,7 +744,7 @@
       "tense": "jussive",
       "verb_type": "weak_middle"
     },
-    "pattern_spec": "[ይ]-C0a-[ይ]-C1I",
+    "pattern_spec": "[ይ]-C0a-[ይ]-C2I",
     "observations": 1,
     "consistent": false,
     "examples": [
@@ -760,7 +760,7 @@
       "tense": "jussive",
       "verb_type": "weak_middle"
     },
-    "pattern_spec": "[ይ]-C0u-C1I",
+    "pattern_spec": "[ይ]-C0u-C2I",
     "observations": 1,
     "consistent": false,
     "examples": [
@@ -840,7 +840,7 @@
       "tense": "past",
       "verb_type": "weak_middle"
     },
-    "pattern_spec": "C0e-C1a",
+    "pattern_spec": "C0e-C2a",
     "observations": 1,
     "consistent": false,
     "examples": [
@@ -856,7 +856,7 @@
       "tense": "past",
       "verb_type": "weak_middle"
     },
-    "pattern_spec": "C0a-C1a",
+    "pattern_spec": "C0a-C2a",
     "observations": 1,
     "consistent": false,
     "examples": [
@@ -920,7 +920,7 @@
       "tense": "present",
       "verb_type": "weak_middle"
     },
-    "pattern_spec": "[ይ]-C0a-[ይ]-C1I",
+    "pattern_spec": "[ይ]-C0a-[ይ]-C2I",
     "observations": 1,
     "consistent": false,
     "examples": [
@@ -936,7 +936,7 @@
       "tense": "present",
       "verb_type": "weak_middle"
     },
-    "pattern_spec": "[ይ]-C0a-[ው]-C1I",
+    "pattern_spec": "[ይ]-C0a-[ው]-C2I",
     "observations": 1,
     "consistent": false,
     "examples": [
@@ -1000,7 +1000,7 @@
       "tense": "subjunctive",
       "verb_type": "weak_middle"
     },
-    "pattern_spec": "[ይ]-C0a-[ይ]-C1I",
+    "pattern_spec": "[ይ]-C0a-[ይ]-C2I",
     "observations": 1,
     "consistent": false,
     "examples": [
@@ -1016,7 +1016,7 @@
       "tense": "subjunctive",
       "verb_type": "weak_middle"
     },
-    "pattern_spec": "[ይ]-C0a-[ው]-C1I",
+    "pattern_spec": "[ይ]-C0a-[ው]-C2I",
     "observations": 1,
     "consistent": false,
     "examples": [
@@ -1451,5 +1451,27 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[አስ]-C0I-C1a-C2I-[ነ]"
+  },
+  {
+    "pattern_spec": "C0o-C2a",
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "3",
+      "stem": "basic",
+      "tense": "past",
+      "verb_type": "weak_middle"
+    }
+  },
+  {
+    "pattern_spec": "C0i-C2I",
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "imperative",
+      "verb_type": "weak_middle"
+    }
   }
 ]

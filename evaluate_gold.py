@@ -96,9 +96,11 @@ def main():
     model.eval()
 
     test_pairs = load_gold_test_pairs(args.test_file)
-    if args.limit > 0:
-        test_pairs = test_pairs[:args.limit]
-    print(f"Evaluating on {len(test_pairs)} authentic gold test pairs...")
+    if args.limit > 0 and args.limit < len(test_pairs):
+        import random
+        rng = random.Random(42)
+        test_pairs = rng.sample(test_pairs, args.limit)
+    print(f"Evaluating on {len(test_pairs)} authentic gold test pairs (random sample, seed 42)...")
 
     metrics = {
         "total": len(test_pairs),

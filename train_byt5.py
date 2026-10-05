@@ -59,10 +59,45 @@ class GeezMorphologyDataset(Dataset if TRANSFORMERS_AVAILABLE else object):
         return model_inputs
 
 
+import geez_config
+
+def to_ethiopic_root(root_str: str) -> str:
+    if not root_str:
+        return ""
+    if "(" in root_str and any(0x1200 <= ord(c) <= 0x137F for c in root_str):
+        eth_chars = [c for c in root_str if 0x1200 <= ord(c) <= 0x137F]
+        return "-".join(eth_chars)
+    if any(0x1200 <= ord(c) <= 0x137F for c in root_str):
+        chars = [c for c in root_str if 0x1200 <= ord(c) <= 0x137F]
+        return "-".join(chars)
+    parts = root_str.split("-")
+    eth_parts = []
+    for p in parts:
+        p_clean = p.strip().lower()
+        if p_clean in geez_config.CONSONANTS:
+            eth_parts.append(geez_config.render_unit(p_clean, "a"))
+        elif p_clean == "ś":
+            eth_parts.append("ሠ")
+        elif p_clean == "ḥ":
+            eth_parts.append("ሐ")
+        elif p_clean == "ḫ":
+            eth_parts.append("ኀ")
+        elif p_clean == "ṣ":
+            eth_parts.append("ጸ")
+        elif p_clean == "ḍ":
+            eth_parts.append("ፀ")
+        elif p_clean == "ṭ":
+            eth_parts.append("ጠ")
+        else:
+            eth_parts.append(p_clean)
+    return "-".join(eth_parts)
+
 def load_morphology_training_data(dataset_dir: str, limit: int = 30000) -> List[Dict[str, str]]:
     """
     Load bidirectional training samples from synthetic_morphology_train.jsonl.
+    Uses uniform random sampling across all roots (fixed seed for reproducibility).
     """
+    import geez_config
     train_file = os.path.join(dataset_dir, "output", "synthetic_morphology_train.jsonl")
     samples = []
     
@@ -70,14 +105,22 @@ def load_morphology_training_data(dataset_dir: str, limit: int = 30000) -> List[
         raise FileNotFoundError(f"Training data not found at: {train_file}")
 
     with open(train_file, "r", encoding="utf-8") as f:
-        for i, line in enumerate(f):
-            if i >= limit:
-                break
+        all_lines = f.readlines()
+
+    import random
+    rng = random.Random(42)
+    if limit and limit < len(all_lines):
+        selected_lines = rng.sample(all_lines, limit)
+    else:
+        selected_lines = all_lines
+        rng.shuffle(selected_lines)
+
+    for line in selected_lines:
             d = json.loads(line)
             feat = d.get("features", {})
             surface = d.get("surface_form", "")
             
-            root = feat.get("root", "")
+            root = to_ethiopic_root(feat.get("root", ""))
             tense = feat.get("tense", "")
             person = feat.get("person", "")
             gender = feat.get("gender", "")

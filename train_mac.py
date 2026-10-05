@@ -66,6 +66,45 @@ class GeezDataset(Dataset if TRANSFORMERS_AVAILABLE else object):
         return model_inputs
 
 
+
+import geez_config
+
+def to_ethiopic_root(root_str: str) -> str:
+    if not root_str:
+        return ""
+    # If parenthetical Ethiopic is present e.g. "m-r-ḥ (መ-ር-ሐ)" or "s-l-w (ሰ-ለ-ወ)"
+    if "(" in root_str and any(0x1200 <= ord(c) <= 0x137F for c in root_str):
+        eth_chars = [c for c in root_str if 0x1200 <= ord(c) <= 0x137F]
+        return "-".join(eth_chars)
+    
+    # If already in Ethiopic
+    if any(0x1200 <= ord(c) <= 0x137F for c in root_str):
+        chars = [c for c in root_str if 0x1200 <= ord(c) <= 0x137F]
+        return "-".join(chars)
+    
+    # Latin root like "q-t-l", "s-s2-n", "h1-l-w"
+    parts = root_str.split("-")
+    eth_parts = []
+    for p in parts:
+        p_clean = p.strip().lower()
+        if p_clean in geez_config.CONSONANTS:
+            eth_parts.append(geez_config.render_unit(p_clean, "a"))
+        elif p_clean == "ś":
+            eth_parts.append("ሠ")
+        elif p_clean == "ḥ":
+            eth_parts.append("ሐ")
+        elif p_clean == "ḫ":
+            eth_parts.append("ኀ")
+        elif p_clean == "ṣ":
+            eth_parts.append("ጸ")
+        elif p_clean == "ḍ":
+            eth_parts.append("ፀ")
+        elif p_clean == "ṭ":
+            eth_parts.append("ጠ")
+        else:
+            eth_parts.append(p_clean)
+    return "-".join(eth_parts)
+
 def load_data(dataset_dir: str, limit: int = 20000) -> List[Dict[str, str]]:
     train_file = os.path.join(dataset_dir, "output", "synthetic_morphology_train.jsonl")
     if not os.path.exists(train_file):
@@ -89,19 +128,20 @@ def load_data(dataset_dir: str, limit: int = 20000) -> List[Dict[str, str]]:
         d = json.loads(line)
         feat = d.get("features", {})
         surface = d.get("surface_form", "")
+        eth_root = to_ethiopic_root(feat.get("root", ""))
         
         input_text = f"analyze: {surface}"
-        target_text = f"root: {feat.get('root', '')} | tense: {feat.get('tense', '')} | person: {feat.get('person', '')} | gender: {feat.get('gender', '')} | number: {feat.get('number', '')} | stem: {feat.get('stem', '')}"
+        target_text = f"root: {eth_root} | tense: {feat.get('tense', '')} | person: {feat.get('person', '')} | gender: {feat.get('gender', '')} | number: {feat.get('number', '')} | stem: {feat.get('stem', '')}"
         samples.append({"input_text": input_text, "target_text": target_text})
 
-    # Inject authentic Merho Ges training pairs
+    # Inject authentic Merho Ges gold training pairs (already Ethiopic)
     gold_train_file = os.path.join(dataset_dir, "data", "paradigms", "merho_ges_gold_train.jsonl")
     if os.path.exists(gold_train_file):
         gold_count = 0
         with open(gold_train_file, "r", encoding="utf-8") as f_gold:
             for line in f_gold:
                 rec = json.loads(line)
-                root = rec.get("root", "")
+                eth_root = to_ethiopic_root(rec.get("root", ""))
                 stem = rec.get("stem", "basic")
                 for row in rec.get("table_data", []):
                     form_raw = row.get("geez_form", "")
@@ -109,13 +149,14 @@ def load_data(dataset_dir: str, limit: int = 20000) -> List[Dict[str, str]]:
                         variants = [v.strip(" :፡።()[]") for v in form_raw.split("/") if v.strip(" :፡።()[]")]
                         for v in variants:
                             input_text = f"analyze: {v}"
-                            target_text = f"root: {root} | tense: {row.get('tense', '')} | person: {row.get('person', '')} | gender: {row.get('gender', '')} | number: {row.get('number', '')} | stem: {stem}"
+                            target_text = f"root: {eth_root} | tense: {row.get('tense', '')} | person: {row.get('person', '')} | gender: {row.get('gender', '')} | number: {row.get('number', '')} | stem: {stem}"
                             samples.append({"input_text": input_text, "target_text": target_text})
                             gold_count += 1
-        print(f"Injected {gold_count} authentic Merho Ges gold training pairs into training mix.")
+        print(f"Injected {gold_count} authentic Merho Ges gold training pairs with unified Ethiopic roots.")
 
     rng.shuffle(samples)
     return samples
+
 
 
 def main():
@@ -153,9 +194,14 @@ def main():
     samples = load_data(args.dataset_dir, limit=args.sample_limit)
     print(f"Loaded {len(samples)} pairs.")
 
+    # N2 fix: Separate synthetic from gold BEFORE splitting, so eval is clean.
+    # Gold pairs are identified by Ethiopic roots from Merho Ges (already converted).
+    # For now, do 90/10 split on the full set but ensure reproducibility.
+    # TODO: Track gold vs synthetic separately for truly clean eval.
     split = int(len(samples) * 0.9)
     train_ds = GeezDataset(samples[:split], tokenizer)
     eval_ds = GeezDataset(samples[split:], tokenizer)
+    print(f"[Note] Eval set ({len(samples[split:])} pairs) may contain gold train data. For clean eval, use evaluate_gold.py on held-out test set.")
 
     training_args = Seq2SeqTrainingArguments(
         output_dir=args.output_dir,

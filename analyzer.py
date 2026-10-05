@@ -73,6 +73,7 @@ class GeezMorphologicalAnalyzer:
         # Initialize generation engine for lemma synthesis
         self.engine = InterdigitationEngine(renderer=geez_config.render_unit)
         self.lemma_spec = slots_from_spec("C0a-C1a-C2a")
+        self.lemma_spec_biliteral = slots_from_spec("C0a-C1a")
 
         # Load dictionary index
         self.lexicon = {}
@@ -92,7 +93,7 @@ class GeezMorphologicalAnalyzer:
                         self.lexicon.setdefault(hw, []).append(entry)
                         
                         # Also index 1st-order lemma if headword is 6th-order (e.g. ቀተል -> ቀተለ)
-                        if len(hw) >= 3 and hw.endswith("ል") or any(hw.endswith(c) for c in ["ር", "ም", "ስ", "ቅ", "ብ", "ት", "ክ"]):
+                        if len(hw) >= 3 and (hw.endswith("ል") or any(hw.endswith(c) for c in ["ር", "ም", "ስ", "ቅ", "ብ", "ት", "ክ"])):
                             units = geez_config.decompose_string(hw)
                             if units and units[-1][1] == "I":
                                 alt_chars = list(hw)
@@ -150,14 +151,28 @@ class GeezMorphologicalAnalyzer:
                 feat = p["features"]
                 root_str = "-".join(root_cons)
                 
-                # Synthesize 3ms perfect lemma
-                try:
-                    if len(root_cons) == 3:
-                        canonical_lemma = self.engine.generate(root_cons, self.lemma_spec)
+                # For weak_middle, reconstruct full triliteral root with medial glide
+                if len(root_cons) == 2 and feat.get("verb_type") == "weak_middle":
+                    spec = p.get("pattern_spec", "")
+                    if any(x in spec for x in ("C0o", "C0u", "[ው]")):
+                        root_cons = (root_cons[0], "w", root_cons[1])
                     else:
-                        canonical_lemma = root_str
-                except Exception:
-                    canonical_lemma = root_str
+                        root_cons = (root_cons[0], "y", root_cons[1])
+                full_root = root_cons
+                root_str = "-".join(full_root)
+                try:
+                    if len(full_root) == 3:
+                        canonical_lemma = self.engine.generate(full_root, self.lemma_spec)
+                    elif len(full_root) == 2:
+                        canonical_lemma = self.engine.generate(full_root, self.lemma_spec_biliteral)
+                    else:
+                        canonical_lemma = word
+                except (ValueError, IndexError):
+                    lex = self.root_index.get("".join(full_root))
+                    if lex and lex[0].get("headword_geez"):
+                        canonical_lemma = lex[0]["headword_geez"]
+                    else:
+                        canonical_lemma = word
 
                 sig = (root_str, feat.get("tense"), feat.get("person"), feat.get("number"), feat.get("gender"), feat.get("stem"))
                 if sig in seen:

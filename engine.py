@@ -63,11 +63,12 @@ def make_fixed(text: str) -> Slot:
 @dataclass
 class InterdigitationEngine:
     """
-    Language-agnostic root-and-pattern engine.
+    Semitic root-and-pattern interdigitation engine with phonological contraction.
 
-    The engine knows nothing about any specific language. It manipulates
-    abstract consonant symbols and vowel labels. A `renderer` callable
-    converts abstract (consonant, vowel) units into script characters.
+    The engine performs abstract interdigitation of root consonants into pattern
+    slots, applies language-specific phonological glide contractions for weak roots
+    (such as Ge'ez medial glide monophthongization: aw -> o, ay -> e, əw -> u),
+    and delegates script rendering to a configured renderer callable.
     """
 
     renderer: Callable[[str, str], str] = None

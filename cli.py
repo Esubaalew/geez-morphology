@@ -89,6 +89,8 @@ def cmd_generate(args):
             continue
         if args.stem and feat.get("stem") != args.stem:
             continue
+        if getattr(args, "verb_type", None) and feat.get("verb_type") != args.verb_type:
+            continue
         
         try:
             form = engine.generate(cons, slots_from_spec(p["pattern_spec"]))
@@ -101,7 +103,7 @@ def cmd_generate(args):
         return
 
     for form, feat, spec in matches:
-        print(f"{form:<15} | {feat.get('tense', ''):<12} | {feat.get('person', '')}{feat.get('gender', '')}{feat.get('number', ''):<4} | {feat.get('stem', ''):<10} | {spec}")
+        print(f"{form:<15} | {feat.get('tense', ''):<12} | {feat.get('person', '')}{feat.get('gender', '')}{feat.get('number', ''):<4} | {feat.get('stem', ''):<10} | {feat.get('verb_type', ''):<12} | {spec}")
 
 
 def cmd_lookup(args):
@@ -145,6 +147,7 @@ def main():
     p_gen.add_argument("--number", choices=["s", "p"])
     p_gen.add_argument("--gender", choices=["m", "f"])
     p_gen.add_argument("--stem", choices=["basic", "causative", "passive", "reciprocal"])
+    p_gen.add_argument("--verb_type", choices=["strong_A", "strong_B", "weak_initial", "weak_middle", "weak_final", "irregular"], help="Filter by verb class/type")
 
     # lookup
     p_lookup = subparsers.add_parser("lookup", help="Look up a lemma in Kidane Wold Kifle lexicon")
