@@ -16,11 +16,13 @@ import gold_filters as G  # noqa: E402
 import gold_page_table as T  # noqa: E402
 
 TABLE_COLS = ["split", "line", "form", "root", "old_label", "status", "type", "tense", "person", "gender", "number",
-              "object", "book_term", "note", "form_fix", "root_fix", "page_checked", "record_id", "row"]
+              "object", "book_term", "note", "form_fix", "root_fix", "page_checked", "stem_fix", "root_fix_scope",
+              "record_id", "row"]
 V108_COLS = ["proposal_no", "outcome", "type", "gender", "number", "form_fix", "root_fix", "note",
              "stem_fix", "tense_fix", "person_fix"]
 EXTRA_COLS = ["split", "gold_file", "file_line", "record_id", "row", "variant", "form", "form_fix", "root_fix",
-              "label_fix", "page", "note"]
+              "root_fix_scope", "type", "stem_fix", "tense", "person", "gender", "number", "object", "label_fix",
+              "page", "note"]
 
 
 def record(root="ቀ-ተ-ለ", rows=None, lemma="ቀተለ", stem="basic"):
@@ -223,3 +225,18 @@ def test_scoring_of_nominal_and_object_pairs():
     as_noun = {"root": "ቀ-ተ-ለ", **E.normalize_row({"type": "noun", "number": "s"}), "tier": "byt5", "raw": ""}
     totals, _ = E.score([noun], _Fixed(as_noun))
     assert totals["type:noun"]["exact"] == [1, 1]
+
+
+def test_stem_fix_and_scope_columns():
+    rec = record(stem="basic")
+    rid = G.record_id(rec)
+    c = corrections(table=[table_row(rec, 0, "ቀተለ", type="verb", tense="past", person="3", gender="m", number="s",
+                                     stem_fix="passive"),
+                           table_row(rec, 2, "ቅቱል", type="adjective", gender="m", number="s", root_fix="ገ-ዘ-ፈ",
+                                     root_fix_scope="record", page_checked="yes")],
+                    extra=[{"split": "train", "record_id": rid, "row": "1", "form": "ቀተልኩ", "type": "verb",
+                            "tense": "past", "person": "1", "gender": "c", "number": "s", "stem_fix": "causative",
+                            "page": "50"}])
+    t = targets(c, [rec])
+    assert t["ቀተለ"] == "root: ገ-ዘ-ፈ | tense: past | person: 3 | gender: m | number: s | stem: passive"  # scope=record
+    assert t["ቀተልኩ"].endswith("stem: causative") and t["ቀተልኩ"].startswith("root: ገ-ዘ-ፈ")

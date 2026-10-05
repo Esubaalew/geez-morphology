@@ -122,8 +122,8 @@ def validate(dataset_dir, page_dir, her_folder=None, report=None):
         if not os.path.exists(path):
             continue
         cols = open(path, encoding="utf-8").readline().rstrip("\n").split("\t")
-        if name == "gold_page_table.tsv" and "stem" not in cols:
-            add(name, "", "check", "no stem column: verb stems stay as the gold record has them")
+        if name == "gold_page_table.tsv" and not {"stem", "stem_fix"} & set(cols):
+            add(name, "", "check", "no stem_fix column: verb stems stay as the gold record has them")
         for line, e in enumerate(G._read_tsv(path), 2):
             e, where = G._clean(e), f"{name}:{line}"
             key, _, probs = G.NORMALIZERS[name](e, page.key_maps[name])
@@ -156,7 +156,7 @@ def validate(dataset_dir, page_dir, her_folder=None, report=None):
                     add(where, form, "check", f"old_label {e['old_label']!r} is not the gold label {old_label(info['row'])!r}")
                 if e.get("root") and e["root"] != geez_config.first_order_root(e["root"]):
                     add(where, form, "check", f"root {e['root']!r} is not in 1st order ({geez_config.first_order_root(e['root'])})")
-                if "stem" in e.get("note", "").lower() and not e.get("stem"):
+                if "stem" in e.get("note", "").lower() and not (e.get("stem_fix") or e.get("stem")):
                     add(where, form, "check", f"note mentions a stem but no stem is given: {e['note']!r}")
             for col in ("form", "root"):
                 if LATIN.search(e.get(col, "")):

@@ -441,6 +441,21 @@ def _clean(e):
     return {k: (v or "").strip() for k, v in e.items() if k is not None}
 
 
+def _labels(e):
+    """Full label set of a relabel-table-style row (relabel table, extra table), or all None (keep the
+    gold labels) when the row gives no type. The stem comes from stem_fix (or stem); blank = keep."""
+    if not e.get("type"):
+        return dict.fromkeys(LABEL_COLUMNS)
+    labels = {c: e.get(c, "") for c in LABEL_COLUMNS if c != "stem"}
+    labels["stem"] = e.get("stem_fix") or e.get("stem") or None
+    return labels
+
+
+def _with_stem(e):
+    """The row as page_entry_problems reads it (stem_fix -> stem)."""
+    return dict(e, stem=e.get("stem_fix") or e.get("stem", ""))
+
+
 def _norm_table(e, keys):
     """gold_page_table.tsv row -> (key, entry, problems)."""
     key, probs = None, []
@@ -454,26 +469,26 @@ def _norm_table(e, keys):
             probs.append(f"{e.get('split')} line {e.get('line')} is {k[3]!r} in the 7a4aca2 export, not {e.get('form')!r}")
         else:
             key = k
-    labels = ({c: e.get(c, "") for c in LABEL_COLUMNS} if e.get("type") else dict.fromkeys(LABEL_COLUMNS))
-    entry = {"status": e.get("status"), "checked": e.get("page_checked") == "yes", "labels": labels,
+    entry = {"status": e.get("status"), "checked": e.get("page_checked") == "yes", "labels": _labels(e),
              **{c: e.get(c, "") for c in FIX_COLUMNS}}
-    return key, entry, probs + page_entry_problems(e)
+    return key, entry, probs + page_entry_problems(_with_stem(e))
 
 
 def _norm_extra(e, keys):
-    """gold_extra_fixes.tsv row. "page" (the scan page she read) marks the row page-checked."""
+    """gold_extra_fixes.tsv row: the relabel table's label columns (type, stem_fix, tense, person,
+    gender, number, object; no type = keep the gold labels), form_fix, root_fix, root_fix_scope.
+    "page" (the scan page she read) marks the row page-checked."""
     probs = []
     key = (e.get("split"), e.get("record_id"), int(e["row"]), e.get("form")) if e.get("row", "").isdigit() else None
     if key is None or not e.get("record_id"):
         key = None
         probs.append("no record_id/row")
     if e.get("label_fix"):
-        probs.append(f"label_fix {e['label_fix']!r}: format not agreed yet, use type/tense/person/gender/number/object columns")
-    labels = ({c: e.get(c, "") for c in LABEL_COLUMNS} if e.get("type") else dict.fromkeys(LABEL_COLUMNS))
+        probs.append(f"label_fix {e['label_fix']!r} is not read: use the type/stem_fix/tense/person/gender/number/object columns")
     status = e.get("status") or "confirmed"
     checked = bool(e.get("page")) or e.get("page_checked") == "yes"
-    entry = {"status": status, "checked": checked, "labels": labels, **{c: e.get(c, "") for c in FIX_COLUMNS}}
-    return key, entry, probs + page_entry_problems(dict(e, status=status, page_checked="yes" if checked else "",
+    entry = {"status": status, "checked": checked, "labels": _labels(e), **{c: e.get(c, "") for c in FIX_COLUMNS}}
+    return key, entry, probs + page_entry_problems(dict(_with_stem(e), status=status, page_checked="yes" if checked else "",
                                                        type=e.get("type") or "keep"))
 
 
