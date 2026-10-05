@@ -55,7 +55,7 @@ EVAL_FRACTION = 0.1
 SYNTHETIC_FILE = os.path.join("data", "paradigms", "synthetic_morphology_train.jsonl")
 GOLD_FILES = (os.path.join("data", "paradigms", "merho_ges_gold_train_tense_filled.jsonl"),
               os.path.join("data", "paradigms", "merho_ges_gold_train.jsonl"))
-ASTE_FORM = re.compile(r"^(ኢ)?[አያታናእይትን]ስተ")   # አስተቀተለ, ያስተቀትል, ኢያስተ...
+ASTE_FORM = gold_filters.ASTE_FORM   # አስተቀተለ, ያስተቀትል, ኢያስተ... (shared with evaluate_gold.py)
 CHECKPOINT_RE = re.compile(r"^checkpoint-(\d+)$")
 
 
@@ -119,36 +119,16 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None,
                   f"gender: {feat.get('gender', '')} | number: {feat.get('number', '')} | stem: {feat.get('stem', '')}")
         samples.append({"input_text": f"analyze: {surface}", "target_text": target, "is_gold": False})
 
-    # Merho Ges gold-train pairs (roots already Ethiopic). Rows with no tense carry ""
-    # (see notes/patches/fill_gold_tense.py).
+    # Merho Ges gold-train pairs: roots and labels as gold_filters.gold_pairs gives them (root tables,
+    # then the page corrections); targets in gold_filters.target_text (verbs and nominals).
     gold_file = gold_train_file(dataset_dir)
     if gold_file:
-        gold_count = 0
         with open(gold_file, "r", encoding="utf-8") as f_gold:
-            records = corrections.gold_records((json.loads(line) for line in f_gold), stats)
-            for rec in records:
-                eth_root = rec["root"]          # corrected, 1st order, checked (gold_filters)
-                stem = rec.get("stem", "basic")
-                for row in rec.get("table_data", []):
-                    form_raw = row.get("geez_form", "")
-                    if not form_raw:
-                        continue
-                    # same reading as evaluate_gold.py: "(...)" notes dropped, single Ethiopic words only
-                    variants, rejected = gold_filters.clean_variants(form_raw)
-                    stats["gold variants dropped: notes or extra words (not one Ethiopic word)"] += len(rejected)
-                    for v in variants:
-                        if gold_filters.is_excluded(row, v):
-                            stats["pairs excluded: pending (relabel proposals)"] += 1
-                            continue
-                        tense = row.get("tense", "")
-                        tense = "subjunctive" if tense == "jussive" else tense  # one label, as in the synthetic data
-                        # Merho Ges "causative_intensive" mixes አስተ- forms (the synthetic "aste"
-                        # stem) and reduplicated causatives (አንጸብረቀ): only አስተ- forms become "aste".
-                        row_stem = "aste" if stem == "causative_intensive" and ASTE_FORM.match(v) else stem
-                        target = (f"root: {eth_root} | tense: {tense} | person: {row.get('person', '')} | "
-                                  f"gender: {row.get('gender', '')} | number: {row.get('number', '')} | stem: {row_stem}")
-                        samples.append({"input_text": f"analyze: {v}", "target_text": target, "is_gold": True})
-                        gold_count += 1
+            pairs = corrections.gold_pairs([json.loads(line) for line in f_gold], "train", stats)
+        for p in pairs:
+            samples.append({"input_text": f"analyze: {p['form']}", "target_text": gold_filters.target_text(p),
+                            "is_gold": True})
+        gold_count = len(pairs)
         print(f"Read {gold_count} Merho Ges gold-train pairs from {gold_file}")
     else:
         print("[!] No gold-train file found; training on synthetic pairs only.")
@@ -284,6 +264,9 @@ def parse_args(argv=None):
     p.add_argument("--load_only", action="store_true", help="Load and split the data, print counts, exit")
     p.add_argument("--allow_missing_corrections", action="store_true",
                    help="Train even if <dataset>/data/corrections/ is missing (roots then only get 1st-order letters and the guard)")
+    p.add_argument("--page_corrections", default=gold_filters.PAGE_DIR,
+                   help="Folder with the page-checked corrections (sources/, keys/; default: gold_corrections)")
+    p.add_argument("--no_page_corrections", action="store_true", help="Do not apply the page corrections")
     p.add_argument("--export_dir", default=None,
                    help="Write the loaded train and eval pairs (train.jsonl, eval.jsonl) to this folder")
     p.add_argument("--no_test_inference", action="store_true", help="Skip the sample predictions after training")
@@ -302,7 +285,12 @@ def main(argv=None) -> int:
     args.output_dir = os.path.abspath(args.output_dir)
 
     import collections
-    corrections = gold_filters.Corrections.from_dataset(args.dataset_dir, required=not args.allow_missing_corrections)
+    page_dir = None if args.no_page_corrections else args.page_corrections
+    if page_dir and not os.path.isdir(os.path.join(page_dir, "sources")):
+        print(f"[!] Page corrections not found: {page_dir}/sources")
+        return 1
+    corrections = gold_filters.Corrections.from_dataset(args.dataset_dir, required=not args.allow_missing_corrections,
+                                                        page_dir=page_dir)
     load_stats = collections.Counter()
     samples = load_data(args.dataset_dir, limit=args.sample_limit, stats=load_stats, corrections=corrections)
     train_samples, eval_samples, n_syn, n_gold = split_samples(samples)
@@ -314,6 +302,13 @@ def main(argv=None) -> int:
     print("Gold-train load counts:")
     for line in gold_filters.format_stats({k: v for k, v in load_stats.items() if k.split(" ")[0] in ("records", "pairs")}):
         print(line)
+    if corrections.page is not None:
+        page = corrections.page
+        print(f"Page corrections: {page.folder}/sources  ({sum(page.rows.values())} rows -> {len(page.entries)} pairs; "
+              f"{len(page.problems)} rows not applied, {len(page.conflicts)} pairs with disagreeing sources)")
+        for k, v in sorted(load_stats.items()):
+            if k.startswith("page "):
+                print(f"  {k:62s} {v:6d}")
     print(f"Synthetic pairs fixed at load: {load_stats['synthetic pairs fixed']}")
     for k, v in sorted(load_stats.items()):
         if k.startswith("synthetic pairs skipped"):

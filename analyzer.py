@@ -110,6 +110,7 @@ class MorphologicalAnalysis:
     lexicon_entry: Optional[Dict[str, Any]] = None
     negative: bool = False
     object: Optional[str] = None
+    pos: Optional[str] = None        # None = verb; "noun" / "adjective" from a nominal ByT5 target
 
 
 @dataclass
@@ -885,18 +886,25 @@ class GeezMorphologicalAnalyzer:
         return results
 
 
-NEURAL_FIELDS = ("root", "tense", "person", "gender", "number", "stem")
+NEURAL_FIELDS = ("root", "tense", "person", "gender", "number", "stem")   # verb target
+NEURAL_NOMINAL_FIELDS = ("root", "type", "number")                       # + optional gender
+NOMINAL_TYPES = ("noun", "adjective")
+NO_VALUE = ("", "none", "null")
 
 
 def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
-    """Strict parse of a ByT5 prediction in the training target format
-    "root: ቀ-ተ-ለ | tense: present | person: 3 | gender: m | number: s | stem: basic".
+    """Strict parse of a ByT5 prediction in one of the two training target shapes
+    (gold_filters.target_text):
 
-    Every field in NEURAL_FIELDS must appear exactly once and no other key is allowed.
-    The root must be non-empty and made only of Ethiopic letters (hyphens and spaces
-    between them are allowed). Empty values and "None" mean "no value" for the other
-    fields. Returns a dict with the six fields plus "root_consonants", or None if the
-    text does not have that shape."""
+      verb     "root: ቀ-ተ-ለ | tense: present | person: 3 | gender: m | number: s | stem: basic"
+               with an optional " | object: 3ms" at the end;
+      nominal  "root: ቀ-ተ-ለ | type: noun | gender: m | number: s" (gender optional).
+
+    Each key appears at most once; the keys must be exactly one shape's (no others). The root
+    must be non-empty and made only of Ethiopic letters (hyphens and spaces between them are
+    allowed). Empty values and "None" mean "no value" for the other fields. Returns a dict with
+    root, type ("verb", "noun" or "adjective"), tense, person, gender, number, stem, object and
+    "root_consonants" (fields a shape does not have are None), or None for any other text."""
     if not isinstance(text, str) or not text.strip():
         return None
     out: Dict[str, Any] = {}
@@ -905,10 +913,15 @@ def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
             return None
         k, v = part.split(":", 1)
         k, v = k.strip(), v.strip()
-        if k not in NEURAL_FIELDS or k in out:
+        if k in out:
             return None
         out[k] = v
-    if set(out) != set(NEURAL_FIELDS):
+    keys = set(out)
+    if keys - {"object"} == set(NEURAL_FIELDS):
+        out["type"] = "verb"
+    elif keys - {"gender"} == set(NEURAL_NOMINAL_FIELDS) and out["type"] in NOMINAL_TYPES:
+        pass
+    else:
         return None
     letters = out["root"].replace("-", "").replace(" ", "")
     if not letters:
@@ -919,9 +932,9 @@ def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
         if not dec or not dec[0]:
             return None
         cons.append(dec[0])
-    for k in NEURAL_FIELDS[1:]:
-        if out[k].lower() in ("", "none", "null"):
-            out[k] = None
+    for k in ("tense", "person", "gender", "number", "stem", "object"):
+        v = out.get(k)
+        out[k] = None if v is None or v.lower() in NO_VALUE else v
     out["root_consonants"] = cons
     return out
 
@@ -1023,7 +1036,9 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
                 stem=parsed["stem"],
                 verb_type="neural_prediction",
                 pattern_spec="neural:byt5_fallback",
-                lexicon_entry=None
+                lexicon_entry=None,
+                object=parsed["object"],
+                pos=None if parsed["type"] == "verb" else parsed["type"],
             )
             return [analysis]
         except Exception:
