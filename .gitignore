@@ -17,3 +17,4 @@ runs/
 wandb/
 *.log
 training.log
+checkpoints_backup*/

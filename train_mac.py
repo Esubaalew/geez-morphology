@@ -105,7 +105,7 @@ def to_ethiopic_root(root_str: str) -> str:
             eth_parts.append(p_clean)
     return "-".join(eth_parts)
 
-def load_data(dataset_dir: str, limit: int = 20000) -> List[Dict[str, str]]:
+def load_data(dataset_dir: str, limit: int = 60000) -> List[Dict[str, str]]:
     train_file = os.path.join(dataset_dir, "output", "synthetic_morphology_train.jsonl")
     if not os.path.exists(train_file):
         raise FileNotFoundError(f"Training data not found at: {train_file}")
@@ -163,11 +163,23 @@ def main():
     parser = argparse.ArgumentParser(description="Train ByT5 on Apple Silicon Mac")
     parser.add_argument("--dataset_dir", default="../geez-dataset-v1", help="Path to geez-dataset-v1")
     parser.add_argument("--output_dir", default="./checkpoints", help="Local checkpoint dir (git-ignored)")
-    parser.add_argument("--sample_limit", type=int, default=20000, help="Number of pairs to train on")
+    parser.add_argument("--sample_limit", type=int, default=60000,
+                        help="Number of pairs to train on (20k ~1.5h, 60k ~4h, full ~6h on MPS)")
+    parser.add_argument("--full", action="store_true",
+                        help="Train on all pairs (sets sample_limit=0; full ~6h on MPS)")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size (16 is ideal on 24GB M4)")
     parser.add_argument("--epochs", type=int, default=3, help="Training epochs")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate (default: 1e-3)")
     args = parser.parse_args()
+
+    if args.full:
+        args.sample_limit = 0
+
+    if args.sample_limit == 0:
+        print("[i] --full / sample_limit=0: training on ALL pairs (~6h on MPS).")
+    elif args.sample_limit > 50000:
+        print(f"[!] Warning: sample_limit={args.sample_limit} > 50000 — expect multiple MPS GPU-hours "
+              f"(60k ~4h, full ~6h). Use --sample_limit 20000 for a ~1.5h smoke run.")
 
     if not TRANSFORMERS_AVAILABLE:
         print("[!] PyTorch or HuggingFace Transformers is not installed.")
@@ -190,7 +202,8 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 
-    print(f"Loading {args.sample_limit} training pairs from {args.dataset_dir}...")
+    limit_msg = "ALL" if args.sample_limit == 0 else str(args.sample_limit)
+    print(f"Loading {limit_msg} training pairs from {args.dataset_dir}...")
     samples = load_data(args.dataset_dir, limit=args.sample_limit)
     print(f"Loaded {len(samples)} pairs.")
 
