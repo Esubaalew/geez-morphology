@@ -21,6 +21,11 @@ copied to <dataset>/data/paradigms (what train_byt5_morphology.py reads).
 After the copy, synthetic_heldout.py moves every line whose root is a root of the
 current gold val or test file into <dataset>/data/synthetic/ (held out, not read by
 the trainer; the maintainer 2026-10-06 14:35); --no_heldout_split skips that step.
+Random draws are per root: which base pairs of a root get object and
+negative forms, which object suffixes, which augmentation forms get the negative, and whether a
+quadriliteral root is used all come from that root's own random.Random, seeded with
+sha256("<SEED>:<purpose>:<root>") (root_rng). A change to one root (its class tag, its templates)
+changes only that root's lines; every other root's lines stay identical and in the same order.
 The committed files were generated with the test file as extracted (544271a):
   git -C <dataset> show 544271a:data/paradigms/merho_ges_gold_test.jsonl > /tmp/test_544271a.jsonl
   python generate_synthetic_fixed.py --test_file /tmp/test_544271a.jsonl
@@ -30,6 +35,7 @@ import os
 import sys
 import json
 import argparse
+import hashlib
 import random
 import shutil
 import unicodedata
@@ -57,6 +63,25 @@ OBJECT_SUFFIXES = [
     {"key": "3mp", "person": "3", "number": "p", "gender": "m", "suffix": "ሆሙ"},
     {"key": "3fp", "person": "3", "number": "p", "gender": "f", "suffix": "ሆን"},
 ]
+
+
+# Per-root random streams. Before, one Random(42) stream and global
+# counters ran over all roots, so a class-tag change for 3 roots moved ~26k object/negative lines
+# of 1,499 other roots. Now every draw for a root comes from root_rng(root, purpose): seeded from
+# SEED, the purpose and the root string through sha256 (Python's hash() is salted per process).
+# Rates are fixed numbers, not "N of all roots", so no root's draws depend on another root.
+SEED = 42
+AUGMENT_EVERY_BASE = 8      # one in 8 Type A template pairs of a root -> object/negative forms (was: of all roots)
+AUGMENT_EVERY_QUAD = 6      # one in 6 quadriliteral pairs of a root (was: of all quad pairs)
+QUAD_SAMPLE_RATE = 0.28     # share of quadriliteral roots used (was a 300-of-1,064 sample, 0.282)
+NEGATIVE_RATE = 0.22        # share of augmentation forms given the ኢ- form (was 5,000 of ~22,800, 0.219)
+
+
+def root_rng(root: str, purpose: str, seed: int = SEED) -> random.Random:
+    """random.Random for one root ("q-t-l") and one purpose ("augment", "objects", "negative",
+    "quad_sample"), seeded with the first 8 bytes of sha256(f"{seed}:{purpose}:{root}")."""
+    digest = hashlib.sha256(f"{seed}:{purpose}:{root}".encode("utf-8")).digest()
+    return random.Random(int.from_bytes(digest[:8], "big"))
 
 
 # Third-person object suffixes change shape with the vowel they attach to.
@@ -433,6 +458,10 @@ def generate_extended_dataset(
                 key = (SHAPE_NAME.get(shape, str(shape)) + " (from triple)") if shape else \
                     "no triple: current ይቅትል shape kept"
                 subj_used[key] = subj_used.get(key, 0) + 1
+            # Augmentation picks: every AUGMENT_EVERY_BASE-th template pair of THIS root, from an
+            # offset drawn from the root's own stream (class rows above are not counted or used).
+            aug_offset = root_rng("-".join(cons), "augment").randrange(AUGMENT_EVERY_BASE)
+            root_pairs = 0
             for p in patterns_data:
                 ptype = p["features"].get("verb_type", "strong_A")
                 if rtype in ("weak_middle", "weak_initial"):
@@ -497,8 +526,9 @@ def generate_extended_dataset(
                     if not write_pair(feat, form):
                         continue
                     total_base += 1
+                    root_pairs += 1
 
-                    if total_base % 8 == 0:
+                    if (root_pairs + aug_offset) % AUGMENT_EVERY_BASE == 0:
                         base_forms_for_augmentation.append((form, feat, cons))
 
                 except Exception:
@@ -508,13 +538,16 @@ def generate_extended_dataset(
 
         if include_quads:
             print("Generating Phase 2: Quadriliteral Verbs (ደንገፀ, ሰንበተ, etc.)...")
-            sampled_quads = (random.Random(42).sample(quadriliteral_roots, 300)
-                             if len(quadriliteral_roots) > 300 else quadriliteral_roots)
+            # A quad root is used if its own stream draws it (QUAD_SAMPLE_RATE), in sorted root order.
+            drawn_quads = {r for r in quadriliteral_roots
+                           if root_rng("-".join(r), "quad_sample").random() < QUAD_SAMPLE_RATE}
+            print(f"  Quad roots drawn (per-root, rate {QUAD_SAMPLE_RATE}): {len(drawn_quads)} of {len(quadriliteral_roots)}")
 
-            # Every quad root with a class from its triple is used, sampled or not.
+            # Every quad root with a class from its triple is used, drawn or not.
             confirmed_quads = [r for r in quadriliteral_roots
-                               if class_of.get(r) in ("quad_c", "quadriliteral") and r not in sampled_quads]
-            sampled_quads = list(sampled_quads) + confirmed_quads
+                               if class_of.get(r) in ("quad_c", "quadriliteral") and r not in drawn_quads]
+            used_quads = drawn_quads | set(confirmed_quads)
+            sampled_quads = [r for r in quadriliteral_roots if r in used_quads]
             print(f"  Confirmed quad roots added to the sample: {len(confirmed_quads)}")
             # filtered after sampling so the rest of the sample is unchanged.
             # Amharic-only letter -> drop; two or more w/y -> doubly weak, drop; last
@@ -537,6 +570,8 @@ def generate_extended_dataset(
                 if class_of.get(cons) == "quad_c":
                     write_class_rows(cons, "quad_c")   # ማህረከ ፡ ይማህርክ
                     continue
+                aug_offset = root_rng("-".join(cons), "augment").randrange(AUGMENT_EVERY_QUAD)
+                root_pairs = 0
                 for q_temp in QUADRILITERAL_TEMPLATES:
                     try:
                         spec = q_temp["spec"]
@@ -555,8 +590,9 @@ def generate_extended_dataset(
                         if not write_pair(feat, form):
                             continue
                         total_quads += 1
+                        root_pairs += 1
 
-                        if total_quads % 6 == 0:
+                        if (root_pairs + aug_offset) % AUGMENT_EVERY_QUAD == 0:
                             base_forms_for_augmentation.append((form, feat, cons))
                     except Exception:
                         failed_forms += 1
@@ -565,10 +601,13 @@ def generate_extended_dataset(
 
         if include_objects:
             print("Generating Phase 3: Object Pronominal Suffixes (-ኒ, -ከ, -ኪ, -ዎ, -ሃ, -ነ, -ክሙ, -ክን, -ሆሙ)...")
-            rng = random.Random(42)
+            print(f"  Augmentation forms (per-root picks): {len(base_forms_for_augmentation):,}")
+            obj_rngs = {}
 
             for form, feat, cons in base_forms_for_augmentation:
-                obj_sample = rng.sample(OBJECT_SUFFIXES, 2)
+                if cons not in obj_rngs:
+                    obj_rngs[cons] = root_rng("-".join(cons), "objects")
+                obj_sample = obj_rngs[cons].sample(OBJECT_SUFFIXES, 2)
                 for obj in obj_sample:
                     if feat.get("person") == obj["person"] and obj["person"] in ("1", "2"):
                         continue
@@ -596,9 +635,16 @@ def generate_extended_dataset(
 
         if include_negative:
             print("Generating Phase 4: Negative Prefix (ኢቀተለ, ኢይቀትል, ኢተቀተለ)...")
-            rng = random.Random(42)
-
-            neg_sample = rng.sample(base_forms_for_augmentation, min(5000, len(base_forms_for_augmentation)))
+            # Each augmentation form gets the negative with NEGATIVE_RATE, from its root's own stream
+            # (drawn for every form, imperative or not, so the draws do not depend on the skip below).
+            neg_rngs = {}
+            neg_sample = []
+            for item in base_forms_for_augmentation:
+                cons = item[2]
+                if cons not in neg_rngs:
+                    neg_rngs[cons] = root_rng("-".join(cons), "negative")
+                if neg_rngs[cons].random() < NEGATIVE_RATE:
+                    neg_sample.append(item)
             for form, feat, cons in neg_sample:
                 if feat.get("tense") == "imperative":
                     continue
