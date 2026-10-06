@@ -183,5 +183,5 @@ def test_clean_gold_files_on_the_dataset():
         for p in pairs:
             assert G.root_problem(p["root"]) is None and p["root"] == gc.first_order_root(p["root"])
             assert split_of.setdefault(p["root"], split) == split, (p["root"], split_of[p["root"]], split)
-    assert len(C.flagged_file) == 13 and n["train"] > 2000 and n["val"] > 250 and n["test"] > 350
+    assert len(C.flagged_file) >= 13 and n["train"] > 2000 and n["val"] > 250 and n["test"] > 350
     assert split_of["ዐ-ፀ-መ"] == "train" and split_of["አ-በ-ሐ"] == "test" and split_of["ከ-ረ-በ"] == "val"

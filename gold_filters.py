@@ -53,7 +53,8 @@ TABLES = {"gold": "gold_root_corrections.tsv",
 PE_TO_P2 = {0x1330 + i: 0x1350 + i for i in range(8)}   # ጰ-series -> ፐ-series
 GOLD_SPLIT = re.compile(r"merho_ges_gold_(train|val|test)(_tense_filled)?\.jsonl$")
 # Merho Ges "causative_intensive" mixes አስተ- forms (the synthetic "aste" stem) and reduplicated
-# causatives (አንጸብረቀ): only አስተ- forms are labelled "aste" (trainer and evaluate_gold alike).
+# causatives (አንጸብረቀ): only አስተ- forms are labelled "aste". Used by the load-time path for the
+# gold files as extracted; the files corrected in place carry stem "aste" themselves.
 ASTE_FORM = re.compile(r"^(ኢ)?[አያታናእይትን]ስተ")
 
 PAGE_DIR = os.path.join(SCRIPT_DIR, "gold_corrections")      # the page corrections (sources/, keys/)
@@ -453,8 +454,8 @@ def file_pairs(records, split, flagged=(), stats=None):
     and where they differ from the record: root, stem, type (noun/adjective), object.
     Left out, and counted: pairs in `flagged` ((split, record_id, row, form) keys), variants that are
     not one Ethiopic word, rows whose root is empty, joined, Latin or not 2-5 letters.
-    Two label conventions of the targets apply as before: jussive is written subjunctive
-    (target_text), and causative_intensive አስተ- forms get the stem "aste"."""
+    One label convention of the targets applies: jussive is written subjunctive (target_text).
+    Stems are read as written (the files carry "aste" for አስተ- forms; no derivation here)."""
     stats = stats if stats is not None else collections.Counter()
     out = []
     for rec in records:
@@ -478,8 +479,6 @@ def file_pairs(records, split, flagged=(), stats=None):
                           "object": row.get("object", ""), "stem": row.get("stem") or rec.get("stem", "basic")}
                 if labels["type"] in NOMINAL_TYPES:
                     labels = dict(_nominal(labels), stem=None)
-                elif labels["stem"] == "causative_intensive" and ASTE_FORM.match(v):
-                    labels["stem"] = "aste"
                 stats["file pairs loaded"] += 1
                 out.append({"form": v, "source_form": v, "root": root, "root_from_page": bool(row.get("root")),
                             "root_as_extracted": root, "record": rec, "record_id": rid, "row": j, "page": None,
