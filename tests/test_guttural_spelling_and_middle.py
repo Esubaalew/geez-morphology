@@ -164,5 +164,5 @@ def test_no_doubled_guttural_present_in_changed_roots(synth):
             bad.append(r["surface_form"])
         if f["tense"] in ("subjunctive", "imperative") and dec[j][1] != "a":
             bad.append(r["surface_form"])
-    assert len(seen) == 154
+    assert len(seen) == 155     # + f-a-m (ፈ-አ-መ): Type A since its Type C tag no longer comes from the extracted gold train
     assert bad == []

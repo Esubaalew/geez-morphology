@@ -12,7 +12,7 @@ Generates bidirectional training pairs covering:
    Type B (ቀደሰ), Type C (ባረከ), final-w (ተለወ), ሰትየ-type final-y, and the
    ወለደ/ወረደ subjunctive. New checked classes go in verb_class_paradigms.py.
    Classes come from the Kidane Wold verb triples (kw_verb_triples.py), Merho
-   Ges and the class lemmas; roots come from the dictionary with the
+   Ges (the corrected gold train file, verb_classes.GOLD_TRAIN_FILE) and the class lemmas; roots come from the dictionary with the
    kidane_wold_root_fixes.jsonl corrections applied.
 
 Roots of the gold test split are left out (see --keep_test_roots), so the
