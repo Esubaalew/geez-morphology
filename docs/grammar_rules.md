@@ -1,11 +1,9 @@
 # Grammar rules used by the generator and the analyzer
 
-These are the decisions of the grammar check, made between earlier checks
-(2026-10-05). The generator (`generate_synthetic_fixed.py`, `verb_classes.py`,
-`verb_class_paradigms.py`) and the analyzer (`analyzer.py`) follow them. Page numbers are the
-printed pages of the grammar books the editors read from page images. "ፍሬ ግእዝ page_014" is the
-image file name in that scan, not a file in this repository. The full history, with counts, is in
-the 2026-10-05 notes (not included since 2026-10-06).
+These are the language decisions the generator (`generate_synthetic_fixed.py`, `verb_classes.py`,
+`verb_class_paradigms.py`) and the analyzer (`analyzer.py`) follow. Page numbers are the
+printed pages of the grammar books they were read from. "ፍሬ ግእዝ page_014" is the
+image file name in that scan, not a file in this repository.
 
 Root letters are written in the consonant symbols of `geez_config.py` (h1 ሀ, h2 ሐ, kh ኀ, a አ,
 a2 ዐ, s2 ሠ, S ጸ, S2 ፀ, T ጠ, qh ቈ).
@@ -31,7 +29,7 @@ In the ቀተለ class, when the second radical is a guttural (ሀ ሐ ኀ አ �
 Sources:
 - ፍሬ ግእዝ p. 63 (page_037), rules ፲፪.፪–፲፪.፫: መሐለ ፡ ይምሕል ፡ ይምሐል and ሰአለ ፡ ይስእል ፡ ይስአል.
 - ፍሬ ግእዝ p. 18 (page_014): ድሕነ ፡ ይድሕን ፡ ይድሐን and ሰዐረ ፡ ይስዕር ፡ ይስዓር.
-- The book prints ሐ, አ and ዐ. ኀ is included by the choice, because the rule names the
+- The book prints ሐ, አ and ዐ. ኀ is included because the rule names the
   ሀ letters as a set.
 
 Scope:
@@ -89,7 +87,7 @@ stem label is `aste`.
 - **Final-y (ሰትየ type):** generated only for a tagged root (ይሰቲ / ይስተይ). The በከየ type (subjunctive
   ይብኪ) is different and has no checked paradigm.
 - Final-weak roots without a tag are skipped.
-- The checked paradigm tables from the grammar check are in `verb_class_paradigms.py`, and
+- The checked paradigm tables are in `verb_class_paradigms.py`, and
   `tests/test_verb_class_paradigms.py` checks them.
 - **Initial-w:** these get the Type A perfect and present only. The subjunctive and imperative are
   generated only for the ወለደ type (ይለድ, ለድ): roots on the W_DROP list or with a ይለድ-shaped
@@ -114,8 +112,7 @@ stem label is `aste`.
   - the class lemmas.
 - A root with no evidence gets the default for its shape.
 - **an earlier prototype is a hint only.** Its classes come from earlier work that could not be confirmed. A
-  an earlier prototype lemma is linked only by exact spelling, and no class is taken from it. Its disagreements
-  are listed in the notes (`prototype_crosscheck_conflicts_2026-10-05.jsonl`, not included).
+  an earlier prototype lemma is linked only by exact spelling, and no class is taken from it.
 
 ## 9. Kidane Wold triple check
 

@@ -22,10 +22,7 @@ geez-morphology/
 ├── evaluate_gold.py              scores a system on the Merho Ges gold test set
 ├── tests/                        unit and regression tests
 └── docs/
-    ├── grammar_rules.md          the language decisions behind the data, with sources
-    └── audit/                    notes (data_and_model_notes_2026-10-05.md),
-                                  checks/, eval/, logs/, patches/,
-                                  gold-label suspects and relabel proposals
+    └── grammar_rules.md          the language decisions behind the data, with sources
 ```
 
 Not in git: `.venv/`, `checkpoints*/`, logs, `.env`.
@@ -54,7 +51,7 @@ python cli.py lookup ቀተለ
 python generate_synthetic_fixed.py
 ```
 
-Writes `../geez-dataset-v1/output/` (not in git) and copies the synthetic files to `../geez-dataset-v1/data/paradigms/`. Current output: 216,977 pairs from 2,007 roots (full train file sha256 `e384ccf2dc276c95f2c65fde564a40eb31388ecb2c84a72faa34d050139abcb7`, guttural-final past rule, Merho Ges class tags from the corrected gold train file, per-root random streams); after the held-out split (`synthetic_heldout.py`) the training file has 210,348 lines (sha256 `f9b52cd4…`) and 6,629 lines are held out in `data/synthetic/`. That file was generated with the held-out roots of the gold test file as of dataset commit 544271a (`generate_extended_dataset(..., test_file=<544271a merho_ges_gold_test.jsonl>)`): the corrected test file holds out other roots, so the plain command above would change the lines of those roots (every random draw is per root, so no other root's lines change). Class and tense counts are in the dataset README.
+Writes `../geez-dataset-v1/output/` (not in git) and copies the synthetic files to `../geez-dataset-v1/data/paradigms/`. The training file holds 210,348 pairs (sha256 `f9b52cd4f4edb`); 6,629 pairs whose roots are gold val/test roots are held out in `../geez-dataset-v1/data/synthetic/`. Class and tense counts are in the dataset README.
 
 ## Test
 
@@ -81,12 +78,11 @@ python evaluate_gold.py --system hybrid --no_neural                      # rules
 python evaluate_gold.py --system byt5 --model_dir checkpoints_full       # trained model
 ```
 
-Current rules-only result on the Merho Ges test split: exact match 193/377 (51.2%), root 248/394. With the proposed gold relabels excluded (`--exclude_proposed`): 193/360. Model results will follow after training.
+Rules-only result on the Merho Ges test split: exact match 193/377 (51.2%), root 248/394. With the proposed gold relabels excluded (`--exclude_proposed`): 193/360.
 
-## Rules and notes
+## Rules
 
-- Language decisions and their sources: [`docs/grammar_rules.md`](docs/grammar_rules.md)
-- The 2026-10-05 notes, sheets, patches and logs (formerly `notes/`) are not included since 2026-10-06; the relabel proposals the code reads are in `../geez-dataset-v1/data/corrections/`.
+Language decisions and their sources: [`docs/grammar_rules.md`](docs/grammar_rules.md).
 
 ## License
 
