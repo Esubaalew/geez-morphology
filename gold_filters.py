@@ -16,7 +16,8 @@ tables in <dataset>/data/corrections/ through this module:
 
   gold_root_corrections.tsv       per gold record: skip | fix (new_root) | split (forms) | keep
   gold_excluded_records.tsv       table rows/forms left out of this run
-  synthetic_root_corrections.tsv  synthetic roots: fix (new_root) | skip | keep
+  synthetic_root_corrections.tsv  synthetic roots: fix (new_root) | keep (no skips: bad synthetic pairs are
+                                  fixed in the synthetic files themselves)
 
 and, on top of those, the page-checked corrections in this repo
 (gold_corrections/sources/: her three files, verbatim; see PageCorrections and Corrections.gold_pairs):
@@ -169,7 +170,6 @@ class Corrections:
         self.paths = {k: p for k, p in paths.items() if os.path.exists(p)}
         self.sha256 = {TABLES[k]: _sha256(p) for k, p in self.paths.items()}
         self.gold, self.excluded, self.synthetic = {}, collections.defaultdict(set), {}
-        self.synthetic_skip = set()
         if "gold" in self.paths:
             for r in _read_tsv(self.paths["gold"]):
                 assert r["record_id"] not in self.gold, f"duplicate record_id {r['record_id']}"
@@ -181,8 +181,9 @@ class Corrections:
             for r in _read_tsv(self.paths["synthetic"]):
                 if r["action"] == "fix":
                     self.synthetic[r["root"]] = r["new_root"]
-                elif r["action"] == "skip":
-                    self.synthetic_skip.add(r["root"])
+                elif r["action"] != "keep":
+                    raise ValueError(f"synthetic_root_corrections.tsv: action {r['action']!r} for {r['root']} is not "
+                                     "supported (fix or keep; skipped pairs are fixed in the synthetic file instead)")
         has_page = page_dir and not self.in_place and any(os.path.exists(os.path.join(page_dir, "sources", n))
                                                           for n in PAGE_SOURCES + (FLAGGED_SOURCE,))
         if self.in_place and os.path.exists(os.path.join(gold_dir, CLEAN_FLAGGED)):
@@ -406,11 +407,8 @@ class Corrections:
 
     # ------------------------------------------------------------- synthetic
     def synthetic_record(self, d):
-        """-> (record, changed). Fixes features/analysis root and the surface letters.
-        A root with a skip row gives (None, True): the caller drops the pair."""
+        """-> (record, changed). Fixes features/analysis root and the surface letters."""
         feats = d.get("features") if "features" in d else d.get("analysis")
-        if feats and feats.get("root") in self.synthetic_skip:
-            return None, True
         if not feats or feats.get("root") not in self.synthetic:
             return d, False
         d = dict(d)

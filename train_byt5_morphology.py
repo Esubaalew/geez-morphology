@@ -12,7 +12,7 @@ Gold files corrected in place (data/paradigms/merho_ges_gold_flagged_rows.tsv pr
 are read as written, leaving out the pairs in merho_ges_gold_flagged_rows.tsv (gold_filters.file_pairs).
 Gold files as extracted (older dataset checkouts): roots and labels are corrected at load time from
 <dataset>/data/corrections/ and the page corrections (gold_filters.py). Either way the synthetic root
-fixes/skips (ተ-ረ-ጰ -> ተ-ረ-ፐ; ቀ-ረ-ሐ skipped) apply at load time. The tables are required unless --allow_missing_corrections.
+fix (ተ-ረ-ጰ -> ተ-ረ-ፐ) applies at load time. The tables are required unless --allow_missing_corrections.
 All gold-train pairs go to training. The eval split is 10% of the synthetic pairs
 (seed 42), so eval loss never includes gold rows. The held-out gold test file is
 not read here; use evaluate_gold.py for that.
@@ -110,9 +110,6 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None,
     for line in selected_lines:
         raw = json.loads(line)
         d, changed = corrections.synthetic_record(raw)
-        if d is None:
-            stats["synthetic pairs skipped: " + raw.get("features", {}).get("root", "?")] += 1
-            continue
         stats["synthetic pairs fixed"] += changed
         feat = d.get("features", {})
         surface = d.get("surface_form", "")
@@ -313,9 +310,6 @@ def main(argv=None) -> int:
             if k.startswith("page "):
                 print(f"  {k:62s} {v:6d}")
     print(f"Synthetic pairs fixed at load: {load_stats['synthetic pairs fixed']}")
-    for k, v in sorted(load_stats.items()):
-        if k.startswith("synthetic pairs skipped"):
-            print(f"Synthetic {k[len('synthetic '):]} (corrections table): {v}")
     print(f"Gold variants dropped (notes or extra words, read as in evaluate_gold.py): "
           f"{load_stats['gold variants dropped: notes or extra words (not one Ethiopic word)']}")
     print(f"Synthetic pairs: {n_syn}. Gold-train pairs: {n_gold}.")
