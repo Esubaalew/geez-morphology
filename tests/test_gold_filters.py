@@ -132,14 +132,27 @@ def test_trainer_skips_synthetic_root():
     assert stats["synthetic pairs skipped: q-r-h2"] == 1 and stats["synthetic pairs fixed"] == 1
 
 
+EXTRACTED_REF = "544271a"    # dataset commit with the gold files as extracted (before the in-place rewrite)
+SPLIT_FILES = {"train": "merho_ges_gold_train_tense_filled.jsonl", "val": "merho_ges_gold_val.jsonl",
+               "test": "merho_ges_gold_test.jsonl"}
+
+
+def extracted_records(name):
+    """The gold file as extracted (git EXTRACTED_REF), or None without the dataset checkout."""
+    import subprocess
+    r = subprocess.run(["git", "-C", DATASET, "show", f"{EXTRACTED_REF}:data/paradigms/{name}"], capture_output=True)
+    return [json.loads(l) for l in r.stdout.decode("utf-8").splitlines()] if r.returncode == 0 else None
+
+
 def test_real_tables_on_the_dataset():
     path = os.path.join(DATASET, "data", "corrections", "gold_root_corrections.tsv")
-    if not os.path.exists(path):
+    recs = extracted_records(SPLIT_FILES["train"]) if os.path.exists(path) else None
+    if recs is None:
         return                                   # dataset checkout not next to the model repo
-    C = G.Corrections.from_dataset(DATASET, required=True)
+    # the root tables describe the files as extracted: load-time mode on the extracted train file
+    C = G.Corrections.from_dataset(DATASET, required=True, page_dir=None, in_place=False)
     stats = collections.Counter()
-    with open(os.path.join(DATASET, "data", "paradigms", "merho_ges_gold_train_tense_filled.jsonl"), encoding="utf-8") as f:
-        out = C.gold_records([json.loads(l) for l in f], stats)
+    out = C.gold_records(recs, stats)
     assert not any(k.startswith("records skipped: guard") for k in stats)
     for r in out:
         assert G.root_problem(r["root"]) is None
@@ -149,3 +162,26 @@ def test_real_tables_on_the_dataset():
     assert stats["records skipped: empty_root"] == 33
     excluded = sum(G.is_excluded(row, v) for r in out for row in r["table_data"] for v in G.variants(row.get("geez_form")))
     assert excluded == 78
+
+
+def test_clean_gold_files_on_the_dataset():
+    """Gold files corrected in place: read as written, every loaded root valid and in one split only."""
+    if not os.path.exists(os.path.join(DATASET, "data", "paradigms", G.CLEAN_FLAGGED)):
+        return                                   # no dataset checkout, or gold files not rewritten
+    C = G.Corrections.from_dataset(DATASET, required=True)
+    assert C.in_place and C.page is None and "gold files corrected in place" in C.describe()
+    split_of, n = {}, collections.Counter()
+    for split, name in SPLIT_FILES.items():
+        with open(os.path.join(DATASET, "data", "paradigms", name), encoding="utf-8") as f:
+            recs = [json.loads(l) for l in f]
+        stats = collections.Counter()
+        pairs = C.gold_pairs(recs, split, stats)
+        n[split] = len(pairs)
+        # a flagged pair never loads (it may already be out for another reason, e.g. its row's root)
+        assert stats["file pairs not loaded: flagged (merho_ges_gold_flagged_rows.tsv)"] <= sum(1 for k in C.flagged_file if k[0] == split)
+        assert not {(split, p["record_id"], p["row"], p["form"]) for p in pairs} & set(C.flagged_file)
+        for p in pairs:
+            assert G.root_problem(p["root"]) is None and p["root"] == gc.first_order_root(p["root"])
+            assert split_of.setdefault(p["root"], split) == split, (p["root"], split_of[p["root"]], split)
+    assert len(C.flagged_file) == 13 and n["train"] > 2000 and n["val"] > 250 and n["test"] > 350
+    assert split_of["ዐ-ፀ-መ"] == "train" and split_of["አ-በ-ሐ"] == "test" and split_of["ከ-ረ-በ"] == "val"

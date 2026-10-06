@@ -1,4 +1,15 @@
-"""Load-time corrections for the gold and synthetic data.
+"""Gold and synthetic data loading, with or without load-time corrections.
+
+Gold files corrected in place (geez-dataset-v1 branch gold-clean-in-files and later): when
+data/paradigms/merho_ges_gold_flagged_rows.tsv exists, the gold files already carry every fix
+.
+Then NO gold correction is applied here: Corrections.gold_pairs reads the files as written
+(file_pairs) and only leaves out the pairs listed in data/paradigms/merho_ges_gold_flagged_rows.tsv
+and forms/roots that cannot be a training pair (not one Ethiopic word, empty or joined root). The
+synthetic table (synthetic_root_corrections.tsv) still applies until the synthetic file is rewritten.
+
+The rest of this docstring is the load-time path, used for gold files as extracted (dataset main
+before the rewrite): rule.
 
 The data files stay byte-identical. train_byt5_morphology.py and evaluate_gold.py both read the
 tables in <dataset>/data/corrections/ through this module:
@@ -50,6 +61,9 @@ PAGE_SOURCES = ("gold_page_table.tsv", "gold_extra_fixes.tsv", "proposal_page_ou
 # her list of gold pairs to keep out (split, gold_file, file_line, row, variant, form, page, reason):
 # every listed pair stays out, whatever the other sources say
 FLAGGED_SOURCE = "flagged_rows.tsv"
+# gold files corrected in place: the list of pairs kept in the files but left out of training and
+# scoring; the apply script always writes it, and its presence switches the loader to file_pairs
+CLEAN_FLAGGED = "merho_ges_gold_flagged_rows.tsv"
 TYPES = ("verb", "noun", "adjective")
 NOMINAL_TYPES = ("noun", "adjective")
 TENSES = ("past", "present", "subjunctive", "jussive", "imperative")
@@ -134,11 +148,22 @@ def _sha256(path):
 class Corrections:
     """The three tables (any may be missing when required=False: then nothing is applied from it)."""
 
-    def __init__(self, folder, required=False, page_dir=None):
+    def __init__(self, folder, required=False, page_dir=None, gold_dir=None, in_place=None):
+        """gold_dir: where the gold files are (default <folder>/../paradigms). in_place: True/False
+        forces the file mode / load-time mode; None = file mode when gold_dir has the change log."""
         self.folder = folder
+        gold_dir = gold_dir or os.path.join(os.path.dirname(os.path.normpath(folder)), "paradigms")
+        self.in_place = os.path.exists(os.path.join(gold_dir, CLEAN_FLAGGED)) if in_place is None else in_place
+        self.flagged_file = {}
+        if self.in_place:                  # the gold files carry the fixes: no gold table, no page corrections
+            path = os.path.join(gold_dir, CLEAN_FLAGGED)
+            if os.path.exists(path):
+                self.flagged_file = {(r["split"], r["record_id"], int(r["row"]), r["form"]): r for r in _read_tsv(path)}
         paths = {k: os.path.join(folder, v) for k, v in TABLES.items()}
+        if self.in_place:
+            paths = {"synthetic": paths["synthetic"]}
         missing = [p for p in paths.values() if not os.path.exists(p)]
-        if missing and required:
+        if missing and required and not self.in_place:
             raise FileNotFoundError(f"correction tables missing: {missing}")
         self.paths = {k: p for k, p in paths.items() if os.path.exists(p)}
         self.sha256 = {TABLES[k]: _sha256(p) for k, p in self.paths.items()}
@@ -157,20 +182,29 @@ class Corrections:
                     self.synthetic[r["root"]] = r["new_root"]
                 elif r["action"] == "skip":
                     self.synthetic_skip.add(r["root"])
-        has_page = page_dir and any(os.path.exists(os.path.join(page_dir, "sources", n))
-                                    for n in PAGE_SOURCES + (FLAGGED_SOURCE,))
-        gold_dir = os.path.join(os.path.dirname(os.path.normpath(folder)), "paradigms")
+        has_page = page_dir and not self.in_place and any(os.path.exists(os.path.join(page_dir, "sources", n))
+                                                          for n in PAGE_SOURCES + (FLAGGED_SOURCE,))
+        if self.in_place and os.path.exists(os.path.join(gold_dir, CLEAN_FLAGGED)):
+            self.sha256[CLEAN_FLAGGED] = _sha256(os.path.join(gold_dir, CLEAN_FLAGGED))
         self.page = PageCorrections(page_dir, gold_dir) if has_page else None
         if self.page is not None:
             self.sha256.update({"sources/" + n: h for n, h in self.page.sha256.items()})
 
     @classmethod
-    def from_dataset(cls, dataset_dir, required=False, page_dir=PAGE_DIR):
-        return cls(os.path.join(dataset_dir, CORRECTIONS_DIR), required=required, page_dir=page_dir)
+    def from_dataset(cls, dataset_dir, required=False, page_dir=PAGE_DIR, in_place=None):
+        return cls(os.path.join(dataset_dir, CORRECTIONS_DIR), required=required, page_dir=page_dir, in_place=in_place)
 
     @property
     def present(self):
-        return len(self.paths) == len(TABLES)
+        return self.in_place or len(self.paths) == len(TABLES)
+
+    def describe(self):
+        """One line for the logs: which gold loading is used."""
+        if self.in_place:
+            return (f"gold files corrected in place; no gold corrections at load, "
+                    f"{len(self.flagged_file)} flagged pairs left out ({CLEAN_FLAGGED})")
+        return "gold files as extracted; load-time corrections from " + self.folder + (
+            f" and page corrections from {self.page.folder}/sources" if self.page else "")
 
     # ------------------------------------------------------------------ gold
     def gold_records(self, records, stats=None):
@@ -261,6 +295,8 @@ class Corrections:
         row or None).
         """
         stats = stats if stats is not None else collections.Counter()
+        if self.in_place:
+            return file_pairs(records, split, self.flagged_file, stats)
         out = []
         for rec in records:
             out.extend(self._pairs_of(rec, split, stats))
@@ -407,6 +443,48 @@ def target_text(pair):
     text = (f"root: {pair['root']} | tense: {tense} | person: {pair['person']} | gender: {pair['gender']} | "
             f"number: {pair['number']} | stem: {pair['stem']}")
     return text + (f" | object: {pair['object']}" if pair.get("object") else "")
+
+
+def file_pairs(records, split, flagged=(), stats=None):
+    """Pairs of gold files corrected in place, read as written (no tables, no page corrections).
+
+    Record fields: root (1st order), stem; "root_unsettled": the record root is not usable (rows with
+    their own root still load). Row fields: geez_form ("/"-variants), tense, person, gender, number,
+    and where they differ from the record: root, stem, type (noun/adjective), object.
+    Left out, and counted: pairs in `flagged` ((split, record_id, row, form) keys), variants that are
+    not one Ethiopic word, rows whose root is empty, joined, Latin or not 2-5 letters.
+    Two label conventions of the targets apply as before: jussive is written subjunctive
+    (target_text), and causative_intensive አስተ- forms get the stem "aste"."""
+    stats = stats if stats is not None else collections.Counter()
+    out = []
+    for rec in records:
+        rid = record_id(rec)
+        rec_root = "" if rec.get("root_unsettled") else (rec.get("root") or "")
+        for j, row in enumerate(rec.get("table_data", [])):
+            root = row.get("root") or rec_root
+            kept, rejected = clean_variants(row.get("geez_form"))
+            stats["file pairs not loaded: not one Ethiopic word (notes, phrase)"] += len(rejected)
+            problem = root_problem(root) if not rec.get("root_unsettled") or row.get("root") else "root not settled"
+            if problem:
+                stats["file pairs not loaded: " + ("record root not settled" if problem == "root not settled"
+                                                   else "root " + problem.replace("guard: ", ""))] += len(kept)
+                continue
+            for v in kept:
+                if (split, rid, j, v) in flagged:
+                    stats["file pairs not loaded: flagged (merho_ges_gold_flagged_rows.tsv)"] += 1
+                    continue
+                labels = {"type": row.get("type") or "verb", "tense": row.get("tense", ""), "person": row.get("person", ""),
+                          "gender": row.get("gender", ""), "number": row.get("number", ""),
+                          "object": row.get("object", ""), "stem": row.get("stem") or rec.get("stem", "basic")}
+                if labels["type"] in NOMINAL_TYPES:
+                    labels = dict(_nominal(labels), stem=None)
+                elif labels["stem"] == "causative_intensive" and ASTE_FORM.match(v):
+                    labels["stem"] = "aste"
+                stats["file pairs loaded"] += 1
+                out.append({"form": v, "source_form": v, "root": root, "root_from_page": bool(row.get("root")),
+                            "root_as_extracted": root, "record": rec, "record_id": rid, "row": j, "page": None,
+                            **labels})
+    return out
 
 
 def plain_pairs(records):

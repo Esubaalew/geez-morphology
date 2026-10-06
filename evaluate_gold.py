@@ -298,6 +298,7 @@ def main():
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(args.test_file)))),
             gold_filters.CORRECTIONS_DIR), required=True,
             page_dir=None if args.no_page_corrections else args.page_corrections)
+        print(f"Gold loading: {corrections.describe()}")
         print(f"Corrections: {corrections.folder}")
         for name, sha in sorted(corrections.sha256.items()):
             print(f"  {name}  sha256 {sha}")

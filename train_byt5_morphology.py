@@ -8,9 +8,11 @@ Data (read from --dataset_dir, the geez-dataset checkout):
   data/paradigms/synthetic_morphology_train.jsonl        synthetic pairs
   data/paradigms/merho_ges_gold_train_tense_filled.jsonl  Merho Ges gold-train paradigms
       (falls back to merho_ges_gold_train.jsonl)
-Root labels are corrected at load time from <dataset>/data/corrections/ (gold_filters.py; the
-data files are not changed): skipped records, fixed roots, 1st-order letters, excluded forms, and
-the synthetic root fixes/skips (ተ-ረ-ጰ -> ተ-ረ-ፐ; ቀ-ረ-ሐ skipped). The tables are required unless --allow_missing_corrections.
+Gold files corrected in place (data/paradigms/merho_ges_gold_flagged_rows.tsv present): the gold pairs
+are read as written, leaving out the pairs in merho_ges_gold_flagged_rows.tsv (gold_filters.file_pairs).
+Gold files as extracted (older dataset checkouts): roots and labels are corrected at load time from
+<dataset>/data/corrections/ and the page corrections (gold_filters.py). Either way the synthetic root
+fixes/skips (ተ-ረ-ጰ -> ተ-ረ-ፐ; ቀ-ረ-ሐ skipped) apply at load time. The tables are required unless --allow_missing_corrections.
 All gold-train pairs go to training. The eval split is 10% of the synthetic pairs
 (seed 42), so eval loss never includes gold rows. The held-out gold test file is
 not read here; use evaluate_gold.py for that.
@@ -296,6 +298,7 @@ def main(argv=None) -> int:
     train_samples, eval_samples, n_syn, n_gold = split_samples(samples)
     if args.max_eval_samples and args.max_eval_samples < len(eval_samples):
         eval_samples = eval_samples[:args.max_eval_samples]
+    print(f"Gold loading: {corrections.describe()}")
     print(f"Corrections: {corrections.folder}" + ("" if corrections.present else "  [!] tables missing"))
     for name, sha in sorted(corrections.sha256.items()):
         print(f"  {name}  sha256 {sha}")
@@ -383,6 +386,7 @@ def main(argv=None) -> int:
         "data_files": data_files,
         "counts": {"synthetic": n_syn, "gold_train": n_gold, "train": len(train_samples), "eval": len(eval_samples)},
         "corrections_dir": corrections.folder,
+        "gold_loading": corrections.describe(),
         "corrections_sha256": corrections.sha256,
         "load_counts": dict(sorted(load_stats.items())),
         "device": device, "n_devices": n_devices, "precision": "fp32",
