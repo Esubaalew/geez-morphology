@@ -77,6 +77,12 @@ LABEL_COLUMNS = ("type", "tense", "person", "gender", "number", "object", "stem"
 
 
 def record_id(rec):
+    """Stable id of a gold record. The corrected gold files store it ("record_id"): it was computed once
+    from the values as extracted (OCR, dataset commit 544271a) and is never recomputed, so a corrected
+    title_or_lemma or a merged record does not change it. Records without the
+    field (the files as extracted) get it computed from those values: sha1(page|title_or_lemma|raw)[:12]."""
+    if rec.get("record_id"):
+        return rec["record_id"]
     key = f"{rec.get('page_number')}|{rec.get('title_or_lemma')}|{rec.get('raw_transcription')}"
     return hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
 
