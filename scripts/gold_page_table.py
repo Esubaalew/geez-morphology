@@ -66,7 +66,7 @@ class GoldPairs:
 
 def install(folder, page_dir):
     os.makedirs(os.path.join(page_dir, "sources"), exist_ok=True)
-    for name in G.PAGE_SOURCES:
+    for name in G.PAGE_SOURCES + (G.FLAGGED_SOURCE,):
         src = os.path.join(folder, name)
         if os.path.exists(src):
             shutil.copyfile(src, os.path.join(page_dir, "sources", name))
@@ -92,6 +92,29 @@ def missing_letters(form, root, old_root):
     new = [x for x in root.split("-") if x not in old]
     have = consonants(form)
     return [x for x in new if geez_config.decompose_char(x)[0] not in have]
+
+
+def shared_roots(corr, records):
+    """Roots (as loaded) that occur in more than one split: {root: {split: (pairs, [headwords])}}."""
+    where = collections.defaultdict(lambda: collections.defaultdict(set))
+    n = collections.Counter()
+    for s in SPLITS:
+        for p in corr.gold_pairs(records[s], s):
+            where[p["root"]][s].add(p["record"].get("title_or_lemma") or "")
+            n[(p["root"], s)] += 1
+    return {r: {s: (n[(r, s)], sorted(h)) for s, h in d.items()} for r, d in where.items() if len(d) > 1}
+
+
+def synthetic_root_counts(corr, dataset_dir):
+    """Synthetic train pairs per root, as the trainer writes the root (1st order)."""
+    out = collections.Counter()
+    with open(os.path.join(dataset_dir, "data", "paradigms", "synthetic_morphology_train.jsonl"), encoding="utf-8") as f:
+        for line in f:
+            d, _ = corr.synthetic_record(json.loads(line))
+            if d is not None:
+                root = (d.get("features") or {}).get("root", "")
+                out[geez_config.first_order_root(geez_config.to_ethiopic_root(root))] += 1
+    return out
 
 
 def validate(dataset_dir, page_dir, her_folder=None, report=None):
@@ -164,6 +187,13 @@ def validate(dataset_dir, page_dir, her_folder=None, report=None):
             if e.get("form_fix") and e["form_fix"] == key[3]:
                 add(where, form, "check", "form_fix is the same as the form")
 
+    # flagged_rows.tsv: these pairs stay out
+    for key, where in sorted(page.flagged.items(), key=lambda kv: kv[1]):
+        others = [x for x in page.entries[key]["sources"] if x != where]
+        add(where, key[3], "check", f"flagged: {key[0]} record {key[1]} row {key[2]} stays out"
+            + (" (it loaded before)" if key in loaded else "")
+            + (f"; also in {', '.join(others)} (not applied)" if others else ""))
+
     # merged pairs: conflicts, forms that cannot load, pairs that stay out
     for key, e in page.entries.items():
         where, form = ", ".join(e["sources"]), key[3]
@@ -207,7 +237,10 @@ def validate(dataset_dir, page_dir, her_folder=None, report=None):
             continue
         state = (f"already {root} in the root tables" if current == root else
                  f"{current} -> {root}" if usable else f"{root} (the root tables skip this record)")
-        if not usable:
+        if not usable and page.record_root_explicit(split, rid):
+            add(where, rid, "check", f"record {rid} ({split}) root {state}: root_fix_scope=record, so all "
+                f"{len(pairs)} pairs come back ({len(uncovered)} with the gold labels)")
+        elif not usable:
             add(where, rid, "check", f"record {rid} ({split}) root {state}: {len(pairs) - len(uncovered)} page-checked "
                 "pairs come back" + (f"; {len(uncovered)} not page-checked stay out: {' '.join(uncovered)}" if uncovered else ""))
         elif current != root:
@@ -216,7 +249,8 @@ def validate(dataset_dir, page_dir, her_folder=None, report=None):
         for k in pairs:
             e = page.entries.get(k)
             form = e["form_fix"] if e and e["form_fix"] else k[3]
-            if (e and e["status"] != "confirmed") or (not usable and k not in covered):
+            whole = page.record_root_explicit(split, rid)
+            if (e and e["status"] != "confirmed") or (not usable and not whole and k not in covered):
                 continue
             gone = missing_letters(form, root, current if usable else "")
             if gone:
@@ -232,10 +266,23 @@ def validate(dataset_dir, page_dir, her_folder=None, report=None):
                 if p["root"] != next(iter(fixes)):
                     add(s, p["form"], "error", f"loader bug: record root {next(iter(fixes))} not applied ({p['root']})")
 
+    # split leakage: roots shared by train / val / test, before and after the page corrections
+    before, after = shared_roots(base, records), shared_roots(corr, records)
+    add("splits", "", "check", f"roots in more than one split: {len(before)} without the page corrections, "
+        f"{len(after)} with them (the splits are not changed)")
+    synthetic = synthetic_root_counts(corr, dataset_dir) if (before or after) else {}
+    for root in sorted(set(before) | set(after)):
+        d = after.get(root) or before[root]
+        state = "new" if root not in before else "gone" if root not in after else "as before"
+        add("splits", root, "check", f"{state}: " + "; ".join(f"{s} {n} pairs ({' / '.join(h)})"
+                                                            for s, (n, h) in sorted(d.items()))
+            + f"; synthetic {synthetic.get(root, 0)} pairs")
+
     if her_folder and os.path.isdir(her_folder):
         for name in sorted(os.listdir(her_folder)):
-            if name.endswith(".tsv") and name not in G.PAGE_SOURCES + ("page_check_log.tsv",):
-                add(name, "", "check", f"{name} is in her folder but is not read (the loader reads {', '.join(G.PAGE_SOURCES)})")
+            if name.endswith(".tsv") and name not in G.PAGE_SOURCES + (G.FLAGGED_SOURCE, "page_check_log.tsv"):
+                add(name, "", "check", f"{name} is in her folder but is not read (the loader reads "
+                    f"{', '.join(G.PAGE_SOURCES + (G.FLAGGED_SOURCE,))})")
 
     if report:
         with open(report, "w", encoding="utf-8") as f:
@@ -285,7 +332,7 @@ def counts(dataset_dir, page_dir):
                     out["flagged on the page" if e["status"] == "flag" else "page sources disagree"] += 1
                 elif not gold.pairs[k]["clean"]:
                     out["not one Ethiopic word (notes, phrase): needs a page-checked form_fix"] += 1
-                elif page_root is not None and not usable:
+                elif page_root is not None and not usable and not page.record_root_explicit(s, k[1]):
                     out["record root fixed on the page, pair not page-checked yet"] += 1
                 elif t and t["action"] == "skip":
                     out[f"root table skip: {t['group']}"] += 1

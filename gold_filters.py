@@ -24,6 +24,7 @@ without data/corrections/, evaluate_gold.py --no_corrections). Steps 2-3 still a
 import collections
 import csv
 import hashlib
+import json
 import os
 import re
 import sys
@@ -46,6 +47,9 @@ ASTE_FORM = re.compile(r"^(ኢ)?[አያታናእይትን]ስተ")
 
 PAGE_DIR = os.path.join(SCRIPT_DIR, "gold_corrections")      # the page corrections (sources/, keys/)
 PAGE_SOURCES = ("gold_page_table.tsv", "gold_extra_fixes.tsv", "proposal_page_outcomes.tsv")
+# her list of gold pairs to keep out (split, gold_file, file_line, row, variant, form, page, reason):
+# every listed pair stays out, whatever the other sources say
+FLAGGED_SOURCE = "flagged_rows.tsv"
 TYPES = ("verb", "noun", "adjective")
 NOMINAL_TYPES = ("noun", "adjective")
 TENSES = ("past", "present", "subjunctive", "jussive", "imperative")
@@ -153,8 +157,10 @@ class Corrections:
                     self.synthetic[r["root"]] = r["new_root"]
                 elif r["action"] == "skip":
                     self.synthetic_skip.add(r["root"])
-        has_page = page_dir and any(os.path.exists(os.path.join(page_dir, "sources", n)) for n in PAGE_SOURCES)
-        self.page = PageCorrections(page_dir) if has_page else None
+        has_page = page_dir and any(os.path.exists(os.path.join(page_dir, "sources", n))
+                                    for n in PAGE_SOURCES + (FLAGGED_SOURCE,))
+        gold_dir = os.path.join(os.path.dirname(os.path.normpath(folder)), "paradigms")
+        self.page = PageCorrections(page_dir, gold_dir) if has_page else None
         if self.page is not None:
             self.sha256.update({"sources/" + n: h for n, h in self.page.sha256.items()})
 
@@ -266,8 +272,11 @@ class Corrections:
         tagged = dict(rec, table_data=[dict(r, _row=j) for j, r in enumerate(raw_rows)])
         current, usable = self._current_root(rec, rid)
         root_override = self.page.record_root(split, rid, current, usable) if self.page else None
-        # a record the root tables skip comes back with a page root only pair by pair (page-checked rows)
-        unlocked = root_override is not None and not usable
+        # A record the root tables skip (empty, joined, Amharic-only letter...) comes back with a page
+        # root: as a whole when she marked the root root_fix_scope=record, else pair by pair (checked pairs).
+        unlocked = root_override is not None and not usable and not self.page.record_root_explicit(split, rid)
+        if root_override is not None and not usable and not unlocked:
+            stats["page records restored: record the root tables skip (root_fix_scope=record)"] += 1
         loaded = self._one(tagged, stats, root_override)
         by_row = {row["_row"]: (r, row) for r in loaded for row in r["table_data"]}
         # loaded rows in the order of the corrected records, then rows the root tables left out
@@ -282,7 +291,7 @@ class Corrections:
                     stats["page pairs still out: record root from the page, pair not page-checked"] += 1
                     continue
                 p = self._pair(rec, rid, j, raw_rows[j], v, single, by_row.get(j), entry, stats)
-                if p is not None and unlocked:
+                if p is not None and root_override is not None and not usable:
                     stats["page pairs restored: record the root tables skip (page record root)"] += 1
                 if p is not None:
                     p["root_from_page"] = p["root_from_page"] or root_override is not None
@@ -343,7 +352,7 @@ class Corrections:
             labels.update(given)
             stats["page pairs: labels from the page sources"] += bool(given)
         if labels["type"] in NOMINAL_TYPES:
-            labels.update(tense="", person="", object="", stem=None)
+            labels = dict(_nominal(labels), stem=None)
         elif not labels["stem"]:
             labels["stem"] = stem
         if labels["type"] == "verb" and labels["stem"] == "causative_intensive" and ASTE_FORM.match(form):
@@ -386,11 +395,11 @@ def format_stats(stats):
 
 def target_text(pair):
     """Training target. Verbs: 'root | tense | person | gender | number | stem' plus ' | object: X'
-    when the form carries an object suffix. Nouns/adjectives: 'root | type | gender | number'
-    (gender left out when the book gives none)."""
+    when the form carries an object suffix. Nouns: 'root | type: noun | number'. Adjectives:
+    'root | type: adjective | gender | number' (gender left out when the book gives none)."""
     if pair["type"] in NOMINAL_TYPES:
         parts = [f"root: {pair['root']}", f"type: {pair['type']}"]
-        if pair.get("gender"):
+        if pair["type"] == "adjective" and pair.get("gender"):
             parts.append(f"gender: {pair['gender']}")
         parts.append(f"number: {pair['number']}")
         return " | ".join(parts)
@@ -474,9 +483,19 @@ def _norm_table(e, keys):
     return key, entry, probs + page_entry_problems(_with_stem(e))
 
 
+def _nominal(labels):
+    """Nouns and adjectives carry no tense, person, object or stem; nouns no gender either."""
+    if labels["type"] in NOMINAL_TYPES:
+        labels.update(tense="", person="", object="", stem="")
+        if labels["type"] == "noun" or labels["gender"] is None:   # the verb's subject gender is no adjective gender
+            labels["gender"] = ""
+    return labels
+
+
 def _norm_extra(e, keys):
-    """gold_extra_fixes.tsv row: the relabel table's label columns (type, stem_fix, tense, person,
-    gender, number, object; no type = keep the gold labels), form_fix, root_fix, root_fix_scope.
+    """gold_extra_fixes.tsv row: form_fix, root_fix, root_fix_scope and labels in the relabel
+    table's columns (type, stem_fix, tense, person, gender, number, object), each one a change:
+    blank = keep the gold label. A noun/adjective type clears the verb labels (_nominal).
     "page" (the scan page she read) marks the row page-checked."""
     probs = []
     key = (e.get("split"), e.get("record_id"), int(e["row"]), e.get("form")) if e.get("row", "").isdigit() else None
@@ -485,11 +504,14 @@ def _norm_extra(e, keys):
         probs.append("no record_id/row")
     if e.get("label_fix"):
         probs.append(f"label_fix {e['label_fix']!r} is not read: use the type/stem_fix/tense/person/gender/number/object columns")
+    labels = {c: e.get(c) or None for c in LABEL_COLUMNS if c != "stem"}
+    labels["stem"] = e.get("stem_fix") or e.get("stem") or None
+    labels = _nominal(labels)
     status = e.get("status") or "confirmed"
     checked = bool(e.get("page")) or e.get("page_checked") == "yes"
-    entry = {"status": status, "checked": checked, "labels": _labels(e), **{c: e.get(c, "") for c in FIX_COLUMNS}}
-    return key, entry, probs + page_entry_problems(dict(_with_stem(e), status=status, page_checked="yes" if checked else "",
-                                                       type=e.get("type") or "keep"))
+    entry = {"status": status, "checked": checked, "labels": labels, **{c: e.get(c, "") for c in FIX_COLUMNS}}
+    keep = {c: ("keep" if v is None else v) for c, v in labels.items()}
+    return key, entry, probs + page_entry_problems(dict(e, **keep, status=status, page_checked="yes" if checked else ""))
 
 
 def _norm_108(e, keys):
@@ -554,7 +576,11 @@ def page_entry_problems(e):
         return probs
     t = g("type")
     ok = lambda k, allowed: g(k) in allowed or g(k) == "keep"
-    if t == "keep":
+    if t == "keep":                           # labels given one by one (blank/"keep" = gold label)
+        for k, allowed in (("tense", TENSES), ("stem", STEMS + ("aste",)), ("person", ("1", "2", "3")),
+                           ("gender", ("m", "f", "c")), ("number", ("s", "p")), ("object", tuple(OBJECTS))):
+            if g(k) not in ("", "keep") and g(k) not in allowed:
+                probs.append(f"{k} {g(k)!r} is not one of {', '.join(sorted(allowed))}")
         return probs
     if t not in TYPES:
         probs.append(f"type {t!r} is not verb, noun or adjective")
@@ -563,7 +589,7 @@ def page_entry_problems(e):
             probs.append(f"verb tense {g('tense')!r} is not one of {', '.join(TENSES)}")
         if "keep" not in (g("person"), g("gender"), g("number")) and (g("person"), g("gender"), g("number")) not in VERB_PERSONS:
             probs.append(f"person/gender/number {g('person')}{g('gender')}{g('number')} is not a verb person")
-        if g("object") and g("object") not in OBJECTS:
+        if g("object") not in ("", "keep") and g("object") not in OBJECTS:
             probs.append(f"object {g('object')!r} is not a person like 3ms or 1cs")
         if g("stem") and not ok("stem", STEMS + ("aste",)):
             probs.append(f"stem {g('stem')!r} is not one of {', '.join(STEMS + ('aste',))}")
@@ -600,8 +626,8 @@ class PageCorrections:
     .record_fixes {(split, record_id): {root: [sources]}}: page-checked root_fix values that may be
                record-wide (not marked root_fix_scope=row); record_root() decides."""
 
-    def __init__(self, folder):
-        self.folder = folder
+    def __init__(self, folder, gold_dir=None):
+        self.folder, self.gold_dir = folder, gold_dir
         self.sha256, self.rows = {}, collections.Counter()
         self.problems, self.conflicts = [], {}
         read = lambda p: _read_tsv(os.path.join(folder, p)) if os.path.exists(os.path.join(folder, p)) else []
@@ -632,10 +658,69 @@ class PageCorrections:
             if conflicts:
                 self.conflicts[key] = conflicts
             self.entries[key] = merged
+        self.flagged = self._read_flagged()           # key -> source line; these pairs stay out
+        for key, where in self.flagged.items():
+            e = self.entries.setdefault(key, {"sources": [], "status": "flag", "checked": False,
+                                              "labels": {c: None for c in LABEL_COLUMNS},
+                                              **{c: "" for c in FIX_COLUMNS}})
+            e["status"] = "flag"
+            e["sources"] = e["sources"] + [where]
         self.record_fixes = collections.defaultdict(lambda: collections.defaultdict(list))
         for (split, rid, _, _), e in self.entries.items():
-            if e["root_fix"] and e["checked"] and e["root_fix_scope"] != "row" and e["status"] != "conflict":
+            if e["root_fix"] and e["checked"] and e["root_fix_scope"] != "row" and e["status"] == "confirmed":
                 self.record_fixes[(split, rid)][e["root_fix"]].extend(e["sources"])
+
+    def _read_flagged(self):
+        """flagged_rows.tsv -> {(split, record_id, row, form): "flagged_rows.tsv:<line>"}. The record is
+        found by record_id when given, else by gold_file + file_line in the dataset's gold files; the
+        form must be one of that row's variants. A row that does not resolve is a problem (not applied)."""
+        path = os.path.join(self.folder, "sources", FLAGGED_SOURCE)
+        if not os.path.exists(path):
+            return {}
+        self.sha256[FLAGGED_SOURCE] = _sha256(path)
+        lines, out = {}, {}
+        for line, e in enumerate(_read_tsv(path), 2):
+            e = _clean(e)
+            self.rows[FLAGGED_SOURCE] += 1
+            probs, rec = [], None
+            split, form = e.get("split", ""), e.get("form", "")
+            if split not in ("train", "val", "test"):
+                probs.append(f"split {split!r} is not train, val or test")
+            try:
+                row = int(e.get("row", ""))
+            except ValueError:
+                row = None
+                probs.append(f"row {e.get('row')!r} is not a number")
+            gf, fl = e.get("gold_file", ""), e.get("file_line", "")
+            if gf and fl.isdigit() and self.gold_dir:
+                if gf not in lines:
+                    p = os.path.join(self.gold_dir, gf)
+                    lines[gf] = open(p, encoding="utf-8").read().splitlines() if os.path.exists(p) else None
+                ls = lines[gf]
+                if ls is None:
+                    probs.append(f"gold file {gf} not found")
+                elif not 1 <= int(fl) <= len(ls):
+                    probs.append(f"{gf} has no line {fl}")
+                else:
+                    rec = json.loads(ls[int(fl) - 1])
+            rid = e.get("record_id") or (record_id(rec) if rec else "")
+            if rec is not None and e.get("record_id") and record_id(rec) != e["record_id"]:
+                probs.append(f"record_id {e['record_id']} is not the record at {gf}:{fl}")
+            if not rid and not probs:
+                probs.append("no record_id and no gold_file/file_line to find the record")
+            if rec is not None and row is not None:
+                cells = rec.get("table_data", [])
+                if row >= len(cells):
+                    probs.append(f"record has no row {row}")
+                else:
+                    kept, rejected = clean_variants(cells[row].get("geez_form"))
+                    if form not in kept + rejected:
+                        probs.append(f"form {form!r} is not a variant of row {row} ({' / '.join(kept + rejected)})")
+            if probs:
+                self.problems.append((FLAGGED_SOURCE, line, form, probs))
+                continue
+            out[(split, rid, row, form)] = f"{FLAGGED_SOURCE}:{line}"
+        return out
 
     @staticmethod
     def _merge(items):
@@ -666,6 +751,15 @@ class PageCorrections:
     def entry(self, split, rid, row, form):
         return self.entries.get((split, rid, row, form))
 
+    def record_root_explicit(self, split, rid):
+        """Did a source mark the record's (single) page root root_fix_scope=record?"""
+        fixes = self.record_fixes.get((split, rid))
+        if not fixes or len(fixes) > 1:
+            return False
+        root = next(iter(fixes))
+        return any(e["root_fix_scope"] == "record" and e["root_fix"] == root
+                   for k, e in self.entries.items() if k[:2] == (split, rid))
+
     def record_root(self, split, rid, current, usable):
         """The record-wide page root for this record, or None. current/usable: the root the root
         tables give the record and whether it loads. Several different values (a split record such as
@@ -674,6 +768,4 @@ class PageCorrections:
         if not fixes or len(fixes) > 1:
             return None
         root = next(iter(fixes))
-        explicit = any(self.entries[k]["root_fix_scope"] == "record" for k in self.entries
-                       if k[:2] == (split, rid) and self.entries[k]["root_fix"] == root)
-        return root if explicit or record_root_applies(root, current, usable) else None
+        return root if self.record_root_explicit(split, rid) or record_root_applies(root, current, usable) else None

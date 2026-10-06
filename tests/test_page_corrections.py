@@ -1,5 +1,6 @@
 """the page corrections at load time (gold_filters.PageCorrections, Corrections.gold_pairs,
 target_text), the nominal / object target shapes (analyzer.parse_neural_output) and evaluate_gold scoring."""
+import json
 import os
 import sys
 import tempfile
@@ -20,6 +21,8 @@ TABLE_COLS = ["split", "line", "form", "root", "old_label", "status", "type", "t
               "record_id", "row"]
 V108_COLS = ["proposal_no", "outcome", "type", "gender", "number", "form_fix", "root_fix", "note",
              "stem_fix", "tense_fix", "person_fix"]
+FLAGGED_COLS = ["split", "gold_file", "file_line", "row", "variant", "form", "page", "reason"]
+ROOT_COLS = ["record_id", "page", "headword", "root", "action", "new_root", "forms", "group"]
 EXTRA_COLS = ["split", "gold_file", "file_line", "record_id", "row", "variant", "form", "form_fix", "root_fix",
               "root_fix_scope", "type", "stem_fix", "tense", "person", "gender", "number", "object", "label_fix",
               "page", "note"]
@@ -45,11 +48,19 @@ def table_row(rec, row, form, **kw):
     return dict({"split": "train", "form": form, "status": "confirmed", "record_id": G.record_id(rec), "row": str(row)}, **kw)
 
 
-def corrections(table=(), extra=(), v108=(), proposals=(), excluded=()):
+def corrections(table=(), extra=(), v108=(), proposals=(), excluded=(), root_rows=(), flagged=(), gold_files=None):
     """Corrections over a fresh temporary corrections dir (excluded table only) and page dir."""
     tmp = tempfile.mkdtemp()
     corr, page = os.path.join(tmp, "corrections"), os.path.join(tmp, "page")
     write(os.path.join(corr, "gold_excluded_records.tsv"), ["record_id", "row", "form"], list(excluded))
+    if root_rows:
+        write(os.path.join(corr, "gold_root_corrections.tsv"), ROOT_COLS, list(root_rows))
+    for name, recs in (gold_files or {}).items():           # the dataset's gold files (data/paradigms/)
+        os.makedirs(os.path.join(tmp, "paradigms"), exist_ok=True)
+        with open(os.path.join(tmp, "paradigms", name), "w", encoding="utf-8") as f:
+            f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in recs)
+    if flagged:
+        write(os.path.join(page, "sources", "flagged_rows.tsv"), FLAGGED_COLS, list(flagged))
     for name, cols, rows in (("gold_page_table.tsv", TABLE_COLS, table), ("gold_extra_fixes.tsv", EXTRA_COLS, extra),
                              ("proposal_page_outcomes.tsv", V108_COLS, v108)):
         if rows:
@@ -240,3 +251,68 @@ def test_stem_fix_and_scope_columns():
     t = targets(c, [rec])
     assert t["ቀተለ"] == "root: ገ-ዘ-ፈ | tense: past | person: 3 | gender: m | number: s | stem: passive"  # scope=record
     assert t["ቀተልኩ"].endswith("stem: causative") and t["ቀተልኩ"].startswith("root: ገ-ዘ-ፈ")
+
+
+def test_record_scope_root_fix_overrides_a_root_table_skip():
+    rec = record(root="ጨ-ቀ-ለ", lemma="ጨቀለ")                            # Amharic-only ጨ: the root table skips it
+    other = record(root="ጨ-ለ-መ", lemma="ጨለመ")
+    skip = [{"record_id": G.record_id(r), "page": "50", "headword": r["title_or_lemma"], "root": r["root"],
+             "action": "skip", "group": "amharic_only_letter"} for r in (rec, other)]
+    assert corrections(root_rows=skip).gold_pairs([rec, other], "train") == []
+    c = corrections(root_rows=skip, extra=[{"split": "train", "record_id": G.record_id(rec), "row": "0", "form": "ቀተለ",
+                                            "root_fix": "ጠ-ቀ-ለ", "root_fix_scope": "record", "page": "68"}])
+    pairs = c.gold_pairs([rec, other], "train")
+    assert {p["form"] for p in pairs} == {"ቀተለ", "ቀተልኩ", "ቅቱል"}          # the whole record, this record only
+    assert {p["root"] for p in pairs} == {"ጠ-ቀ-ለ"}
+    # without root_fix_scope=record only the page-checked pair comes back
+    c = corrections(root_rows=skip, extra=[{"split": "train", "record_id": G.record_id(rec), "row": "0", "form": "ቀተለ",
+                                            "root_fix": "ጠ-ቀ-ለ", "page": "68"}])
+    assert [p["form"] for p in c.gold_pairs([rec, other], "train")] == ["ቀተለ"]
+
+
+def test_extra_rows_change_labels_one_by_one_and_build_nominal_targets():
+    rec = record()
+    rid = G.record_id(rec)
+    c = corrections(extra=[
+        {"split": "train", "record_id": rid, "row": "0", "form": "ቀተለ", "object": "3ms", "page": "50"},
+        {"split": "train", "record_id": rid, "row": "1", "form": "ቀተልኩ", "type": "noun", "gender": "m", "number": "p",
+         "page": "50"},
+        {"split": "train", "record_id": rid, "row": "2", "form": "ቅቱል", "type": "adjective", "number": "s", "page": "50"}])
+    t = targets(c, [rec])
+    assert t["ቀተለ"] == "root: ቀ-ተ-ለ | tense: past | person: 3 | gender: m | number: s | stem: basic | object: 3ms"
+    assert t["ቀተልኩ"] == "root: ቀ-ተ-ለ | type: noun | number: p"              # nouns carry no gender
+    assert t["ቅቱል"] == "root: ቀ-ተ-ለ | type: adjective | number: s"          # blank gender: none, not the verb's
+    assert not c.page.problems
+
+
+def test_row_scope_root_fix_applies_to_its_own_variant_only():
+    rows = [{"geez_form": "ቀተአለ / ቀተየለ / ቀተለ", "tense": "past", "person": "3", "gender": "m", "number": "s"},
+            {"geez_form": "ቀተልኩ / ቀቴልኩ", "tense": "past", "person": "1", "gender": "c", "number": "s"}]
+    rec = record(rows=rows)
+    rid = G.record_id(rec)
+    ex = lambda row, form, root: {"split": "train", "record_id": rid, "row": row, "form": form, "root_fix": root,
+                                  "root_fix_scope": "row", "page": "94"}
+    # train 245 shape: two variants of one row get two different roots, the third keeps the record root;
+    # train 157 shape: a letter correction marked row stays on its variant (not record-wide)
+    c = corrections(extra=[ex("0", "ቀተአለ", "ቀ-ተ-አ-ለ"), ex("0", "ቀተየለ", "ቀ-ተ-የ-ለ"), ex("1", "ቀተልኩ", "ቀ-ተ-ሀ")])
+    roots = {p["form"]: p["root"] for p in c.gold_pairs([rec], "train")}
+    assert roots == {"ቀተአለ": "ቀ-ተ-አ-ለ", "ቀተየለ": "ቀ-ተ-የ-ለ", "ቀተለ": "ቀ-ተ-ለ", "ቀተልኩ": "ቀ-ተ-ሀ", "ቀቴልኩ": "ቀ-ተ-ለ"}
+    assert not c.page.record_fixes
+
+
+def test_flagged_rows_stay_out():
+    rec = record()
+    rid = G.record_id(rec)
+    flag = {"split": "test", "gold_file": "merho_ges_gold_test.jsonl", "file_line": "1", "row": "1", "variant": "0",
+            "form": "ቀተልኩ", "page": "93", "reason": "not on the scan"}
+    bad = dict(flag, form="ቀተልነ")                                         # not a variant of row 1
+    c = corrections(gold_files={"merho_ges_gold_test.jsonl": [rec]}, flagged=[flag, bad],
+                    extra=[{"split": "test", "record_id": rid, "row": "1", "form": "ቀተልኩ", "tense": "present",
+                            "root_fix": "ቀ-ተ-ለ", "root_fix_scope": "record", "page": "93"}])
+    assert sorted(p["form"] for p in c.gold_pairs([rec], "test")) == ["ቀተለ", "ቅቱል"]
+    assert list(c.page.flagged) == [("test", rid, 1, "ቀተልኩ")]
+    assert not c.page.record_fixes                                          # a flagged pair's root_fix is not applied
+    assert [(p[0], p[2]) for p in c.page.problems] == [("flagged_rows.tsv", "ቀተልነ")]
+    # flagged rows alone (no other source) are read too
+    c = corrections(gold_files={"merho_ges_gold_test.jsonl": [rec]}, flagged=[flag])
+    assert sorted(p["form"] for p in c.gold_pairs([rec], "test")) == ["ቀተለ", "ቅቱል"]
