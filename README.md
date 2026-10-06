@@ -54,7 +54,7 @@ python cli.py lookup ቀተለ
 python generate_synthetic_fixed.py
 ```
 
-Writes `../geez-dataset-v1/output/` and copies the synthetic files to `../geez-dataset-v1/data/paradigms/`. Current output: 217,417 pairs from 2,015 roots (train file sha256 `7973b501bb41421b34a19aa6f06ff6a4b4807f7eb67c1d78683da02be0893e45`). Class and tense counts are in the dataset README.
+Writes `../geez-dataset-v1/output/` and copies the synthetic files to `../geez-dataset-v1/data/paradigms/`. Current output: 217,417 pairs from 2,015 roots (train file sha256 `74fea57275e701532228faf7c5465e7e8bf08f3b7fa161e9da80becd96d5906f`, guttural-final past rule). That file was generated with the held-out roots of the gold test file as of dataset commit 544271a (`generate_extended_dataset(..., test_file=<544271a merho_ges_gold_test.jsonl>)`): the corrected test file holds out other roots, so the plain command above would also change unrelated lines. Class and tense counts are in the dataset README.
 
 ## Test
 

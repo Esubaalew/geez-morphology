@@ -310,6 +310,15 @@ def generate_extended_dataset(
     mid_gutt_changed = set()
     mid_gutt_excluded = {}
     mid_gutt_forms = {"present": 0, "subjunctive": 0, "imperative": 0}
+    # Guttural-final rule:
+    # last radical አ ዐ ሀ ሐ ኀ, past tense ->
+    #   3rd person, basic/causative/aste: middle radical 6th order (ሰምዐ ሰምዐት ሰምዑ ሰምዓ, አስምዐ, አስተስምዐ);
+    #     passive 3rd person is already short in the templates (ተሰምዐ) and is left as it is;
+    #   1st/2nd person, basic/causative/aste/passive: middle radical 4th order (ā), the guttural
+    #     6th as before (ሰማዕኩ, አስማዕኩ, አስተስማዕኩ, ተሰማዕኩ).
+    # Quadriliterals and hollow roots (ሞአ, ኖኀ: the engine contracts radicals 1+2) unchanged.
+    final_gutt_roots = set()
+    final_gutt_forms = {}
     # Kidane Wold subjunctive = imperfect with a 6th-order guttural middle (OCR collapse).
     kw_collapsed = verb_classes.kw_collapsed_subjunctive(dataset_dir)
     kw_collapse_changed = set()
@@ -456,6 +465,18 @@ def generate_extended_dataset(
                     if basic and p["features"].get("tense") == "present" and cons[0] in GUTTURAL_FIRST:
                         spec = guttural_prefix(spec)   # የኀፍር, not ይኀፍር
                         gutt_present += 1
+                    pstem = p["features"].get("stem")
+                    if (rtype in ("strong_A", "weak_initial") and cons[2] in GUTTURAL_FIRST
+                            and p["features"].get("tense") == "past" and "-C1a-" in spec):
+                        third = p["features"].get("person") == "3"
+                        if third and pstem in ("basic", "causative", "aste"):
+                            spec = spec.replace("-C1a-", "-C1I-", 1)      # ሰምዐ, አስምዐ, አስተስምዐ
+                        elif not third and pstem in ("basic", "causative", "aste", "passive"):
+                            spec = spec.replace("-C1a-", "-C1A-", 1)      # ሰማዕኩ, አስማዕኩ, ተሰማዕኩ
+                        if "-C1a-" not in spec:
+                            final_gutt_roots.add(cons)
+                            k = (rtype, pstem, "3" if third else "1/2")
+                            final_gutt_forms[k] = final_gutt_forms.get(k, 0) + 1
                     slots = slots_from_spec(spec)
                     form = engine.generate(cons, slots, stem=p["features"].get("stem", "basic"))
                     if has_unassigned_char(form):
@@ -625,6 +646,8 @@ def generate_extended_dataset(
         ensure_ascii=False))
     print(f"Type A roots by subjunctive/imperative shape: {subj_used}")
     print(f"Present forms given the guttural prefix (የ/ተ/አ/ነ): {gutt_present:,}")
+    print(f"Guttural-final rule (past: middle radical 6th order in 3rd person, 4th (ā) in 1st/2nd): {len(final_gutt_roots)} roots; "
+          f"templates rewritten by (type, stem, person): {dict(sorted(final_gutt_forms.items()))}")
     print(f"Saved to: {out_train}")
     if mirror_dir and os.path.abspath(mirror_dir) != os.path.abspath(output_dir):
         os.makedirs(mirror_dir, exist_ok=True)

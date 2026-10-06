@@ -34,17 +34,26 @@ END_ORDER = {"i": 3, "u": 2, "a": 4}
 PERF_CLOSED = {"2ms": "ከ", "2fs": "ኪ", "1s": "ኩ", "2mp": "ክሙ", "2fp": "ክን", "1p": "ነ"}
 
 
+GUTTURAL_FINAL = set("አዐሀሐኀ")
+
+
 def strong_perfect(r, v1):
-    """Perfect for Type A/B/C: v1 = order of radical 1 (1 for A/B, 4 for C)."""
+    """Perfect for Type A/B/C: v1 = order of radical 1 (1 for A/B, 4 for C).
+    Last radical a guttural (አ ዐ ሀ ሐ ኀ): the middle radical takes the 6th order in the 3rd person
+    (ቃርሐ ቃርሐት ቃርሑ ቃርሓ, Merho p.22; ሰብሐ ሰብሑ) and the 4th order (ā) in the 1st/2nd person,
+    with the guttural in the 6th (ቃራሕኩ, ሰባሕኩ).  the maintainers confirmed
+    the 1st/2nd person ā shape, 2026-10-06 13:55."""
     c1 = syl(r[0], v1)
+    gutt = syl(r[2], 1) in GUTTURAL_FINAL
+    m3, m12 = (6, 4) if gutt else (1, 1)
     out = {
-        "3ms": c1 + syl(r[1], 1) + syl(r[2], 1),
-        "3fs": c1 + syl(r[1], 1) + syl(r[2], 1) + "ት",
-        "3mp": c1 + syl(r[1], 1) + syl(r[2], 2),
-        "3fp": c1 + syl(r[1], 1) + syl(r[2], 4),
+        "3ms": c1 + syl(r[1], m3) + syl(r[2], 1),
+        "3fs": c1 + syl(r[1], m3) + syl(r[2], 1) + "ት",
+        "3mp": c1 + syl(r[1], m3) + syl(r[2], 2),
+        "3fp": c1 + syl(r[1], m3) + syl(r[2], 4),
     }
     for p, s in PERF_CLOSED.items():
-        out[p] = c1 + syl(r[1], 1) + syl(r[2], 6) + s
+        out[p] = c1 + syl(r[1], m12) + syl(r[2], 6) + s
     return out
 
 
@@ -226,6 +235,13 @@ EXPECTED = {
         "imperfect": "ይባርክ ትባርክ ትባርክ ትባርኪ እባርክ ይባርኩ ይባርካ ትባርኩ ትባርካ ንባርክ",
         "subjunctive": "ይባርክ ትባርክ ትባርክ ትባርኪ እባርክ ይባርኩ ይባርካ ትባርኩ ትባርካ ንባርክ",
         "imperative": "ባርክ ባርኪ ባርኩ ባርካ",
+    },
+    # guttural-final: 3rd person past short (Merho p.22 ቃርሐ), 1st/2nd person ā (ቃራሕኩ)
+    ("type_c", "ቀረሐ"): {
+        "perfect": "ቃርሐ ቃርሐት ቃራሕከ ቃራሕኪ ቃራሕኩ ቃርሑ ቃርሓ ቃራሕክሙ ቃራሕክን ቃራሕነ",
+    },
+    ("type_b", "ሰበሐ"): {
+        "perfect": "ሰብሐ ሰብሐት ሰባሕከ ሰባሕኪ ሰባሕኩ ሰብሑ ሰብሓ ሰባሕክሙ ሰባሕክን ሰባሕነ",
     },
     ("final_y", "ሰትየ"): {
         "perfect": "ሰትየ ሰትየት ሰተይከ ሰተይኪ ሰተይኩ ሰትዩ ሰትያ ሰተይክሙ ሰተይክን ሰተይነ",
