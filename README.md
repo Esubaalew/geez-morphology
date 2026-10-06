@@ -54,7 +54,7 @@ python cli.py lookup ቀተለ
 python generate_synthetic_fixed.py
 ```
 
-Writes `../geez-dataset-v1/output/` and copies the synthetic files to `../geez-dataset-v1/data/paradigms/`. Current output: 216,977 pairs from 2,007 roots (full train file sha256 `e384ccf2dc276c95f2c65fde564a40eb31388ecb2c84a72faa34d050139abcb7`, guttural-final past rule, Merho Ges class tags from the corrected gold train file, per-root random streams); after the held-out split (`synthetic_heldout.py`) the training file has 210,482 lines (sha256 `bf3808a7…`) and 6,495 lines are held out in `data/synthetic/`. That file was generated with the held-out roots of the gold test file as of dataset commit 544271a (`generate_extended_dataset(..., test_file=<544271a merho_ges_gold_test.jsonl>)`): the corrected test file holds out other roots, so the plain command above would change the lines of those roots (every random draw is per root, so no other root's lines change). Class and tense counts are in the dataset README.
+Writes `../geez-dataset-v1/output/` (not in git) and copies the synthetic files to `../geez-dataset-v1/data/paradigms/`. Current output: 216,977 pairs from 2,007 roots (full train file sha256 `e384ccf2dc276c95f2c65fde564a40eb31388ecb2c84a72faa34d050139abcb7`, guttural-final past rule, Merho Ges class tags from the corrected gold train file, per-root random streams); after the held-out split (`synthetic_heldout.py`) the training file has 210,348 lines (sha256 `f9b52cd4…`) and 6,629 lines are held out in `data/synthetic/`. That file was generated with the held-out roots of the gold test file as of dataset commit 544271a (`generate_extended_dataset(..., test_file=<544271a merho_ges_gold_test.jsonl>)`): the corrected test file holds out other roots, so the plain command above would change the lines of those roots (every random draw is per root, so no other root's lines change). Class and tense counts are in the dataset README.
 
 ## Test
 
@@ -86,7 +86,7 @@ Current rules-only result on the Merho Ges test split: exact match 193/377 (51.2
 ## Rules and notes
 
 - Language decisions and their sources: [`docs/grammar_rules.md`](docs/grammar_rules.md)
-- notes with every change and check: [`data_and_model_notes_2026-10-05.md`](data_and_model_notes_2026-10-05.md)
+- The 2026-10-05 notes, sheets, patches and logs (formerly `notes/`) are not included since 2026-10-06; the relabel proposals the code reads are in `../geez-dataset-v1/data/corrections/`.
 
 ## License
 
