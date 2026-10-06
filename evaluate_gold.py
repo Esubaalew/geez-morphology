@@ -274,10 +274,11 @@ def main():
     ap.add_argument("--limit", type=int, default=0, help="Random sample of N pairs (0 = all, the default)")
     ap.add_argument("--out_json", default=None, help="Write the metrics table to this JSON file")
     ap.add_argument("--exclude_proposed", nargs="?", default=None,
-                    const=os.path.join(SCRIPT_DIR, "notes", "gold_proposals_2026-10-05.jsonl"),
+                    const=os.path.normpath(os.path.join(SCRIPT_DIR, "..", "geez-dataset-v1", "data", "corrections",
+                                                         "gold_proposals_2026-10-05.jsonl")),
                     help="Leave out gold rows the relabel proposals mark exclude_from_verb_scoring "
                          "(not verbs, or unusable until re-read from the scan). Default file: "
-                         "notes/gold_proposals_2026-10-05.jsonl. The gold file is not changed.")
+                         "../geez-dataset-v1/data/corrections/gold_proposals_2026-10-05.jsonl. The gold file is not changed.")
     ap.add_argument("--no_corrections", action="store_true",
                     help="Score the gold file as written (no data/corrections tables; the pre-2026-10-05 numbers)")
     ap.add_argument("--corrections_dir", default=None,

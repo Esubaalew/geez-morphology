@@ -25,5 +25,3 @@ wandb/
 
 # Training logs
 *.log
-# ...except the small check logs that the notes cites
-!notes/logs/*.log

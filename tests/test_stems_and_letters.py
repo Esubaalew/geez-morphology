@@ -196,7 +196,7 @@ def test_eval_aste_mapping_and_exclusions():
     import evaluate_gold as E
     assert E.ASTE_FORM.match("ያስተሰነግል") and E.ASTE_FORM.match("አስተሰነገለ")
     assert not E.ASTE_FORM.match("አንጸብረቀ") and not E.ASTE_FORM.match("አቅየዐየዐ")
-    path = os.path.join(HERE, "notes", "gold_proposals_2026-10-05.jsonl")
+    path = os.path.join(os.path.dirname(HERE), "geez-dataset-v1", "data", "corrections", "gold_proposals_2026-10-05.jsonl")
     if not os.path.exists(path):
         pytest.skip("proposals not written")
     ex = E.load_exclusions(path)

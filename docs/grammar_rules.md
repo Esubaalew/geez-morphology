@@ -5,7 +5,7 @@ These are the decisions of the grammar check, made between earlier checks
 `verb_class_paradigms.py`) and the analyzer (`analyzer.py`) follow them. Page numbers are the
 printed pages of the grammar books the editors read from page images. "ፍሬ ግእዝ page_014" is the
 image file name in that scan, not a file in this repository. The full history, with counts, is in
-`data_and_model_notes_2026-10-05.md`.
+the 2026-10-05 notes (not included since 2026-10-06).
 
 Root letters are written in the consonant symbols of `geez_config.py` (h1 ሀ, h2 ሐ, kh ኀ, a አ,
 a2 ዐ, s2 ሠ, S ጸ, S2 ፀ, T ጠ, qh ቈ).
@@ -115,7 +115,7 @@ stem label is `aste`.
 - A root with no evidence gets the default for its shape.
 - **an earlier prototype is a hint only.** Its classes come from earlier work that could not be confirmed. A
   an earlier prototype lemma is linked only by exact spelling, and no class is taken from it. Its disagreements
-  are listed in `notes/prototype_crosscheck_conflicts_2026-10-05.jsonl`.
+  are listed in the notes (`prototype_crosscheck_conflicts_2026-10-05.jsonl`, not included).
 
 ## 9. Kidane Wold triple check
 
