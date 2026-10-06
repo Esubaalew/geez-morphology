@@ -106,30 +106,38 @@ def test_guard_skips_without_tables():
 def test_synthetic_pe_fix():
     with tempfile.TemporaryDirectory() as tmp:
         write_tables(tmp, [], [], [dict(root="t-r-p", action="fix", new_root="t-r-p2"), dict(root="t-p-s", action="keep"),
-                                   dict(root="q-r-h2", action="skip")])
+                                   dict(root="q-r-h2", action="keep")])
         C = G.Corrections(tmp)
     d, ch = C.synthetic_record({"features": {"root": "t-r-p", "tense": "past"}, "surface_form": "ታረጰት"})
     assert ch and d["features"]["root"] == "t-r-p2" and d["surface_form"] == "ታረፐት"
     assert gc.to_ethiopic_root(d["features"]["root"]) == "ተ-ረ-ፐ"
     d, ch = C.synthetic_record({"analysis": {"root": "t-p-s"}, "surface_form": "ተጰሰ"})
     assert not ch and d["surface_form"] == "ተጰሰ"
-    assert C.synthetic_record({"features": {"root": "q-r-h2"}, "surface_form": "ቃረሐ"}) == (None, True)
+    d, ch = C.synthetic_record({"features": {"root": "q-r-h2"}, "surface_form": "ቃርሐ"})
+    assert not ch and d["surface_form"] == "ቃርሐ"                 # read as written (no skips)
+    with tempfile.TemporaryDirectory() as tmp:
+        write_tables(tmp, [], [], [dict(root="q-r-h2", action="skip")])
+        try:
+            G.Corrections(tmp)
+            assert False, "a skip row must be rejected"
+        except ValueError as e:
+            assert "not supported" in str(e)
 
 
-def test_trainer_skips_synthetic_root():
+def test_trainer_reads_synthetic_as_written():
     import train_byt5_morphology as T
     with tempfile.TemporaryDirectory() as tmp:
         para = os.path.join(tmp, "data", "paradigms"); os.makedirs(para)
         with open(os.path.join(para, "synthetic_morphology_train.jsonl"), "w", encoding="utf-8") as f:
-            for root, form in (("q-r-h2", "ቃረሐ"), ("t-r-p", "ታረጰ"), ("q-t-l", "ቀተለ")):
+            for root, form in (("q-r-h2", "ቃርሐ"), ("t-r-p", "ታረጰ"), ("q-t-l", "ቀተለ")):
                 f.write(json.dumps({"surface_form": form, "features": {"root": root, "tense": "past", "person": "3",
                                     "gender": "m", "number": "s", "stem": "basic"}}, ensure_ascii=False) + "\n")
         write_tables(os.path.join(tmp, "data", "corrections"), [], [],
-                     [dict(root="t-r-p", action="fix", new_root="t-r-p2"), dict(root="q-r-h2", action="skip")])
+                     [dict(root="t-r-p", action="fix", new_root="t-r-p2"), dict(root="q-r-h2", action="keep")])
         stats = collections.Counter()
         samples = T.load_data(tmp, stats=stats)
-    assert sorted(x["input_text"] for x in samples) == ["analyze: ቀተለ", "analyze: ታረፐ"]
-    assert stats["synthetic pairs skipped: q-r-h2"] == 1 and stats["synthetic pairs fixed"] == 1
+    assert sorted(x["input_text"] for x in samples) == ["analyze: ቀተለ", "analyze: ቃርሐ", "analyze: ታረፐ"]
+    assert stats["synthetic pairs fixed"] == 1 and not any(k.startswith("synthetic pairs skipped") for k in stats)
 
 
 EXTRACTED_REF = "544271a"    # dataset commit with the gold files as extracted (before the in-place rewrite)
