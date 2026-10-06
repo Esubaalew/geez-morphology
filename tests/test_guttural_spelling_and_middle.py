@@ -23,6 +23,8 @@ import verb_classes  # noqa: E402
 
 DATASET = os.path.abspath(os.path.join(HERE, "..", "geez-dataset-v1"))
 SYNTH = os.path.join(DATASET, "data", "paradigms", "synthetic_morphology_train.jsonl")
+# the generator's output is the training file plus the lines held out for the gold val/test roots (14:35)
+HELD = os.path.join(DATASET, "data", "synthetic", "synthetic_forms_for_val_test_roots.jsonl")
 GUTT = {"a", "a2", "h1", "h2", "kh"}
 
 
@@ -98,8 +100,12 @@ def test_analyzer_middle_guttural(analyzer, word, expect):
 def synth():
     if not os.path.exists(SYNTH):
         pytest.skip("synthetic data not generated")
-    with open(SYNTH, encoding="utf-8") as f:
-        return [json.loads(line) for line in f]
+    out = []
+    for path in (SYNTH, HELD):
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                out += [json.loads(line) for line in f]
+    return out
 
 
 def form(synth, root, tense, per, stem="basic"):

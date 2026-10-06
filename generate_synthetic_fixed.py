@@ -18,6 +18,12 @@ Generates bidirectional training pairs covering:
 Roots of the gold test split are left out (see --keep_test_roots), so the
 gold score measures unseen roots. Output goes to <dataset>/output and is
 copied to <dataset>/data/paradigms (what train_byt5_morphology.py reads).
+After the copy, synthetic_heldout.py moves every line whose root is a root of the
+current gold val or test file into <dataset>/data/synthetic/ (held out, not read by
+the trainer; the maintainer 2026-10-06 14:35); --no_heldout_split skips that step.
+The committed files were generated with the test file as extracted (544271a):
+  git -C <dataset> show 544271a:data/paradigms/merho_ges_gold_test.jsonl > /tmp/test_544271a.jsonl
+  python generate_synthetic_fixed.py --test_file /tmp/test_544271a.jsonl
 """
 
 import os
@@ -217,6 +223,7 @@ def generate_extended_dataset(
     include_quads: bool = True,
     test_file: Optional[str] = None,
     mirror_dir: Optional[str] = None,
+    split_heldout: bool = False,
 ):
     if output_dir is None:
         output_dir = os.path.join(dataset_dir, "output")
@@ -654,6 +661,11 @@ def generate_extended_dataset(
         for path in (out_train, out_analyze):
             shutil.copyfile(path, os.path.join(mirror_dir, os.path.basename(path)))
         print(f"Copied to:  {mirror_dir} (train_byt5_morphology.py reads this copy)")
+        if split_heldout:
+            import synthetic_heldout
+            moved, _ = synthetic_heldout.split_into_dataset(output_dir, dataset_dir)
+            print(f"Held out (synthetic_heldout.py): {sum(moved.values()):,} lines whose root is a gold val/test root "
+                  f"-> {os.path.join(dataset_dir, synthetic_heldout.HELDOUT_DIR)}")
     print("============================================================")
 
 
@@ -668,6 +680,10 @@ if __name__ == "__main__":
                         help="Do not remove the gold test roots (makes the gold score optimistic)")
     parser.add_argument("--no_mirror", action="store_true",
                         help="Do not copy the output to <dataset>/data/paradigms")
+    parser.add_argument("--test_file", default=None,
+                        help="Gold test file whose roots are left out (default <dataset>/data/paradigms/merho_ges_gold_test.jsonl)")
+    parser.add_argument("--no_heldout_split", action="store_true",
+                        help="Do not move the lines with a gold val/test root to <dataset>/data/synthetic/ after the copy")
     args = parser.parse_args()
 
     resolved_dataset_dir = os.path.abspath(args.dataset_dir)
@@ -682,7 +698,8 @@ if __name__ == "__main__":
         include_objects=not args.no_objects,
         include_negative=not args.no_negative,
         include_quads=not args.no_quads,
-        test_file=None if args.keep_test_roots else os.path.join(
-            resolved_dataset_dir, "data", "paradigms", "merho_ges_gold_test.jsonl"),
+        test_file=None if args.keep_test_roots else (args.test_file or os.path.join(
+            resolved_dataset_dir, "data", "paradigms", "merho_ges_gold_test.jsonl")),
         mirror_dir=None if args.no_mirror else os.path.join(resolved_dataset_dir, "data", "paradigms"),
+        split_heldout=not args.no_mirror and not args.no_heldout_split,
     )

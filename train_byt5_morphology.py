@@ -6,6 +6,7 @@ Target text: "root: <ሀ-ለ-መ> | tense: <t> | person: <p> | gender: <g> | num
 
 Data (read from --dataset_dir, the geez-dataset checkout):
   data/paradigms/synthetic_morphology_train.jsonl        synthetic pairs
+      (only this file: the lines held out for the gold val/test roots, data/synthetic/, are never read)
   data/paradigms/merho_ges_gold_train_tense_filled.jsonl  Merho Ges gold-train paradigms
       (falls back to merho_ges_gold_train.jsonl)
 Gold files corrected in place (data/paradigms/merho_ges_gold_flagged_rows.tsv present): the gold pairs
