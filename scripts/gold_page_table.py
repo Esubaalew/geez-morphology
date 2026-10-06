@@ -94,6 +94,33 @@ def missing_letters(form, root, old_root):
     return [x for x in new if geez_config.decompose_char(x)[0] not in have]
 
 
+# Labiovelar series: ቈ = ቀ+ወ, ኈ = ኀ+ወ, ኰ = ከ+ወ, ጐ = ገ+ወ (first letter of each 8-letter block).
+LABIOVELAR = {"ቀ": 0x1248, "ኀ": 0x1288, "ከ": 0x12B0, "ገ": 0x1310}
+WEAK_RADICALS = ("ወ", "የ")
+
+
+def one_letter_change(old_root, new_root):
+    """True if the two roots have the same number of radicals and differ in exactly one."""
+    a, b = (old_root or "").split("-"), (new_root or "").split("-")
+    return bool(old_root) and len(a) == len(b) and sum(x != y for x, y in zip(a, b)) == 1
+
+
+def explain_missing(form, root, gone):
+    """Why letters of `root` missing from `form` are expected, or None.
+    - labialized letter: ጐ writes ገ+ወ in one letter (also ቈ ኰ ኈ), so ገ (and ወ) are in ጐ;
+    - weak radical: ወ/የ of the root is not written in a contracted or weak form (ቆመ, አብሐ, ተከሰ)."""
+    labial = {b for b, start in LABIOVELAR.items() if any(start <= ord(c) < start + 8 for c in form)}
+    reasons = []
+    for x in gone:
+        if x in labial or (x == "ወ" and labial & set(root.split("-"))):
+            reasons.append(f"{x}: labialized letter (ጐ = ገ+ወ) in the form")
+        elif x in WEAK_RADICALS:
+            reasons.append(f"{x}: weak radical, not written in this form")
+        else:
+            return None
+    return "; ".join(reasons)
+
+
 def shared_roots(corr, records):
     """Roots (as loaded) that occur in more than one split: {root: {split: (pairs, [headwords])}}."""
     where = collections.defaultdict(lambda: collections.defaultdict(set))
@@ -118,7 +145,8 @@ def synthetic_root_counts(corr, dataset_dir):
 
 
 def validate(dataset_dir, page_dir, her_folder=None, report=None):
-    """-> [(where, form, level, problem)]. level "error": not applied / stays out; "check": applied, have a look."""
+    """-> [(where, form, level, problem)]. level "error": not applied / stays out; "check": applied, have a look;
+    "ok": accepted by a rule (the reason says which); listed, not counted as to check."""
     records = load_records(dataset_dir)
     gold = GoldPairs(records, dataset_dir)
     corr = G.Corrections.from_dataset(dataset_dir, required=True, page_dir=page_dir)
@@ -188,11 +216,30 @@ def validate(dataset_dir, page_dir, her_folder=None, report=None):
                 add(where, form, "check", "form_fix is the same as the form")
 
     # flagged_rows.tsv: these pairs stay out
+    src_rows = {}
+    for name in G.PAGE_SOURCES:
+        path = os.path.join(page_dir, "sources", name)
+        if os.path.exists(path):
+            for line, e in enumerate(G._read_tsv(path), 2):
+                src_rows[f"{name}:{line}"] = G._clean(e)
+    value_cols = G.FIX_COLUMNS + G.LABEL_COLUMNS + ("stem_fix", "new_label", "outcome_label")
+
+    def gives_values(w):
+        e = src_rows.get(w, {})
+        return any((e.get(c) or "").strip() for c in value_cols if c != "root_fix_scope")
     for key, where in sorted(page.flagged.items(), key=lambda kv: kv[1]):
-        others = [x for x in page.entries[key]["sources"] if x != where]
-        add(where, key[3], "check", f"flagged: {key[0]} record {key[1]} row {key[2]} stays out"
-            + (" (it loaded before)" if key in loaded else "")
-            + (f"; also in {', '.join(others)} (not applied)" if others else ""))
+        listed = [x for x in page.entries[key]["sources"] if x != where]
+        others = [x for x in listed if gives_values(x)]
+        if listed and not others:
+            add(where, key[3], "ok", f"accepted: flagged ({key[0]} record {key[1]} row {key[2]} stays out); also listed "
+                f"in {', '.join(listed)} with a note only (no values)")
+        elif others:
+            add(where, key[3], "check", f"conflict for checking: flagged ({key[0]} record {key[1]} row {key[2]} "
+                f"stays out) but also given values in {', '.join(others)} (not applied, the flag wins): "
+                "drop the other row, or unflag")
+        else:
+            add(where, key[3], "check", f"flagged: {key[0]} record {key[1]} row {key[2]} stays out"
+                + (" (it loaded before)" if key in loaded else ""))
 
     # merged pairs: conflicts, forms that cannot load, pairs that stay out
     for key, e in page.entries.items():
@@ -243,6 +290,9 @@ def validate(dataset_dir, page_dir, her_folder=None, report=None):
         elif not usable:
             add(where, rid, "check", f"record {rid} ({split}) root {state}: {len(pairs) - len(uncovered)} page-checked "
                 "pairs come back" + (f"; {len(uncovered)} not page-checked stay out: {' '.join(uncovered)}" if uncovered else ""))
+        elif current != root and not uncovered and one_letter_change(current, root):
+            add(where, rid, "ok", f"accepted: record {rid} ({split}) root {state} for all {len(pairs)} pairs: "
+                "a one-letter page-checked correction, every pair listed in her sources")
         elif current != root:
             add(where, rid, "check", f"record {rid} ({split}) root {state} for all {len(pairs)} pairs"
                 + (f", including {len(uncovered)} no source lists: {' '.join(uncovered)}" if uncovered else ""))
@@ -253,7 +303,14 @@ def validate(dataset_dir, page_dir, her_folder=None, report=None):
             if (e and e["status"] != "confirmed") or (not usable and not whole and k not in covered):
                 continue
             gone = missing_letters(form, root, current if usable else "")
-            if gone:
+            own = e["root_fix"] if e and e["checked"] and e["root_fix"] and e["root_fix_scope"] == "row" else ""
+            why = explain_missing(form, root, gone) if gone else None
+            if gone and own and own != root:
+                add(where, form, "ok", f"accepted: record root {root} does not reach {form!r}: the pair has its own "
+                    f"page-checked root {own} (root_fix_scope=row)")
+            elif gone and why:
+                add(where, form, "ok", f"accepted: record root {root} on {form!r}: {why}")
+            elif gone:
                 add(where, form, "check", f"record root {root} reaches {form!r}, which has no {'/'.join(gone)}: "
                     "is the form misread (form_fix), or is this pair's root different (root_fix_scope=row)?")
 
@@ -290,8 +347,9 @@ def validate(dataset_dir, page_dir, her_folder=None, report=None):
             for p in problems:
                 f.write("\t".join(str(x).replace("\t", " ") for x in p) + "\n")
     errors = sum(p[2] == "error" for p in problems)
+    accepted = sum(p[2] == "ok" for p in problems)
     print(f"{page_dir}/sources: {dict(page.rows)} -> {len(page.entries)} gold pairs; "
-          f"{errors} errors, {len(problems) - errors} to check")
+          f"{errors} errors, {len(problems) - errors - accepted} to check, {accepted} accepted (rule given)")
     for p in problems:
         print(f"  {p[2]:5s}  {p[0]}  {p[1]}  {p[3]}")
     return problems
