@@ -395,6 +395,12 @@ class Corrections:
             labels["stem"] = stem
         if labels["type"] == "verb" and labels["stem"] == "causative_intensive" and ASTE_FORM.match(form):
             labels["stem"] = "aste"
+        tense_as_extracted = None
+        if labels.get("tense") == "jussive":
+            # load-time label convention of the extracted files (544271a): one subjunctive label, as in
+            # the synthetic data. The clean files already carry "subjunctive" (file_pairs reads as written).
+            labels["tense"], tense_as_extracted = "subjunctive", "jussive"
+            stats["pairs: tense jussive read as subjunctive (load time)"] += 1
         if form != v:
             stats["page pairs: form_fix"] += 1
         if loaded is not None and root_fix is not None and root_fix != base["root"]:
@@ -403,7 +409,7 @@ class Corrections:
             stats["page pairs restored: " + why] += 1
         return {"form": form, "source_form": v, "root": root, "root_from_page": root_fix is not None,
                 "root_as_extracted": rec.get("root") or "", "record": base, "record_id": rid, "row": j,
-                "page": entry, **labels}
+                "page": entry, "tense_as_extracted": tense_as_extracted, **labels}
 
     # ------------------------------------------------------------- synthetic
     def synthetic_record(self, d):
@@ -438,8 +444,9 @@ def target_text(pair):
             parts.append(f"gender: {pair['gender']}")
         parts.append(f"number: {pair['number']}")
         return " | ".join(parts)
-    tense = "subjunctive" if pair["tense"] == "jussive" else pair["tense"]   # one label, as in the synthetic data
-    text = (f"root: {pair['root']} | tense: {tense} | person: {pair['person']} | gender: {pair['gender']} | "
+    # Tense as loaded: the clean files carry "subjunctive" (no jussive); the extracted-file path maps
+    # jussive -> subjunctive at load time (Corrections._pair, plain_pairs).
+    text = (f"root: {pair['root']} | tense: {pair['tense']} | person: {pair['person']} | gender: {pair['gender']} | "
             f"number: {pair['number']} | stem: {pair['stem']}")
     return text + (f" | object: {pair['object']}" if pair.get("object") else "")
 
@@ -452,7 +459,8 @@ def file_pairs(records, split, flagged=(), stats=None):
     and where they differ from the record: root, stem, type (noun/adjective), object.
     Left out, and counted: pairs in `flagged` ((split, record_id, row, form) keys), variants that are
     not one Ethiopic word, rows whose root is empty, joined, Latin or not 2-5 letters.
-    One label convention of the targets applies: jussive is written subjunctive (target_text).
+    Tense is read as written: the files carry "subjunctive" where the book's extraction said "jussive"
+    (no load-time mapping on this path; a "jussive" left in a file is counted and kept as is).
     Stems are read as written (the files carry "aste" for አስተ- forms; no derivation here)."""
     stats = stats if stats is not None else collections.Counter()
     out = []
@@ -478,6 +486,8 @@ def file_pairs(records, split, flagged=(), stats=None):
                 if labels["type"] in NOMINAL_TYPES:
                     labels = dict(_nominal(labels), stem=None)
                 stats["file pairs loaded"] += 1
+                if labels.get("tense") == "jussive":
+                    stats["file pairs with tense jussive (read as written)"] += 1
                 out.append({"form": v, "source_form": v, "root": root, "root_from_page": bool(row.get("root")),
                             "root_as_extracted": root, "record": rec, "record_id": rid, "row": j, "page": None,
                             **labels})
@@ -492,9 +502,11 @@ def plain_pairs(records):
             for v in clean_variants(row.get("geez_form"))[0]:
                 stem = rec.get("stem", "basic")
                 stem = "aste" if stem == "causative_intensive" and ASTE_FORM.match(v) else stem
+                tense = row.get("tense", "")
+                tense = "subjunctive" if tense == "jussive" else tense   # extracted files (544271a): one subjunctive label
                 out.append({"form": v, "source_form": v, "root": rec.get("root") or "",
                             "root_as_extracted": rec.get("root") or "", "record": rec, "record_id": record_id(rec),
-                            "row": j, "page": None, "root_from_page": False, "type": "verb", "stem": stem, "tense": row.get("tense", ""),
+                            "row": j, "page": None, "root_from_page": False, "type": "verb", "stem": stem, "tense": tense,
                             "person": row.get("person", ""), "gender": row.get("gender", ""),
                             "number": row.get("number", ""), "object": ""})
     return out
