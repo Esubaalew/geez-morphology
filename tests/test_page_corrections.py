@@ -316,3 +316,17 @@ def test_flagged_rows_stay_out():
     # flagged rows alone (no other source) are read too
     c = corrections(gold_files={"merho_ges_gold_test.jsonl": [rec]}, flagged=[flag])
     assert sorted(p["form"] for p in c.gold_pairs([rec], "test")) == ["ቀተለ", "ቅቱል"]
+
+
+def test_flagged_row_with_the_old_train_file_name():
+    """the files name the train file merho_ges_gold_train_tense_filled.jsonl (its name before the
+    2026-10-06 rename, ): the row resolves in merho_ges_gold_train.jsonl."""
+    rec = record()
+    rid = G.record_id(rec)
+    flag = {"split": "train", "gold_file": "merho_ges_gold_train_tense_filled.jsonl", "file_line": "1", "row": "1",
+            "variant": "0", "form": "ቀተልኩ", "page": "93", "reason": "not on the scan"}
+    c = corrections(gold_files={"merho_ges_gold_train.jsonl": [rec]}, flagged=[flag])
+    assert list(c.page.flagged) == [("train", rid, 1, "ቀተልኩ")] and not c.page.problems
+    assert G.canonical_gold_file("merho_ges_gold_train_tense_filled.jsonl") == G.gold_file_name("train")
+    assert G.canonical_gold_file("merho_ges_gold_val.jsonl") == "merho_ges_gold_val.jsonl"
+    assert G.split_of("merho_ges_gold_train_tense_filled.jsonl") == G.split_of("merho_ges_gold_train.jsonl") == "train"

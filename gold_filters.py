@@ -52,7 +52,12 @@ TABLES = {"gold": "gold_root_corrections.tsv",
           "excluded": "gold_excluded_records.tsv",
           "synthetic": "synthetic_root_corrections.tsv"}
 PE_TO_P2 = {0x1330 + i: 0x1350 + i for i in range(8)}   # ጰ-series -> ፐ-series
+# The gold files are data/paradigms/merho_ges_gold_{train,val,test}.jsonl, corrected in place; the uncorrected
+# extracted files were deleted. Until then the corrected train file was called
+# merho_ges_gold_train_tense_filled.jsonl, and the source and key files still use that name in
+# their gold_file column (with file_line in the files as extracted, 544271a): it is read as the train file.
 GOLD_SPLIT = re.compile(r"merho_ges_gold_(train|val|test)(_tense_filled)?\.jsonl$")
+LEGACY_GOLD_FILES = {"merho_ges_gold_train_tense_filled.jsonl": "merho_ges_gold_train.jsonl"}
 # Merho Ges "causative_intensive" mixes አስተ- forms (the synthetic "aste" stem) and reduplicated
 # causatives (አንጸብረቀ): only አስተ- forms are labelled "aste". Used by the load-time path for the
 # gold files as extracted; the files corrected in place carry stem "aste" themselves.
@@ -118,6 +123,16 @@ def clean_variants(form_raw):
 def split_of(path):
     m = GOLD_SPLIT.search(os.path.basename(path or ""))
     return m.group(1) if m else None
+
+
+def gold_file_name(split):
+    """The gold file of a split (data/paradigms/)."""
+    return f"merho_ges_gold_{split}.jsonl"
+
+
+def canonical_gold_file(name):
+    """A gold_file value as the dataset names the file now (the legacy train name -> merho_ges_gold_train.jsonl)."""
+    return LEGACY_GOLD_FILES.get(name, name)
 
 
 def root_problem(root):
@@ -787,7 +802,7 @@ class PageCorrections:
             gf, fl = e.get("gold_file", ""), e.get("file_line", "")
             if gf and fl.isdigit() and self.gold_dir:
                 if gf not in lines:
-                    p = os.path.join(self.gold_dir, gf)
+                    p = os.path.join(self.gold_dir, canonical_gold_file(gf))
                     lines[gf] = open(p, encoding="utf-8").read().splitlines() if os.path.exists(p) else None
                 ls = lines[gf]
                 if ls is None:

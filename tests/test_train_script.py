@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import train_byt5_morphology as T
 
 
-def _dataset(tmp, n_syn=20, gold_name="merho_ges_gold_train_tense_filled.jsonl"):
+def _dataset(tmp, n_syn=20, gold_name="merho_ges_gold_train.jsonl"):
     para = os.path.join(tmp, "data", "paradigms")
     os.makedirs(para)
     with open(os.path.join(para, "synthetic_morphology_train.jsonl"), "w", encoding="utf-8") as f:
@@ -42,10 +42,11 @@ def test_load_counts_and_targets():
         assert any("tense: subjunctive" in t for t in targets)
 
 
-def test_gold_fallback_file():
+def test_no_fallback_to_the_old_train_name():
+    """Only data/paradigms/merho_ges_gold_train.jsonl is read: a file under the old tense_filled name is not."""
     with tempfile.TemporaryDirectory() as tmp:
-        samples = T.load_data(_dataset(tmp, gold_name="merho_ges_gold_train.jsonl"))
-        assert sum(s["is_gold"] for s in samples) == 4
+        samples = T.load_data(_dataset(tmp, gold_name="merho_ges_gold_train_tense_filled.jsonl"))
+        assert sum(s["is_gold"] for s in samples) == 0
 
 
 def test_sample_limit_and_determinism():

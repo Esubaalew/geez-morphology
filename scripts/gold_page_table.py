@@ -33,11 +33,11 @@ LATIN = re.compile(r"[A-Za-z]")
 
 
 def gold_file_of(dataset_dir, split):
-    for name in (f"merho_ges_gold_{split}_tense_filled.jsonl", f"merho_ges_gold_{split}.jsonl"):
-        p = os.path.join(dataset_dir, "data", "paradigms", name)
-        if os.path.exists(p):
-            return p
-    raise FileNotFoundError(f"no gold file for {split}")
+    """data/paradigms/merho_ges_gold_<split>.jsonl."""
+    p = os.path.join(dataset_dir, "data", "paradigms", G.gold_file_name(split))
+    if os.path.exists(p):
+        return p
+    raise FileNotFoundError(f"no gold file for {split}: {p}")
 
 
 def load_records(dataset_dir):
@@ -193,7 +193,8 @@ def validate(dataset_dir, page_dir, her_folder=None, report=None):
             if name == "gold_extra_fixes.tsv":
                 for col, want in (("gold_file", info["gold_file"]), ("file_line", str(info["file_line"])),
                                   ("variant", str(info["variant"]))):
-                    if e.get(col) and e[col] != want:
+                    got = G.canonical_gold_file(e.get(col, "")) if col == "gold_file" else e.get(col)
+                    if e.get(col) and got != want:
                         add(where, form, "error", f"{col} {e[col]!r} does not match record {key[1]} row {key[2]} "
                             f"({col} is {want!r}): which pair is meant?")
             if name == "gold_page_table.tsv":

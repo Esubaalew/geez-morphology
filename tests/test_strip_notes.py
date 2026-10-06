@@ -37,7 +37,7 @@ def test_trainer_and_evaluate_gold_read_the_same_forms():
     with tempfile.TemporaryDirectory() as tmp:
         para = os.path.join(tmp, "data", "paradigms"); os.makedirs(para)
         open(os.path.join(para, "synthetic_morphology_train.jsonl"), "w").close()
-        gold = os.path.join(para, "merho_ges_gold_train_tense_filled.jsonl")
+        gold = os.path.join(para, "merho_ges_gold_train.jsonl")
         with open(gold, "w", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         write_tables(os.path.join(tmp, "data", "corrections"), [])
@@ -54,7 +54,7 @@ def test_real_gold_train_inputs_are_single_words():
     if not os.path.exists(path):
         return                                   # dataset checkout not next to the model repo
     C = G.Corrections.from_dataset(DATASET, required=True)
-    with open(os.path.join(DATASET, "data", "paradigms", "merho_ges_gold_train_tense_filled.jsonl"), encoding="utf-8") as f:
+    with open(os.path.join(DATASET, "data", "paradigms", "merho_ges_gold_train.jsonl"), encoding="utf-8") as f:
         out = C.gold_records([json.loads(l) for l in f], collections.Counter())
     kept = [v for r in out for row in r["table_data"] for v in G.clean_variants(row.get("geez_form"))[0]]
     assert kept and all(G.is_single_ethiopic_word(v) for v in kept)

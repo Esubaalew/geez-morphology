@@ -141,8 +141,10 @@ def test_trainer_reads_synthetic_as_written():
 
 
 EXTRACTED_REF = "544271a"    # dataset commit with the gold files as extracted (before the in-place rewrite)
-SPLIT_FILES = {"train": "merho_ges_gold_train_tense_filled.jsonl", "val": "merho_ges_gold_val.jsonl",
-               "test": "merho_ges_gold_test.jsonl"}
+SPLIT_FILES = {"train": "merho_ges_gold_train.jsonl", "val": "merho_ges_gold_val.jsonl", "test": "merho_ges_gold_test.jsonl"}
+# their names at EXTRACTED_REF (the train file the trainer read was merho_ges_gold_train_tense_filled.jsonl)
+EXTRACTED_FILES = {"train": "merho_ges_gold_train_tense_filled.jsonl", "val": "merho_ges_gold_val.jsonl",
+                   "test": "merho_ges_gold_test.jsonl"}
 
 
 def extracted_records(name):
@@ -154,7 +156,7 @@ def extracted_records(name):
 
 def test_real_tables_on_the_dataset():
     path = os.path.join(DATASET, "data", "corrections", "gold_root_corrections.tsv")
-    recs = extracted_records(SPLIT_FILES["train"]) if os.path.exists(path) else None
+    recs = extracted_records(EXTRACTED_FILES["train"]) if os.path.exists(path) else None
     if recs is None:
         return                                   # dataset checkout not next to the model repo
     # the root tables describe the files as extracted: load-time mode on the extracted train file

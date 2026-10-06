@@ -7,8 +7,8 @@ Target text: "root: <ሀ-ለ-መ> | tense: <t> | person: <p> | gender: <g> | num
 Data (read from --dataset_dir, the geez-dataset checkout):
   data/paradigms/synthetic_morphology_train.jsonl        synthetic pairs
       (only this file: the lines held out for the gold val/test roots, data/synthetic/, are never read)
-  data/paradigms/merho_ges_gold_train_tense_filled.jsonl  Merho Ges gold-train paradigms
-      (falls back to merho_ges_gold_train.jsonl)
+  data/paradigms/merho_ges_gold_train.jsonl              Merho Ges gold-train paradigms (corrected in place;
+      the uncorrected extracted files were deleted and tense_filled renamed to this name, 2026-10-06 )
 Gold files corrected in place (data/paradigms/merho_ges_gold_flagged_rows.tsv present): the gold pairs
 are read as written, leaving out the pairs in merho_ges_gold_flagged_rows.tsv (gold_filters.file_pairs).
 Gold files as extracted (older dataset checkouts): roots and labels are corrected at load time from
@@ -56,8 +56,7 @@ MODEL_NAME = "google/byt5-small"
 SEED = 42
 EVAL_FRACTION = 0.1
 SYNTHETIC_FILE = os.path.join("data", "paradigms", "synthetic_morphology_train.jsonl")
-GOLD_FILES = (os.path.join("data", "paradigms", "merho_ges_gold_train_tense_filled.jsonl"),
-              os.path.join("data", "paradigms", "merho_ges_gold_train.jsonl"))
+GOLD_FILES = (os.path.join("data", "paradigms", "merho_ges_gold_train.jsonl"),)   # no fallback name
 ASTE_FORM = gold_filters.ASTE_FORM   # አስተቀተለ, ያስተቀትል, ኢያስተ... (shared with evaluate_gold.py)
 CHECKPOINT_RE = re.compile(r"^checkpoint-(\d+)$")
 
