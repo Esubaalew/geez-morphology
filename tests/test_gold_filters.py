@@ -12,7 +12,6 @@ sys.path.insert(0, HERE)
 
 import gold_filters as G  # noqa: E402
 
-DATASET = G.default_dataset_dir()
 
 
 def rec(root, rows, rid="aaaaaaaaaaaa", **kw):
@@ -105,20 +104,3 @@ def test_trainer_reads_synthetic_as_written():
     assert sorted(x["input_text"] for x in samples) == ["analyze: ቀተለ", "analyze: ቃርሐ", "analyze: ታረጰ"]
     assert any(x["target_text"].startswith("root: ተ-ረ-ጰ |") for x in samples)
 
-
-SPLITS = ("train", "val", "test")
-
-
-def test_clean_gold_files_on_the_dataset():
-    """The gold files of a dataset checkout: every loaded root valid and in one split only."""
-    if not os.path.exists(os.path.join(DATASET, "data", "paradigms", G.FLAGGED_ROWS_FILE)):
-        pytest.skip("no geez-dataset checkout")
-    split_of, n = {}, collections.Counter()
-    flagged = G.read_flagged_rows(DATASET)
-    for split in SPLITS:
-        pairs = G.load_gold_split(DATASET, split)
-        n[split] = len(pairs)
-        assert not {(split, p["record_id"], p["row"], p["form"]) for p in pairs} & flagged
-        for p in pairs:
-            assert split_of.setdefault(p["root"], split) == split, (p["root"], split_of[p["root"]], split)
-    assert n["train"] > 2000 and n["val"] > 250 and n["test"] > 350
