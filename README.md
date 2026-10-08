@@ -16,7 +16,7 @@ geez-morphology/
 ├── analyzer.py                   HybridAnalyzer: class paradigms -> fast path -> templates -> ByT5 fallback
 ├── cli.py                        analyze / lemmatize / generate / lookup
 ├── generate_synthetic_data.py    writes the synthetic training data
-├── dataset_loader.py             reads the gold files of a geez-dataset checkout (trainer and evaluation)
+├── dataset_loader.py             reads the gold files and the dictionary noun/adjective pairs of a geez-dataset checkout
 ├── split_heldout_synthetic.py    moves synthetic lines with a gold val/test root out of the training file
 ├── train_byt5_morphology.py      ByT5 fine-tuning (resumable)
 ├── evaluate_gold.py              scores a system on the Merho Ges gold val and test splits
@@ -121,6 +121,7 @@ What the trainer reads, as written (nothing is corrected at load time):
 
 - `data/paradigms/synthetic_morphology_train.jsonl`, all lines. 10% of them (seed 42) are the eval split for the loss; gold rows never go there.
 - `data/paradigms/merho_ges_gold_train.jsonl`, through `dataset_loader.load_gold_split`: one pair per form of each table row. Rows listed in `data/paradigms/merho_ges_gold_flagged_rows.tsv` and rows with no root do not load. A malformed root or a form that is not one Ge'ez word stops the run; `check_dataset.py` would report it too. On dataset commit 0d0ceaa this gives 8,237 train pairs (val 1,173, test 1,558).
+- `data/lexicon/classical_dictionary_kidane_wold.jsonl`, through `dataset_loader.load_dictionary_pairs`: one headword-to-root pair per noun or adjective entry whose root has 3 or 4 radicals and is on the synthetic allow-list, with no gold val/test root or form, no form of the gold train file and no other root for the same headword (task `root_only`: the target is the root alone, e.g. `root: ሰ-በ-ረ`). Whole roots holding 10% of these pairs (seed 42) are a second eval slice, `dictionary_nominal`; the rest are trained on. `--no_dictionary_pairs` leaves them out. On dataset commit 0d5f10a this gives 1,199 pairs: 1,079 train, 120 eval.
 - The files under `data/synthetic/` are never read.
 
 Training: ByT5-small, fp32, lr 3e-4, 3% warmup, 3 epochs, batch 16. Device: cuda, then mps, then cpu. Everything goes to `--output_dir` (default `byt5_morphology_model/`):

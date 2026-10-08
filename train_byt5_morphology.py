@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
 """Fine-tune ByT5-small to analyze Classical Ge'ez word forms: verbs, and the nouns and adjectives
-of the gold tables.
+of the gold tables and of the Kidane Wold dictionary.
 
 Input text:  "analyze: <surface form>"
 Target text: "root: <ሀ-ለ-መ> | tense: <t> | person: <p> | gender: <g> | number: <n> | stem: <s>" for a verb
              (gold verbs with an object add " | object: <o>"), and
              "root: <ሀ-ለ-መ> | type: <noun|adjective> | gender: <g> | number: <n>" for a noun or adjective
              (gender only where the gold row has one); see dataset_loader.target_text.
+             A dictionary pair (task root_only) has the root alone: "root: <ሀ-ለ-መ>".
 
 Data (read from --dataset_dir, the geez-dataset checkout), as written:
   data/paradigms/synthetic_morphology_train.jsonl        synthetic pairs
       (only this file: the lines held out for the gold val/test roots, data/synthetic/, are never read)
   data/paradigms/merho_ges_gold_train.jsonl              Merho Ges gold-train paradigms
+  data/lexicon/classical_dictionary_kidane_wold.jsonl    Kidane Wold nouns and adjectives, headword to root
 The gold pairs are read by dataset_loader.load_gold_split: the rows listed in
 data/paradigms/merho_ges_gold_flagged_rows.tsv and rows with no root do not load. Nothing is
 corrected at load time. All gold-train pairs go to training. The eval split is 10% of the synthetic pairs
 (seed 42), so eval loss never includes gold rows. The held-out gold test file is
 not read here; use evaluate_gold.py for that.
+The dictionary pairs are read by dataset_loader.load_dictionary_pairs (its docstring lists what is left out);
+dataset_loader.split_dictionary_pairs holds out whole roots for 10% of them (seed 42) as a second eval
+slice, dictionary_nominal (logged as eval_dictionary_nominal_loss next to the synthetic eval_loss), and the
+rest go to training. --no_dictionary_pairs leaves the dictionary out.
 
 The script picks the device (cuda, then mps, then cpu), trains in fp32 (ByT5
 is unstable in fp16), saves a checkpoint every --save_steps and keeps the last
@@ -65,7 +71,9 @@ SYNTHETIC_FILE = os.path.join("data", "paradigms", "synthetic_morphology_train.j
 GOLD_TRAIN_FILE = os.path.join("data", "paradigms", dataset_loader.gold_file_name("train"))
 CHECKPOINT_RE = re.compile(r"^checkpoint-(\d+)$")
 DEFAULT_OUTPUT_DIR = os.path.join(SCRIPT_DIR, "byt5_morphology_model")
-EXPORT_FILES = {"train": "train_pairs.jsonl", "eval": "eval_pairs_synthetic.jsonl"}
+EXPORT_FILES = {"train": "train_pairs.jsonl", "eval": "eval_pairs_synthetic.jsonl",
+                "eval_dictionary": "eval_pairs_dictionary_nominal.jsonl"}
+DICTIONARY_EVAL_NAME = "dictionary_nominal"
 
 
 # ----------------------------------------------------------------------------- data
@@ -121,6 +129,23 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None) ->
 
     rng.shuffle(samples)
     return samples
+
+
+def load_dictionary_samples(dataset_dir: str, stats: Optional[Dict] = None):
+    """(train, eval) samples of the Kidane Wold noun and adjective pairs (dataset_loader.load_dictionary_pairs),
+    split by root with dataset_loader.split_dictionary_pairs. Both are empty when the dictionary file is missing."""
+    path = os.path.join(dataset_dir, dataset_loader.KIDANE_WOLD_FILE)
+    if not os.path.exists(path):
+        print(f"[!] No dictionary file at {path}; no dictionary pairs.")
+        return [], []
+    pairs = dataset_loader.load_dictionary_pairs(dataset_dir, stats)
+    train, evals = dataset_loader.split_dictionary_pairs(pairs)
+    print(f"Read {len(pairs)} dictionary noun and adjective pairs from {path}")
+
+    def sample(p):
+        return {"input_text": f"analyze: {p['form']}", "target_text": dataset_loader.target_text(p),
+                "is_gold": False, "source": "dictionary", "task": p["task"], "record_id": p["record_id"]}
+    return [sample(p) for p in train], [sample(p) for p in evals]
 
 
 def split_samples(samples: List[Dict]):
@@ -261,7 +286,10 @@ def parse_args(argv=None):
     p.add_argument("--device", choices=["auto", "cuda", "mps", "cpu"], default="auto")
     p.add_argument("--load_only", action="store_true", help="Load and split the data, print counts, exit")
     p.add_argument("--export_dir", default=None,
-                   help="Write the loaded pairs to this folder (train_pairs.jsonl, eval_pairs_synthetic.jsonl)")
+                   help="Write the loaded pairs to this folder (train_pairs.jsonl, eval_pairs_synthetic.jsonl, "
+                        "eval_pairs_dictionary_nominal.jsonl)")
+    p.add_argument("--no_dictionary_pairs", action="store_true",
+                   help="Leave out the Kidane Wold noun and adjective pairs (training and the dictionary_nominal eval)")
     p.add_argument("--no_test_inference", action="store_true", help="Skip the sample predictions after training")
     args = p.parse_args(argv)
     if args.grad_accum < 1 or args.batch_size < 1:
@@ -278,16 +306,31 @@ def main(argv=None) -> int:
     load_stats = collections.Counter()
     samples = load_data(args.dataset_dir, limit=args.sample_limit, stats=load_stats)
     train_samples, eval_samples, n_syn, n_gold = split_samples(samples)
+    dictionary_stats = collections.Counter()
+    dictionary_train, dictionary_eval = [], []
+    if not args.no_dictionary_pairs:
+        dictionary_train, dictionary_eval = load_dictionary_samples(args.dataset_dir, dictionary_stats)
+        if dictionary_train:
+            train_samples = train_samples + dictionary_train
+            random.Random(SEED).shuffle(train_samples)
     if args.max_eval_samples and args.max_eval_samples < len(eval_samples):
         eval_samples = eval_samples[:args.max_eval_samples]
+    if args.max_eval_samples and args.max_eval_samples < len(dictionary_eval):
+        dictionary_eval = dictionary_eval[:args.max_eval_samples]
     print("Gold-train load counts:")
     for k, v in sorted(load_stats.items()):
         print(f"  {k}: {v}")
-    print(f"Synthetic pairs: {n_syn}. Gold-train pairs: {n_gold}.")
-    print(f"Train: {len(train_samples)} pairs ({n_gold} gold). Eval: {len(eval_samples)} synthetic pairs.")
+    if dictionary_stats:
+        print("Dictionary load counts:")
+        for k, v in sorted(dictionary_stats.items()):
+            print(f"  {k}: {v}")
+    print(f"Synthetic pairs: {n_syn}. Gold-train pairs: {n_gold}. "
+          f"Dictionary pairs: {len(dictionary_train)} train, {len(dictionary_eval)} eval.")
+    print(f"Train: {len(train_samples)} pairs ({n_gold} gold, {len(dictionary_train)} dictionary). "
+          f"Eval: {len(eval_samples)} synthetic pairs; {DICTIONARY_EVAL_NAME}: {len(dictionary_eval)} pairs.")
     if args.export_dir:
         os.makedirs(args.export_dir, exist_ok=True)
-        for name, rows in (("train", train_samples), ("eval", eval_samples)):
+        for name, rows in (("train", train_samples), ("eval", eval_samples), ("eval_dictionary", dictionary_eval)):
             with open(os.path.join(args.export_dir, EXPORT_FILES[name]), "w", encoding="utf-8") as f:
                 for x in rows:
                     f.write(json.dumps(x, ensure_ascii=False) + "\n")
@@ -345,14 +388,19 @@ def main(argv=None) -> int:
     data_files = {"synthetic": os.path.join(args.dataset_dir, SYNTHETIC_FILE),
                   "gold_train": gold_train_file(args.dataset_dir),
                   "gold_flagged_rows": flagged if os.path.exists(flagged) else None}
+    if not args.no_dictionary_pairs:
+        dictionary = os.path.join(args.dataset_dir, dataset_loader.KIDANE_WOLD_FILE)
+        data_files["dictionary"] = dictionary if os.path.exists(dictionary) else None
     run_info = {
         "started": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         "model_repo": git_commit(SCRIPT_DIR),
         "dataset_repo": git_commit(args.dataset_dir),
         "data_sha256": {k: (sha256_file(v) if v else None) for k, v in data_files.items()},
         "data_files": data_files,
-        "counts": {"synthetic": n_syn, "gold_train": n_gold, "train": len(train_samples), "eval": len(eval_samples)},
+        "counts": {"synthetic": n_syn, "gold_train": n_gold, "dictionary_train": len(dictionary_train),
+                   "train": len(train_samples), "eval": len(eval_samples), "eval_" + DICTIONARY_EVAL_NAME: len(dictionary_eval)},
         "load_counts": dict(sorted(load_stats.items())),
+        "dictionary_load_counts": dict(sorted(dictionary_stats.items())),
         "device": device, "n_devices": n_devices, "precision": "fp32",
         "optimizer_steps": total_steps, "warmup_steps": warmup_steps,
         "resumed_from": resume,
@@ -396,7 +444,17 @@ def main(argv=None) -> int:
         report_to="none",
     )
 
-    trainer = Seq2SeqTrainer(
+    class TrainerWithDictionaryEval(Seq2SeqTrainer):
+        """Each evaluation of the synthetic split (eval_loss) also scores the dictionary_nominal slice
+        (eval_dictionary_nominal_loss)."""
+        def evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix="eval", **kwargs):
+            metrics = super().evaluate(eval_dataset, ignore_keys, metric_key_prefix, **kwargs)
+            if eval_dataset is None and metric_key_prefix == "eval" and dictionary_eval:
+                metrics.update(super().evaluate(GeezDataset(dictionary_eval, tokenizer), ignore_keys,
+                                                f"eval_{DICTIONARY_EVAL_NAME}", **kwargs))
+            return metrics
+
+    trainer = TrainerWithDictionaryEval(
         model=model,
         args=training_args,
         train_dataset=GeezDataset(train_samples, tokenizer),

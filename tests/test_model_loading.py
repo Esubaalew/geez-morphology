@@ -27,7 +27,8 @@ def test_final_model_then_latest_checkpoint():
 def test_default_names():
     assert os.path.basename(T.DEFAULT_OUTPUT_DIR) == "byt5_morphology_model"
     assert T.parse_args([]).output_dir == T.DEFAULT_OUTPUT_DIR
-    assert set(T.EXPORT_FILES.values()) == {"train_pairs.jsonl", "eval_pairs_synthetic.jsonl"}
+    assert set(T.EXPORT_FILES.values()) == {"train_pairs.jsonl", "eval_pairs_synthetic.jsonl",
+                                            "eval_pairs_dictionary_nominal.jsonl"}
 
 
 def test_analyzer_takes_the_model_folder_from_the_same_rule():

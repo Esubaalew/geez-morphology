@@ -14,12 +14,16 @@ type and object override the record's. A pair does not load when:
 Anything else that is not a clean pair (a root that is not 2-5 Ge'ez letters, a form that is not
 one Ge'ez word) raises ValueError: the dataset's scripts/check_dataset.py rejects such files, so
 the loader does not skip them silently. The counts match the "pairs that load" line of that check.
+
+load_dictionary_pairs() reads the nouns and adjectives of the Kidane Wold dictionary as headword-to-root
+pairs; its docstring lists what it keeps and what it leaves out.
 """
 import collections
 import csv
 import hashlib
 import json
 import os
+import random
 import re
 import sys
 
@@ -35,6 +39,8 @@ PARADIGMS_DIR = os.path.join("data", "paradigms")
 FLAGGED_ROWS_FILE = "merho_ges_gold_flagged_rows.tsv"
 TYPES = ("verb", "noun", "adjective")
 NOMINAL_TYPES = ("noun", "adjective")
+# Task of a pair whose target is the root alone. A pair without a "task" field has the full analysis.
+ROOT_ONLY_TASK = "root_only"
 
 
 def default_dataset_dir():
@@ -162,7 +168,10 @@ def load_gold_split(dataset_dir, split, stats=None):
 def target_text(pair):
     """Training target. Verbs: 'root | tense | person | gender | number | stem' plus ' | object: X'
     when the form carries an object suffix. Nouns: 'root | type: noun | number'. Adjectives:
-    'root | type: adjective | gender | number' (gender left out when the book gives none)."""
+    'root | type: adjective | gender | number' (gender left out when the book gives none).
+    A pair whose task is ROOT_ONLY_TASK (the dictionary pairs) has the root alone: 'root: ሰ-በ-ረ'."""
+    if pair.get("task") == ROOT_ONLY_TASK:
+        return f"root: {pair['root']}"
     if pair["type"] in NOMINAL_TYPES:
         parts = [f"root: {pair['root']}", f"type: {pair['type']}"]
         if pair["type"] == "adjective" and pair.get("gender"):
@@ -172,3 +181,210 @@ def target_text(pair):
     text = (f"root: {pair['root']} | tense: {pair['tense']} | person: {pair['person']} | gender: {pair['gender']} | "
             f"number: {pair['number']} | stem: {pair['stem']}")
     return text + (f" | object: {pair['object']}" if pair.get("object") else "")
+
+
+# ------------------------------------------------------------------ Kidane Wold nouns and adjectives
+
+KIDANE_WOLD_FILE = os.path.join("data", "lexicon", "classical_dictionary_kidane_wold.jsonl")
+# headword_type values that are not one dictionary word: several words, page markup, a single letter.
+NOT_A_WORD_ENTRY = ("phrase", "artifact", "character")
+# Text in root_notes that says the root still needs a look (the dataset writes "CHECK:" for that).
+UNCLEAR_ROOT_MARKERS = ("CHECK", "unclear", "unsettled")
+ROOT_RADICALS_KEPT = (3, 4)
+# The dictionary gives no number for a headword. A headword is the citation form, and the citation form of a
+# Ge'ez noun or adjective is the singular, so a pair gets "s" unless its entry has a "number" field.
+CITATION_NUMBER = "s"
+DICTIONARY_EVAL_FRACTION = 0.1
+DICTIONARY_SPLIT_SEED = 42
+
+
+def is_geez_word(s):
+    """One word of Ethiopic syllables (U+1200-U+135A): no space, word separator, digit, dot, hyphen or bracket."""
+    return bool(s) and all(0x1200 <= ord(c) <= 0x135A for c in s)
+
+
+def dictionary_entry_root(entry, fixes):
+    """The root of a dictionary entry in Latin notation ("q-t-l"), or None. An entry with a row in the dataset's
+    kidane_wold_root_fixes.jsonl takes that row's new_root (null there means no root), as the verb generator
+    does (verb_classes.entry_root); otherwise its inferred_root. The Ge'ez `root` field is not read."""
+    import verb_classes
+    if entry.get("id") in fixes:
+        return verb_classes.usable_root(fixes[entry["id"]])
+    return verb_classes.usable_root(entry.get("inferred_root"))
+
+
+def root_marked_unclear(entry, value):
+    """True when the entry says its root is not settled: root_unsettled set, a "?" in the root, or a note
+    in root_notes with one of UNCLEAR_ROOT_MARKERS."""
+    notes = entry.get("root_notes") or ""
+    return bool(entry.get("root_unsettled")) or "?" in (value or "") or \
+        any(m in notes if m.isupper() else m in notes.lower() for m in UNCLEAR_ROOT_MARKERS)
+
+
+WEAK_RADICALS = ("w", "y")
+
+
+def carries_root(form, root):
+    """True when the letters of `form` hold the radicals of `root` (1st-order Ethiopic, "ቀ-ተ-ለ") in order, each
+    as written. A w or y radical may be missing (ቆመ from ቀ-ወ-መ), and so may a radical that repeats the one
+    before it, since a doubled letter is written once (ነደ from ነ-ደ-ደ)."""
+    letters = [geez_script.decompose_char(c)[0] for c in form]
+    at, previous = 0, None
+    for r in geez_script.root_symbols(root):
+        if r in letters[at:]:
+            at = letters.index(r, at) + 1
+        elif r not in WEAK_RADICALS and r != previous:
+            return False
+        previous = r
+    return True
+
+
+def read_dictionary_entries(dataset_dir):
+    path = os.path.join(dataset_dir, KIDANE_WOLD_FILE)
+    with open(path, encoding="utf-8") as f:
+        return [json.loads(line) for line in f if line.strip()]
+
+
+def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_roots_only=True):
+    """Headword-to-root pairs of the nouns and adjectives of data/lexicon/classical_dictionary_kidane_wold.jsonl,
+    in file order. Each pair has task ROOT_ONLY_TASK, so its target_text is the root alone. It also keeps the
+    entry's labels: type noun or adjective, number from the entry's "number" field or CITATION_NUMBER, gender
+    only for an adjective whose entry has a "gender" field.
+
+    An entry gives a pair when, in this order:
+      1. its pos is noun or adjective (not a verb, name, particle, other word class or no pos);
+      2. its headword is one dictionary word (headword_type not in NOT_A_WORD_ENTRY) of Ge'ez letters only;
+      3. it has a root (dictionary_entry_root);
+      4. the root is not marked unclear (root_marked_unclear);
+      5. the root passes the gold check (root_problem) once written in Ge'ez letters, and the headword holds
+         its radicals in order (carries_root): a root whose letters are not in the headword was misread;
+      6. with allowed_roots_only: the root has 3 or 4 radicals and is on the synthetic generator's allow-list
+         (generate_synthetic_data.ALLOWED_ROOTS_FILE), so a verb backs every root; a prefix (መ-, ም-, ተ-, አ-)
+         read as a radical gives a root that fails here;
+      7. the root is not a gold val/test root (split_heldout_synthetic.gold_eval_roots) and not in the
+         generator's held-out roots file (generate_synthetic_data.HELD_OUT_ROOTS_FILE), and the form is not a
+         gold val/test form (split_heldout_synthetic.gold_eval_forms, generate_synthetic_data.BLOCKED_FORMS_FILE);
+      8. the form is not a form of the gold train file: the gold pair already trains it, with the book's labels;
+      9. no other pair that passes steps 1-5 gives the same form another root;
+     10. no earlier pair has the same form and target (the first entry's record_id is kept).
+    With include_forms, the words of an entry's `forms` list are tried too, after its headword, when they are one
+    Ge'ez word that holds the root's radicals in order (carries_root); the list mixes spellings, plurals and words
+    of the definition, so it is off by default. Such pairs have from_forms True.
+
+    `stats` (a Counter) gets "loaded" and one "not loaded: <reason>" count per pair left out, at the first step
+    it fails; words of `forms` are counted under "forms: ...".
+    """
+    import generate_synthetic_data
+    import split_heldout_synthetic
+    import verb_classes
+
+    stats = stats if stats is not None else collections.Counter()
+    fixes = verb_classes.root_fixes(dataset_dir)
+    allowed = generate_synthetic_data.read_allowed_roots_file()
+    held_out = generate_synthetic_data.read_held_out_roots_file()
+    eval_roots = split_heldout_synthetic.gold_eval_roots(dataset_dir)
+    eval_forms = split_heldout_synthetic.gold_eval_forms(dataset_dir) | generate_synthetic_data.read_blocked_forms_file()
+    gold_train = gold_file_path(dataset_dir, "train")
+    gold_train_forms = {p["form"] for p in load_gold_split(dataset_dir, "train")} if os.path.exists(gold_train) else set()
+
+    candidates = []          # (form, root, entry, from_forms) that pass steps 1-5
+    for entry in read_dictionary_entries(dataset_dir):
+        pos = entry.get("pos")
+        if pos not in NOMINAL_TYPES:
+            stats[f"not loaded: pos {pos or 'missing'}"] += 1
+            continue
+        headword = entry.get("headword_geez") or ""
+        if entry.get("headword_type") in NOT_A_WORD_ENTRY:
+            stats[f"not loaded: headword_type {entry['headword_type']}"] += 1
+            continue
+        if not is_geez_word(headword):
+            stats["not loaded: headword is not one Ge'ez word"] += 1
+            continue
+        value = dictionary_entry_root(entry, fixes)
+        if not value:
+            stats["not loaded: no root"] += 1
+            continue
+        if root_marked_unclear(entry, value):
+            stats["not loaded: root marked unclear"] += 1
+            continue
+        root = geez_script.to_ethiopic_root(value)
+        problem = root_problem(root)
+        if problem:
+            stats[f"not loaded: {problem}"] += 1
+            continue
+        if not carries_root(headword, root):
+            stats["not loaded: headword does not hold the root's radicals"] += 1
+            continue
+        candidates.append((headword, root, entry, False))
+        if include_forms:
+            for w in entry.get("forms") or []:
+                if w == headword:
+                    continue
+                if not is_geez_word(w):
+                    stats["forms: not one Ge'ez word"] += 1
+                elif not carries_root(w, root):
+                    stats["forms: does not hold the root's radicals"] += 1
+                else:
+                    candidates.append((w, root, entry, True))
+
+    roots_of_form = collections.defaultdict(set)
+    for form, root, _, _ in candidates:
+        roots_of_form[form].add(root)
+
+    out, seen = [], {}
+    for form, root, entry, from_forms in candidates:
+        prefix = "forms: " if from_forms else "not loaded: "
+        symbols = geez_script.root_symbols(root)
+        if allowed_roots_only and len(symbols) not in ROOT_RADICALS_KEPT:
+            stats[f"{prefix}root has {len(symbols)} radicals"] += 1
+            continue
+        if allowed_roots_only and symbols not in allowed:
+            stats[f"{prefix}root not on the synthetic allow-list"] += 1
+            continue
+        if geez_script.first_order_root(root) in eval_roots:
+            stats[f"{prefix}root is a gold val/test root"] += 1
+            continue
+        if symbols in held_out:
+            stats[f"{prefix}root is in the held-out roots file"] += 1
+            continue
+        if form in eval_forms:
+            stats[f"{prefix}form is a gold val/test form"] += 1
+            continue
+        if form in gold_train_forms:
+            stats[f"{prefix}form is in the gold train file"] += 1
+            continue
+        if len(roots_of_form[form]) > 1:
+            stats[f"{prefix}headword has conflicting roots"] += 1
+            continue
+        pos = entry["pos"]
+        pair = {"form": form, "root": root, "type": pos,
+                "gender": (entry.get("gender") or "") if pos == "adjective" else "",
+                "number": entry.get("number") or CITATION_NUMBER,
+                "tense": None, "person": None, "stem": None, "object": None,
+                "record_id": str(entry["id"]), "from_forms": from_forms, "task": ROOT_ONLY_TASK}
+        key = (form, target_text(pair))
+        if key in seen:
+            seen[key]["record_ids"].append(pair["record_id"])
+            stats[f"{prefix}duplicate (form, target)"] += 1
+            continue
+        pair["record_ids"] = [pair["record_id"]]
+        seen[key] = pair
+        stats["forms: loaded" if from_forms else "loaded"] += 1
+        out.append(pair)
+    stats["headwords with conflicting roots"] = sum(1 for r in roots_of_form.values() if len(r) > 1)
+    return out
+
+
+def split_dictionary_pairs(pairs, fraction=DICTIONARY_EVAL_FRACTION, seed=DICTIONARY_SPLIT_SEED):
+    """(train, eval): whole roots go to eval, in a seeded random order of the roots, until eval holds `fraction`
+    of the pairs, so no root is in both. Both keep the order of `pairs`."""
+    by_root = collections.Counter(p["root"] for p in pairs)
+    roots = sorted(by_root)
+    random.Random(seed).shuffle(roots)
+    eval_roots, n = set(), 0
+    for r in roots:
+        if n >= fraction * len(pairs):
+            break
+        eval_roots.add(r)
+        n += by_root[r]
+    return [p for p in pairs if p["root"] not in eval_roots], [p for p in pairs if p["root"] in eval_roots]
