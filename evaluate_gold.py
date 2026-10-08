@@ -1,29 +1,27 @@
 #!/usr/bin/env python3
 """
 evaluate_gold.py
-Score a system on the held-out Merho Ges gold test set.
+Score a system on the Merho Ges gold val and test splits of a geez-dataset checkout.
 
 Systems:
-  --system byt5    the ByT5 checkpoint alone (default; latest checkpoint-N in --model_dir)
+  --system byt5    the trained ByT5 model alone (default; the final model in --model_dir)
   --system hybrid  HybridAnalyzer: fast path -> pattern matcher -> ByT5 fallback
                    (add --no_neural to switch the ByT5 fallback off)
 
-What is scored (no hidden misses):
-  - Every verb_conjugation row in the test file, every "/" variant. Variants
-    that are not a single Ethiopic word (notes, "(?)", Latin, spaces) are
-    skipped and counted.
-  - A field counts only where the gold row has a value; empty gold tense or
-    person is reported as "unlabeled", not scored as wrong.
-  - Pairs and labels come from gold_filters.file_pairs: the gold file as written, without the
-    rows listed in merho_ges_gold_flagged_rows.tsv (the same reader the trainer uses).
-      verbs     root, type, stem, tense, person, gender, number (+ object where gold has one)
-      nominals  root, type, number (+ gender where gold has one); no stem/tense/person
-    "exact" = every field the gold pair labels. A system that only answers verbs (the hybrid
-    rule engine) predicts type "verb", so its nominal "type" and "exact" are wrong by design.
+What is scored:
+  - Every pair gold_filters.load_gold_split gives for the split: the gold file as written, without
+    the rows in merho_ges_gold_flagged_rows.tsv and rows with no root (the same reader the trainer
+    uses for the train split). On geez-dataset 6d856e6: val 1165 pairs, test 1553.
+  - Root accuracy: the predicted root must equal the gold root exactly. The prediction is first
+    written in Ethiopic letters (q-t-l -> ቀ-ተ-ለ, for the rule-based analyzer); letters are not
+    otherwise changed, so ቅ-ት-ል for ቀ-ተ-ለ is wrong. This is the number to read for root detection.
+  - The other fields count only where the gold pair has a value:
+      verbs     type, stem, tense, person, gender, number (+ object where gold has one)
+      nominals  type, number (+ gender where gold has one)
+    "exact" = root and every field the gold pair labels. A system that only answers verbs (the
+    rule-based analyzer) predicts type "verb", so its nominal "type" and "exact" are wrong by design.
   - A predicted "jussive" is read as "subjunctive" (the gold files use subjunctive only).
-  - Roots are compared as consonant sequences, whatever script the gold uses
-    (Ethiopic, q-t-l symbols, or ṭ-y-b transliteration).
-  - Results are broken down by verb class, tense, and (hybrid) by which tier answered.
+  - Results are broken down by type, verb class, tense, and (hybrid) by which tier answered.
 """
 
 import os
@@ -57,22 +55,10 @@ def parse_prediction(pred_str):
     return out
 
 
-def root_key(root_str):
-    """Root in any script -> tuple of consonant symbols (or raw characters), after
-    writing every letter in the 1st order of its series (geez_config.first_order_root),
-    for gold and predicted roots alike."""
-    if not root_str:
-        return None
-    return geez_config.root_symbols(geez_config.first_order_root(root_str)) or None
-
-
-def gold_root_keys(root_str):
-    """Gold roots may list alternatives ("ጤበ / ጠየበ"); any of them counts."""
-    if not root_str:
-        return set()
-    keys = {root_key(r) for r in root_str.split("/")}
-    keys.discard(None)
-    return keys
+def root_matches(predicted, gold):
+    """Exact root match. The prediction is written in Ethiopic letters first (q-t-l -> ቀ-ተ-ለ);
+    the letters themselves are compared as they are."""
+    return bool(predicted) and geez_config.to_ethiopic_root(predicted.strip()) == gold
 
 
 def clean_label(v):
@@ -102,8 +88,7 @@ def verb_class(rec):
     where w/y sits in the root, else Type A.
     """
     pc = rec.get("paradigm_class") or ""
-    keys = gold_root_keys(rec.get("root"))
-    root = max(keys, key=len) if keys else ()
+    root = geez_config.root_symbols(rec.get("root") or "")
     weak = ("w", "y")
     if "ባረከ" in pc:
         return "Type C"
@@ -131,25 +116,20 @@ def verb_class(rec):
     return "unknown"
 
 
-def load_gold_test_pairs(test_file, stats=None):
-    """Scored pairs of a gold file's verb_conjugation records, read as written (gold_filters.file_pairs),
-    without the rows in merho_ges_gold_flagged_rows.tsv next to the file. Returns (pairs, records)."""
-    stats = stats if stats is not None else defaultdict(int)
-    name = os.path.basename(test_file)
-    split = next((s for s in gold_filters.SPLITS if name == gold_filters.gold_file_name(s)), None)
-    dataset_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(test_file))))
-    recs = [r for r in gold_filters.read_records(test_file) if r.get("category") == "verb_conjugation"]
-    gold = gold_filters.file_pairs(recs, split, gold_filters.read_flagged_rows(dataset_dir), stats)
+def load_gold_pairs(dataset_dir, split, stats=None):
+    """The scored pairs of one split (gold_filters.load_gold_split), with normalized labels."""
     pairs = []
-    for p in gold:
+    for p in gold_filters.load_gold_split(dataset_dir, split, stats):
         pairs.append({
+            "split": split,
             "surface": p["form"],
-            "root_keys": gold_root_keys(p["root"]),
-            "root_raw": p["root"],
+            "root": p["root"],
+            "record_id": p["record_id"],
+            "row": p["row"],
             "verb_class": verb_class(p["record"]) if p["type"] == "verb" else None,
             **normalize_row(p),
         })
-    return pairs, len({p["record_id"] for p in gold})
+    return pairs
 
 
 def model_to_load(model_dir):
@@ -207,14 +187,14 @@ class HybridSystem:
                 "raw": f"{best.root_string} {best.stem} {best.tense} {best.person}{best.gender or ''}{best.number or ''}"}
 
 
-def score(pairs, system):
-    totals = defaultdict(lambda: defaultdict(lambda: [0, 0]))  # group -> field -> [correct, labeled]
+def score(pairs, system, predictions=None):
+    """-> (totals, examples). totals: group -> field -> [correct, scored]. `predictions` (a list)
+    gets one row per pair: the gold labels, the prediction and which fields were right."""
+    totals = defaultdict(lambda: defaultdict(lambda: [0, 0]))
     examples = []
     for item in pairs:
         pred = system.predict(item["surface"])
-        ok = {}
-        pk = root_key(pred["root"]) if pred["root"] else None
-        ok["root"] = (pk in item["root_keys"]) if item["root_keys"] else None
+        ok = {"root": root_matches(pred["root"], item["root"])}
         for f in FIELDS[1:]:
             ok[f] = (pred[f] == item[f]) if item[f] is not None else None
         # exact: every field this pair should carry is labeled and right (verbs need root, stem,
@@ -233,6 +213,8 @@ def score(pairs, system):
                     totals[g][f][0] += int(v)
         if len(examples) < 15 and not ok.get("exact"):
             examples.append((item, pred))
+        if predictions is not None:
+            predictions.append({"gold": item, "predicted": pred, "correct": ok})
     return totals, examples
 
 
@@ -241,7 +223,7 @@ def pct(c, n):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Evaluate on the Merho Ges gold test set")
+    ap = argparse.ArgumentParser(description="Score a system on the Merho Ges gold val and test splits")
     ap.add_argument("--system", choices=["byt5", "hybrid"], default="byt5")
     ap.add_argument("--no_neural", action="store_true", help="hybrid only: no ByT5 fallback")
     ap.add_argument("--model_dir", default=DEFAULT_MODEL_DIR,
@@ -249,64 +231,78 @@ def main():
     ap.add_argument("--dataset_dir", default=gold_filters.default_dataset_dir(),
                     help="Checkout of the geez-dataset repo the model was trained on "
                          "(default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
-    ap.add_argument("--limit", type=int, default=0, help="Random sample of N pairs (0 = all, the default)")
-    ap.add_argument("--out_json", default=None, help="Write the metrics table to this JSON file")
-    ap.add_argument("--export_pairs", default=None, help="Write the scored pairs to this JSONL file")
+    ap.add_argument("--split", nargs="+", choices=["val", "test"], default=["val", "test"],
+                    help="Gold splits to score (default: val test)")
+    ap.add_argument("--limit", type=int, default=0, help="Random sample of N pairs per split (0 = all, the default)")
+    ap.add_argument("--out_json", default=None,
+                    help="Write the results to this JSON file, e.g. gold_eval_byt5.json")
+    ap.add_argument("--predictions_out", default=None,
+                    help="Write one line per scored pair (gold, prediction, correct fields) to this JSONL file, "
+                         "e.g. gold_eval_byt5_predictions.jsonl")
     args = ap.parse_args()
 
-    args.test_file = gold_filters.gold_file_path(args.dataset_dir, "test")
-    if not os.path.exists(args.test_file):
-        sys.exit(f"[!] Test file not found: {args.test_file}")
-
-    stats = defaultdict(int)
-    pairs, records = load_gold_test_pairs(args.test_file, stats)
-    for k, v in sorted(stats.items()):
-        print(f"  {k}: {v}")
-    if args.export_pairs:
-        with open(args.export_pairs, "w", encoding="utf-8") as f:
-            for p in pairs:
-                f.write(json.dumps({k: (sorted("-".join(x) for x in v) if k == "root_keys" else v)
-                                    for k, v in p.items()}, ensure_ascii=False) + "\n")
-    print(f"Gold file: {args.test_file}")
-    print(f"verb_conjugation records: {records}; scored pairs: {len(pairs)}")
-    if args.limit and args.limit < len(pairs):
-        import random
-        pairs = random.Random(42).sample(pairs, args.limit)
-        print(f"[!] --limit {args.limit}: scoring a random sample, not the full set")
-
+    for split in args.split:
+        path = gold_filters.gold_file_path(args.dataset_dir, split)
+        if not os.path.exists(path):
+            sys.exit(f"[!] Gold file not found: {path}")
     system = ByT5System(args.model_dir) if args.system == "byt5" else HybridSystem(args.no_neural)
-    totals, examples = score(pairs, system)
-
     name = args.system + (" (no neural)" if args.no_neural else "")
-    print("\n" + "=" * 72)
-    print(f"GOLD TEST RESULTS: {name}   (accuracy over rows where gold has the field)")
-    print("=" * 72)
     cols = ["root", "type", "stem", "tense", "person", "gender", "number", "object", "exact"]
+    results, predictions = {}, ([] if args.predictions_out else None)
 
-    def show(group_names):
-        for g in group_names:
-            if g not in totals:
-                continue
-            t = totals[g]
-            print(f"\n[{g}]  rows={t['rows'][1]}")
-            for c in cols:
-                print(f"   {c:7s} {pct(*t[c])}")
+    for split in args.split:
+        stats = defaultdict(int)
+        pairs = load_gold_pairs(args.dataset_dir, split, stats)
+        print(f"\n{split}: {gold_filters.gold_file_path(args.dataset_dir, split)}: {len(pairs)} pairs "
+              f"({', '.join(f'{k} {v}' for k, v in sorted(stats.items()))})")
+        if args.limit and args.limit < len(pairs):
+            import random
+            pairs = random.Random(42).sample(pairs, args.limit)
+            print(f"[!] --limit {args.limit}: scoring a random sample, not the full split")
+        totals, examples = score(pairs, system, predictions)
+        results[split] = {g: dict(t) for g, t in totals.items()}
 
-    show(["ALL"])
-    show(["type:" + t for t in gold_filters.TYPES])
-    show(["class:" + c for c in CLASS_ORDER])
-    show(sorted(g for g in totals if g.startswith("tense:")))
-    show(sorted(g for g in totals if g.startswith("tier:")))
+        print("=" * 72)
+        print(f"GOLD {split.upper()} RESULTS: {name}   (accuracy over pairs where gold has the field)")
+        print("=" * 72)
 
-    print("\nSample misses:")
-    for item, pred in examples:
-        print(f"  {item['surface']}  gold: {item['root_raw']} {item['type']} {item['stem']} {item['tense']} "
-              f"{item['person'] or ''}{item['gender'] or ''}{item['number'] or ''} "
-              f"[{item['verb_class'] or item['type']}]  -> {pred['raw']}")
+        def show(group_names):
+            for g in group_names:
+                if g not in totals:
+                    continue
+                t = totals[g]
+                print(f"\n[{g}]  pairs={t['rows'][1]}")
+                for c in cols:
+                    print(f"   {c:7s} {pct(*t[c])}")
+
+        show(["ALL"])
+        show(["type:" + t for t in gold_filters.TYPES])
+        show(["class:" + c for c in CLASS_ORDER])
+        show(sorted(g for g in totals if g.startswith("tense:")))
+        show(sorted(g for g in totals if g.startswith("tier:")))
+
+        print("\nSample misses:")
+        for item, pred in examples:
+            print(f"  {item['surface']}  gold: {item['root']} {item['type']} {item['stem']} {item['tense']} "
+                  f"{item['person'] or ''}{item['gender'] or ''}{item['number'] or ''} "
+                  f"[{item['verb_class'] or item['type']}]  -> {pred['raw']}")
+
+    print("\nRoot accuracy (exact match):")
+    for split, totals in results.items():
+        print(f"  {split:5s} {pct(*totals['ALL']['root'])}")
 
     if args.out_json:
+        summary = {split: {"pairs": t["ALL"]["rows"][1], "root_correct": t["ALL"]["root"][0],
+                           "root_accuracy": t["ALL"]["root"][0] / max(1, t["ALL"]["root"][1])}
+                   for split, t in results.items()}
         with open(args.out_json, "w", encoding="utf-8") as f:
-            json.dump({g: {k: v for k, v in t.items()} for g, t in totals.items()}, f, ensure_ascii=False, indent=1)
+            json.dump({"system": name, "model_dir": args.model_dir if args.system == "byt5" else None,
+                       "dataset_dir": os.path.abspath(args.dataset_dir), "root_exact_match": summary,
+                       "by_group": results}, f, ensure_ascii=False, indent=1)
+    if args.predictions_out:
+        with open(args.predictions_out, "w", encoding="utf-8") as f:
+            for row in predictions:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
 if __name__ == "__main__":

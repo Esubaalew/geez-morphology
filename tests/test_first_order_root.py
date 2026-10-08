@@ -1,11 +1,10 @@
-"""geez_config.first_order_root and its use in evaluate_gold.root_key."""
+"""geez_config.first_order_root."""
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 import geez_config as gc
-import evaluate_gold as eg
 
 
 def test_first_order_examples_from_decision():
@@ -34,9 +33,3 @@ def test_idempotent_latin_and_unknown():
     assert gc.first_order_root("በ-ጘ-በ-ዘ") == "በ-ጘ-በ-ዘ"     # not in the table: kept
     assert gc.first_order_root("") == ""
 
-
-def test_evaluate_gold_root_key_is_order_insensitive():
-    assert eg.root_key("ን-ስ-ሕ-ለ-ል") == eg.root_key("ነ-ሰ-ሐ-ለ-ለ")
-    assert eg.root_key("ኵ-ን-ተ-ተ") == eg.root_key("ኰ-ነ-ተ-ተ")
-    assert eg.root_key("ኵ-ን-ተ-ተ") != eg.root_key("ከ-ነ-ተ-ተ")
-    assert eg.gold_root_keys("ጤበ / ጠየበ") == {eg.root_key("ጤበ"), eg.root_key("ጠየበ")}

@@ -40,7 +40,7 @@ def test_trainer_and_evaluate_gold_read_the_same_forms():
         with open(gold, "w", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         train = sorted(x["input_text"][len("analyze: "):] for x in T.load_data(tmp))
-        evals = sorted(p["surface"] for p in E.load_gold_test_pairs(gold)[0])
+        evals = sorted(p["surface"] for p in E.load_gold_pairs(tmp, "train"))
     assert train == evals == sorted(["ቀተለ", "ቀተልኩ", "ቀተልኩ", "ቀተልክሙ"])
 
 

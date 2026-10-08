@@ -33,9 +33,9 @@ class _Fixed:
 
 
 def test_scoring_of_nominal_and_object_pairs():
-    noun = {"surface": "ቅቱል", "root_keys": E.gold_root_keys("ቀ-ተ-ለ"), "verb_class": None,
+    noun = {"surface": "ቅቱል", "root": "ቀ-ተ-ለ", "verb_class": None,
             **E.normalize_row({"type": "noun", "number": "s"})}
-    verb = {"surface": "ቀተለኒ", "root_keys": E.gold_root_keys("ቀ-ተ-ለ"), "verb_class": "Type A",
+    verb = {"surface": "ቀተለኒ", "root": "ቀ-ተ-ለ", "verb_class": "Type A",
             **E.normalize_row({"type": "verb", "stem": "basic", "tense": "past", "person": "3", "gender": "m",
                                "number": "s", "object": "1cs"})}
     as_verb = {"root": "ቀ-ተ-ለ", **E.normalize_row({"stem": "basic", "tense": "past", "person": "3", "gender": "m",
@@ -47,3 +47,26 @@ def test_scoring_of_nominal_and_object_pairs():
     as_noun = {"root": "ቀ-ተ-ለ", **E.normalize_row({"type": "noun", "number": "s"}), "tier": "byt5", "raw": ""}
     totals, _ = E.score([noun], _Fixed(as_noun))
     assert totals["type:noun"]["exact"] == [1, 1]
+
+
+def test_root_accuracy_is_an_exact_match():
+    assert E.root_matches("ቀ-ተ-ለ", "ቀ-ተ-ለ")
+    assert E.root_matches("q-t-l", "ቀ-ተ-ለ")                 # the analyzer's symbols, written in Ethiopic
+    assert not E.root_matches("ቅ-ት-ል", "ቀ-ተ-ለ")             # not the 1st order: wrong
+    assert not E.root_matches("ቀ-ጠ-ለ", "ቀ-ተ-ለ")
+    assert not E.root_matches("", "ቀ-ተ-ለ") and not E.root_matches(None, "ቀ-ተ-ለ")
+
+
+def test_root_counts_per_split():
+    pairs = [{"surface": f, "root": "ቀ-ተ-ለ", "verb_class": None, **E.normalize_row({"type": "noun", "number": "s"})}
+             for f in ("ቅቱል", "ቀታሊ", "ቀትል")]
+    answers = iter(["ቀ-ተ-ለ", "ቀ-ጠ-ለ", "ቀ-ተ-ለ"])
+
+    class _Seq:
+        def predict(self, surface):
+            return {"root": next(answers), **E.normalize_row({"type": "noun", "number": "s"}), "tier": "byt5", "raw": ""}
+
+    rows = []
+    totals, _ = E.score(pairs, _Seq(), rows)
+    assert totals["ALL"]["root"] == [2, 3] and totals["ALL"]["rows"] == [0, 3]
+    assert [r["correct"]["root"] for r in rows] == [True, False, True]
