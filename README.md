@@ -78,7 +78,8 @@ python generate_synthetic_data.py --dataset_dir ../geez-dataset --output_dir /tm
 ```
 
 Line counts are in the dataset README. Passive, causative and aste forms are written for Type A, quadriliteral and Type B
-roots (Type B with strong radicals only; see `docs/grammar_rules.md`), and the basic stem only for the other classes.
+roots (Type B with strong radicals and no guttural middle radical; see `docs/grammar_rules.md`), and the basic stem only for the
+other classes.
 
 The generator leaves out the roots listed in `data/heldout_test_roots.txt`: the 185 roots of the gold test file at dataset commit c7bc587 (`data/paradigms/merho_ges_gold_test.jsonl`, the file as extracted), one per line. The synthetic files in the dataset were generated without these roots. The list is committed here, so the generator does not need the dataset's git history (a shallow or fresh clone works). sha256 of the file: `8a6b64053cddd0d54301acc4142e3aa9e2b25cc88bb6334ce5a05dd061b7c88d` (checked by `tests/test_heldout_roots_file.py`). `--test_file <gold test file>` leaves out the roots of another test file instead.
 

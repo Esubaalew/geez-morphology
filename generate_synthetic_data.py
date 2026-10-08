@@ -12,7 +12,7 @@ synthetic_morphology_analyze.jsonl (the same lines keyed by surface form). They 
 5. Checked class paradigms from verb_class_paradigms.py (via verb_classes.py):
    Type B (ቀደሰ), Type C (ባረከ), final-w (ተለወ), final-y (ሰተየ type), and the
    ወለደ/ወረደ subjunctive. New checked classes go in verb_class_paradigms.py.
-   Type B roots with strong radicals also get passive, causative and aste rows
+   Type B roots with strong radicals and no guttural middle radical also get passive, causative and aste rows
    (verb_classes.type_b_derived_rows); the other classes have the basic stem only.
    Classes come from the Kidane Wold verb triples (kidane_wold_triples.py), Merho
    Ges (the corrected gold train file, verb_classes.GOLD_TRAIN_FILE) and the class lemmas; roots come from the dictionary with the
@@ -502,7 +502,7 @@ def generate_extended_dataset(
     final_roots_skipped = {}
     class_counts = {}
     type_b_derived_counts = {}      # stem -> pairs
-    type_b_no_derived = []          # type_b roots with a w/y radical: no derived stems
+    type_b_no_derived = []          # type_b roots with a w/y radical or a guttural middle radical: no derived stems
 
     with open(out_train, "w", encoding="utf-8") as f_train, \
          open(out_analyze, "w", encoding="utf-8") as f_analyze:
@@ -850,7 +850,8 @@ def generate_extended_dataset(
     print(f"Unchecked weak templates skipped: {skipped_templates:,}")
     print(f"Objects skipped:      {skipped_objects:8,}  (1p, 2mp, 2fp subjects: object forms not settled yet)")
     print(f"Checked class paradigm pairs: {class_counts}")
-    print(f"Type B derived-stem pairs: {type_b_derived_counts}; type_b roots with a w/y radical, no derived stems: "
+    print(f"Type B derived-stem pairs: {type_b_derived_counts}; type_b roots with no derived stems (w/y radical or "
+          f"guttural middle radical): "
           f"{sorted(type_b_no_derived)}")
     print(f"Final-weak roots skipped (no ተለወ/ሰተየ tag): {final_roots_skipped}")
     print(f"Dropped roots: Amharic-only letter: triliteral {len(amharic_dropped['triliteral'])}, "

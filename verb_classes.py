@@ -555,8 +555,9 @@ def paradigm_rows(cons: Tuple[str, ...], cls: str, orders: dict = None) -> List[
 
 def type_b_derived_rows(cons: Tuple[str, ...]) -> List[Tuple[dict, str]]:
     """Passive, causative and aste rows of a type_b root (verb_class_paradigms.type_b_derived), with the features of
-    paradigm_rows. [] for a root with a w or y radical: the derived-stem templates are for strong radicals."""
-    if not class_fits_root("type_b", cons):
+    paradigm_rows. [] for a root with a w or y radical (the derived-stem templates are for strong radicals) and for a
+    root with a guttural middle radical (S-a2-l: a guttural cannot double, so the templates do not apply)."""
+    if not class_fits_root("type_b", cons) or cons[1] in GUTTURALS:
         return []
     letters = [geez_script.render_unit(c, "a") for c in cons]
     rows = []

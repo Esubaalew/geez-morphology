@@ -5,8 +5,8 @@
 - A root whose last radical is a guttural gets no 1st/2nd-person causative past and no causative imperative.
 - The causative of the other Type B roots is the Type A causative of the same radicals (patterns_triliteral.json).
 - Aste is past only, as for Type A. paradigm_rows (read by the analyzer and cli.py) stays basic only.
-- A type_b root with a w or y radical gets no derived rows; in a generator run a type_b root gets them and the other
-  roots' lines are unchanged.
+- A type_b root with a w or y radical, or with a guttural middle radical (S-a2-l), gets no derived rows; in a generator
+  run a type_b root gets them and the other roots' lines are unchanged.
 Roots are written with the Latin consonant symbols; the test types no Ge'ez letters.
 """
 import contextlib
@@ -120,6 +120,11 @@ def test_basic_paradigm_rows_unchanged():
 def test_weak_radical_type_b_root_has_no_derived_rows():
     for root in ("T-y-r", "r-y-S2", "w-S2-f"):
         assert _rows(root) == []
+
+
+def test_guttural_middle_type_b_root_has_no_derived_rows():
+    assert _rows("S-a2-l") == []
+    assert {feat["stem"] for feat, _ in verb_classes.paradigm_rows(("S", "a2", "l"), "type_b")} == {"basic"}
 
 
 def test_generator_writes_derived_rows_for_type_b_only():

@@ -132,7 +132,8 @@ source, so it is off the allow-list. Entry 360 is
 ቅሒም / ቀሐመ ፡ ይቅሕም ፡ ይቅሐም. For d-r-g, n-z-z and q-r-h2 the Merho Ges class (Type C) outranks the new triple, which belongs
 to another verb on the same root code, so they keep Type C (`verb_classes.CLASS_TAG_EXCEPTIONS`).
 Passive, causative and aste forms are generated for Type A and quadriliteral roots and for Type B roots with strong
-radicals (`verb_class_paradigms.type_b_derived`); the other classes have none yet.
+radicals (`verb_class_paradigms.type_b_derived`); a Type B root with a guttural middle radical (S-a2-l) has none, because a
+guttural cannot double. The other classes have none yet.
 
 ## 5. aste is አስተ-
 
