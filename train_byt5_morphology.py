@@ -2,27 +2,36 @@
 """Fine-tune ByT5-small to analyze Classical Ge'ez word forms: verbs, and the nouns and adjectives
 of the gold tables and of the Kidane Wold dictionary.
 
-Input text:  "analyze: <surface form>"
+Input text:  "analyze: <surface form>" for the full analysis, "root: <surface form>" for the root alone
+             (dataset_loader.input_text; the "task" field of a pair picks the prefix and the target).
+             --single_prefix gives every input the "analyze: " prefix.
 Target text: "root: <ሀ-ለ-መ> | tense: <t> | person: <p> | gender: <g> | number: <n> | stem: <s>" for a verb
              (gold verbs with an object add " | object: <o>"), and
              "root: <ሀ-ለ-መ> | type: <noun|adjective> | gender: <g> | number: <n>" for a noun or adjective
              (gender only where the gold row has one); see dataset_loader.target_text.
-             A dictionary pair (task root_only) has the root alone: "root: <root>".
+             A root-only pair (task root_only) has the root alone: "root: <root>", or "root: none" for a word
+             without root.
 
 Data (read from --dataset_dir, the geez-dataset checkout), as written:
   data/paradigms/synthetic_morphology_train.jsonl        synthetic pairs
       (only this file: the lines held out for the gold val/test roots, data/synthetic/, are never read)
   data/paradigms/merho_ges_gold_train.jsonl              Merho Ges gold-train paradigms
   data/lexicon/classical_dictionary_kidane_wold.jsonl    Kidane Wold nouns and adjectives, headword to root
+and, from this repo, data/closed_class_words_without_root.tsv (words without root, target "root: none";
+--no_words_without_root leaves them out).
 The gold pairs are read by dataset_loader.load_gold_split: the rows listed in
 data/paradigms/merho_ges_gold_flagged_rows.tsv and rows with no root do not load. Nothing is
-corrected at load time. All gold-train pairs go to training. The eval split is 10% of the synthetic pairs
-(seed 42), so eval loss never includes gold rows. The held-out gold test file is
+corrected at load time. All gold-train pairs go to training, each verb pair --gold_upsample times (default 4)
+and each noun or adjective pair --gold_nominal_upsample times (default 5); 1 means once. The eval split is 10%
+of the synthetic pairs (seed 42), so eval loss never includes gold rows. The held-out gold test file is
 not read here; use evaluate_gold.py for that.
 The dictionary pairs are read by dataset_loader.load_dictionary_pairs (its docstring lists what is left out);
 dataset_loader.split_dictionary_pairs holds out whole roots for 10% of them (seed 42) as a second eval
 slice, dictionary_nominal (logged as eval_dictionary_nominal_loss next to the synthetic eval_loss), and the
 rest go to training. --no_dictionary_pairs leaves the dictionary out.
+--root_accuracy_rows N also generates the root of up to N gold val pairs at each evaluation and logs the share
+that match the gold root exactly (eval_root_accuracy); --metric_for_best_model root_accuracy then keeps and
+loads the best checkpoint by it.
 
 The script picks the device (cuda, then mps, then cpu), trains in fp32 (ByT5
 is unstable in fp16), saves a checkpoint every --save_steps and keeps the last
@@ -46,6 +55,7 @@ Examples:
 """
 
 import argparse
+import collections
 import datetime
 import hashlib
 import json
@@ -56,6 +66,7 @@ import re
 import signal
 import subprocess
 import sys
+import time
 from typing import Dict, List, Optional
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -74,6 +85,11 @@ DEFAULT_OUTPUT_DIR = os.path.join(SCRIPT_DIR, "byt5_morphology_model")
 EXPORT_FILES = {"train": "train_pairs.jsonl", "eval": "eval_pairs_synthetic.jsonl",
                 "eval_dictionary": "eval_pairs_dictionary_nominal.jsonl"}
 DICTIONARY_EVAL_NAME = "dictionary_nominal"
+# Where a training sample comes from (its "source" field), in the order the counts are printed.
+SOURCES = ("synthetic", "gold_verb", "gold_nominal", "dictionary", "word_without_root")
+DEFAULT_GOLD_UPSAMPLE = 4
+DEFAULT_GOLD_NOMINAL_UPSAMPLE = 5
+ROOT_ACCURACY_MAX_NEW_TOKENS = 32   # bytes; "root: " and a 4-radical root take 21
 
 
 # ----------------------------------------------------------------------------- data
@@ -86,7 +102,6 @@ def gold_train_file(dataset_dir: str) -> Optional[str]:
 def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None) -> List[Dict]:
     """Synthetic pairs (optionally a uniform sample of `limit`) plus all gold-train pairs, shuffled with seed 42.
     `stats` (a Counter) receives the gold load counts."""
-    import collections
     stats = stats if stats is not None else collections.Counter()
     train_file = os.path.join(dataset_dir, SYNTHETIC_FILE)
     if not os.path.exists(train_file):
@@ -112,7 +127,8 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None) ->
         eth_root = to_ethiopic_root(feat.get("root", ""))
         target = (f"root: {eth_root} | tense: {feat.get('tense', '')} | person: {feat.get('person', '')} | "
                   f"gender: {feat.get('gender', '')} | number: {feat.get('number', '')} | stem: {feat.get('stem', '')}")
-        samples.append({"input_text": f"analyze: {surface}", "target_text": target, "is_gold": False})
+        samples.append({"input_text": dataset_loader.input_text(surface), "target_text": target, "is_gold": False,
+                        "task": dataset_loader.ANALYZE_TASK, "source": "synthetic"})
 
     # Merho Ges gold-train pairs as written (dataset_loader.load_gold_split); targets in
     # dataset_loader.target_text (verbs and nominals).
@@ -120,8 +136,10 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None) ->
     if gold_file:
         pairs = dataset_loader.load_gold_split(dataset_dir, "train", stats)
         for p in pairs:
-            samples.append({"input_text": f"analyze: {p['form']}", "target_text": dataset_loader.target_text(p),
-                            "is_gold": True})
+            source = "gold_nominal" if p["type"] in dataset_loader.NOMINAL_TYPES else "gold_verb"
+            samples.append({"input_text": dataset_loader.input_text(p["form"]),
+                            "target_text": dataset_loader.target_text(p), "is_gold": True,
+                            "task": dataset_loader.task_of(p), "source": source})
         gold_count = len(pairs)
         print(f"Read {gold_count} Merho Ges gold-train pairs from {gold_file}")
     else:
@@ -131,7 +149,16 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None) ->
     return samples
 
 
-def load_dictionary_samples(dataset_dir: str, stats: Optional[Dict] = None):
+def root_only_sample(pair: Dict, source: str, single_prefix: bool = False) -> Dict:
+    task = dataset_loader.task_of(pair)
+    out = {"input_text": dataset_loader.input_text(pair["form"], task, single_prefix),
+           "target_text": dataset_loader.target_text(pair), "is_gold": False, "source": source, "task": task}
+    if "record_id" in pair:
+        out["record_id"] = pair["record_id"]
+    return out
+
+
+def load_dictionary_samples(dataset_dir: str, stats: Optional[Dict] = None, single_prefix: bool = False):
     """(train, eval) samples of the Kidane Wold noun and adjective pairs (dataset_loader.load_dictionary_pairs),
     split by root with dataset_loader.split_dictionary_pairs. Both are empty when the dictionary file is missing."""
     path = os.path.join(dataset_dir, dataset_loader.KIDANE_WOLD_FILE)
@@ -142,21 +169,71 @@ def load_dictionary_samples(dataset_dir: str, stats: Optional[Dict] = None):
     train, evals = dataset_loader.split_dictionary_pairs(pairs)
     print(f"Read {len(pairs)} dictionary noun and adjective pairs from {path}")
 
-    def sample(p):
-        return {"input_text": f"analyze: {p['form']}", "target_text": dataset_loader.target_text(p),
-                "is_gold": False, "source": "dictionary", "task": p["task"], "record_id": p["record_id"]}
-    return [sample(p) for p in train], [sample(p) for p in evals]
+    return ([root_only_sample(p, "dictionary", single_prefix) for p in train],
+            [root_only_sample(p, "dictionary", single_prefix) for p in evals])
 
 
-def split_samples(samples: List[Dict]):
-    """All gold pairs to train; eval = last 10% of the synthetic pairs. Train order shuffled with seed 42."""
+def load_words_without_root_samples(dataset_dir: str, stats: Optional[Dict] = None, single_prefix: bool = False):
+    """Training samples (target "root: none") of the words without root (dataset_loader.load_words_without_root)."""
+    pairs = dataset_loader.load_words_without_root(dataset_dir, stats)
+    print(f"Read {len(pairs)} words without root from {dataset_loader.WORDS_WITHOUT_ROOT_FILE}")
+    return [root_only_sample(p, "word_without_root", single_prefix) for p in pairs]
+
+
+def split_samples(samples: List[Dict], gold_upsample: int = 1, gold_nominal_upsample: int = 1):
+    """All gold pairs to train; eval = last 10% of the synthetic pairs. In train, each gold verb pair appears
+    gold_upsample times and each gold noun or adjective pair gold_nominal_upsample times (eval is never
+    upsampled). Train order shuffled with seed 42. Returns (train, eval, synthetic count, gold count), the counts
+    before upsampling."""
     synthetic = [x for x in samples if not x["is_gold"]]
     gold = [x for x in samples if x["is_gold"]]
     cut = int(len(synthetic) * (1 - EVAL_FRACTION))
-    train = synthetic[:cut] + gold
+    repeats = {"gold_verb": gold_upsample, "gold_nominal": gold_nominal_upsample}
+    train = synthetic[:cut] + [x for x in gold for _ in range(repeats.get(x.get("source"), gold_upsample))]
     evals = synthetic[cut:]
     random.Random(SEED).shuffle(train)
     return train, evals, len(synthetic), len(gold)
+
+
+def counts_by_source(samples: List[Dict]) -> Dict[str, int]:
+    found = collections.Counter(x.get("source") for x in samples)
+    return {k: found[k] for k in SOURCES if found[k]}
+
+
+def export_row(sample: Dict) -> Dict:
+    """The line --export_dir writes for a sample. A full-analysis sample keeps its input_text, target_text and
+    is_gold; a root-only sample keeps all its fields."""
+    if sample.get("task", dataset_loader.ANALYZE_TASK) == dataset_loader.ANALYZE_TASK:
+        return {k: sample[k] for k in ("input_text", "target_text", "is_gold")}
+    return sample
+
+
+def root_in_output(text: str) -> str:
+    """The root of a model output or target ("root: <root> | ..." or "root: <root>"), "" when there is none."""
+    m = re.match(r"\s*root:\s*([^|]*)", text)
+    return m.group(1).strip() if m else ""
+
+
+def root_accuracy_pairs(dataset_dir: str, n: int) -> List[Dict]:
+    """Up to n gold val pairs (a seeded sample in file order when there are more) for eval_root_accuracy."""
+    if n <= 0 or not os.path.exists(dataset_loader.gold_file_path(dataset_dir, "val")):
+        return []
+    pairs = dataset_loader.load_gold_split(dataset_dir, "val")
+    if n < len(pairs):
+        keep = sorted(random.Random(SEED).sample(range(len(pairs)), n))
+        pairs = [pairs[i] for i in keep]
+    return pairs
+
+
+def root_accuracy(predict, pairs: List[Dict], batch_size: int) -> float:
+    """Share of `pairs` whose generated root (root_in_output) equals the gold root exactly. `predict` maps a list
+    of input texts (full-analysis prefix) to the list of generated texts."""
+    hits = 0
+    for i in range(0, len(pairs), batch_size):
+        batch = pairs[i:i + batch_size]
+        outputs = predict([dataset_loader.input_text(p["form"]) for p in batch])
+        hits += sum(root_in_output(o) == p["root"] for o, p in zip(outputs, batch))
+    return hits / len(pairs) if pairs else 0.0
 
 
 # ----------------------------------------------------------------------------- run helpers
@@ -290,10 +367,31 @@ def parse_args(argv=None):
                         "eval_pairs_dictionary_nominal.jsonl)")
     p.add_argument("--no_dictionary_pairs", action="store_true",
                    help="Leave out the Kidane Wold noun and adjective pairs (training and the dictionary_nominal eval)")
+    p.add_argument("--no_words_without_root", action="store_true",
+                   help="Leave out the words without root (data/closed_class_words_without_root.tsv, target 'root: none')")
+    p.add_argument("--single_prefix", action="store_true",
+                   help="Give every input the prefix 'analyze: ' (root-only pairs too) instead of one prefix per task")
+    p.add_argument("--gold_upsample", type=int, default=DEFAULT_GOLD_UPSAMPLE,
+                   help="Times each gold-train verb pair appears in training (1 = once, no upsampling)")
+    p.add_argument("--gold_nominal_upsample", type=int, default=DEFAULT_GOLD_NOMINAL_UPSAMPLE,
+                   help="Times each gold-train noun or adjective pair appears in training (1 = once)")
+    p.add_argument("--root_accuracy_rows", type=int, default=0,
+                   help="At each evaluation, generate the root of up to N gold val pairs and log the exact-match "
+                        "share as eval_root_accuracy (0 = off)")
+    p.add_argument("--eval_steps", type=int, default=0,
+                   help="Evaluate every N steps (0 = once per epoch; with --metric_for_best_model, every --save_steps)")
+    p.add_argument("--metric_for_best_model", default=None,
+                   help="Keep and load at the end the checkpoint with the best value of this eval metric, e.g. "
+                        "root_accuracy (needs --root_accuracy_rows), loss or dictionary_nominal_loss")
     p.add_argument("--no_test_inference", action="store_true", help="Skip the sample predictions after training")
     args = p.parse_args(argv)
     if args.grad_accum < 1 or args.batch_size < 1:
         p.error("--batch_size and --grad_accum must be >= 1")
+    if args.gold_upsample < 1 or args.gold_nominal_upsample < 1:
+        p.error("--gold_upsample and --gold_nominal_upsample must be >= 1")
+    if args.metric_for_best_model and args.metric_for_best_model.removeprefix("eval_") == "root_accuracy" \
+            and args.root_accuracy_rows < 1:
+        p.error("--metric_for_best_model root_accuracy needs --root_accuracy_rows")
     return args
 
 
@@ -302,17 +400,20 @@ def main(argv=None) -> int:
     args.dataset_dir = os.path.abspath(args.dataset_dir)
     args.output_dir = os.path.abspath(args.output_dir)
 
-    import collections
     load_stats = collections.Counter()
     samples = load_data(args.dataset_dir, limit=args.sample_limit, stats=load_stats)
-    train_samples, eval_samples, n_syn, n_gold = split_samples(samples)
+    train_samples, eval_samples, n_syn, n_gold = split_samples(samples, args.gold_upsample, args.gold_nominal_upsample)
     dictionary_stats = collections.Counter()
     dictionary_train, dictionary_eval = [], []
     if not args.no_dictionary_pairs:
-        dictionary_train, dictionary_eval = load_dictionary_samples(args.dataset_dir, dictionary_stats)
-        if dictionary_train:
-            train_samples = train_samples + dictionary_train
-            random.Random(SEED).shuffle(train_samples)
+        dictionary_train, dictionary_eval = load_dictionary_samples(args.dataset_dir, dictionary_stats,
+                                                                    args.single_prefix)
+    without_root_stats = collections.Counter()
+    without_root = [] if args.no_words_without_root else \
+        load_words_without_root_samples(args.dataset_dir, without_root_stats, args.single_prefix)
+    if dictionary_train or without_root:
+        train_samples = train_samples + dictionary_train + without_root
+        random.Random(SEED).shuffle(train_samples)
     if args.max_eval_samples and args.max_eval_samples < len(eval_samples):
         eval_samples = eval_samples[:args.max_eval_samples]
     if args.max_eval_samples and args.max_eval_samples < len(dictionary_eval):
@@ -324,16 +425,27 @@ def main(argv=None) -> int:
         print("Dictionary load counts:")
         for k, v in sorted(dictionary_stats.items()):
             print(f"  {k}: {v}")
+    if without_root_stats:
+        print("Words-without-root load counts:")
+        for k, v in sorted(without_root_stats.items()):
+            print(f"  {k}: {v}")
+    train_by_source = counts_by_source(train_samples)
     print(f"Synthetic pairs: {n_syn}. Gold-train pairs: {n_gold}. "
-          f"Dictionary pairs: {len(dictionary_train)} train, {len(dictionary_eval)} eval.")
-    print(f"Train: {len(train_samples)} pairs ({n_gold} gold, {len(dictionary_train)} dictionary). "
+          f"Dictionary pairs: {len(dictionary_train)} train, {len(dictionary_eval)} eval. "
+          f"Words without root: {len(without_root)}.")
+    print(f"Gold upsampling: verbs x{args.gold_upsample}, nouns and adjectives x{args.gold_nominal_upsample}. "
+          f"Prefixes: {'analyze: for every task' if args.single_prefix else 'one per task'}.")
+    print(f"Train: {len(train_samples)} pairs (" + ", ".join(f"{k} {v}" for k, v in train_by_source.items()) + "). "
           f"Eval: {len(eval_samples)} synthetic pairs; {DICTIONARY_EVAL_NAME}: {len(dictionary_eval)} pairs.")
+    root_pairs = root_accuracy_pairs(args.dataset_dir, args.root_accuracy_rows)
+    if args.root_accuracy_rows:
+        print(f"Root accuracy at each evaluation: {len(root_pairs)} gold val pairs.")
     if args.export_dir:
         os.makedirs(args.export_dir, exist_ok=True)
         for name, rows in (("train", train_samples), ("eval", eval_samples), ("eval_dictionary", dictionary_eval)):
             with open(os.path.join(args.export_dir, EXPORT_FILES[name]), "w", encoding="utf-8") as f:
                 for x in rows:
-                    f.write(json.dumps(x, ensure_ascii=False) + "\n")
+                    f.write(json.dumps(export_row(x), ensure_ascii=False) + "\n")
         print(f"Exported train/eval pairs to {args.export_dir}")
     if args.load_only:
         return 0
@@ -391,6 +503,8 @@ def main(argv=None) -> int:
     if not args.no_dictionary_pairs:
         dictionary = os.path.join(args.dataset_dir, dataset_loader.KIDANE_WOLD_FILE)
         data_files["dictionary"] = dictionary if os.path.exists(dictionary) else None
+    if not args.no_words_without_root:
+        data_files["words_without_root"] = dataset_loader.WORDS_WITHOUT_ROOT_FILE
     run_info = {
         "started": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         "model_repo": git_commit(SCRIPT_DIR),
@@ -398,9 +512,12 @@ def main(argv=None) -> int:
         "data_sha256": {k: (sha256_file(v) if v else None) for k, v in data_files.items()},
         "data_files": data_files,
         "counts": {"synthetic": n_syn, "gold_train": n_gold, "dictionary_train": len(dictionary_train),
-                   "train": len(train_samples), "eval": len(eval_samples), "eval_" + DICTIONARY_EVAL_NAME: len(dictionary_eval)},
+                   "words_without_root": len(without_root), "train": len(train_samples),
+                   "train_by_source": train_by_source, "eval": len(eval_samples),
+                   "eval_" + DICTIONARY_EVAL_NAME: len(dictionary_eval), "root_accuracy_pairs": len(root_pairs)},
         "load_counts": dict(sorted(load_stats.items())),
         "dictionary_load_counts": dict(sorted(dictionary_stats.items())),
+        "words_without_root_load_counts": dict(sorted(without_root_stats.items())),
         "device": device, "n_devices": n_devices, "precision": "fp32",
         "optimizer_steps": total_steps, "warmup_steps": warmup_steps,
         "resumed_from": resume,
@@ -421,6 +538,7 @@ def main(argv=None) -> int:
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
 
+    eval_every = args.eval_steps or (args.save_steps if args.metric_for_best_model else 0)
     training_args = Seq2SeqTrainingArguments(
         output_dir=args.output_dir,
         per_device_train_batch_size=args.batch_size,
@@ -431,10 +549,13 @@ def main(argv=None) -> int:
         num_train_epochs=args.epochs,
         max_steps=args.max_steps if args.max_steps > 0 else -1,
         logging_steps=args.logging_steps,
-        eval_strategy="epoch",
+        eval_strategy="steps" if eval_every else "epoch",
+        eval_steps=eval_every or None,
         save_strategy="steps",
         save_steps=args.save_steps,
         save_total_limit=args.save_total_limit,
+        metric_for_best_model=args.metric_for_best_model,
+        load_best_model_at_end=bool(args.metric_for_best_model),
         predict_with_generate=False,
         fp16=False,
         bf16=False,
@@ -444,14 +565,31 @@ def main(argv=None) -> int:
         report_to="none",
     )
 
+    def predict(texts):
+        model = trainer.model
+        was_training = model.training
+        model.eval()
+        enc = tokenizer(texts, padding=True, return_tensors="pt").to(model.device)
+        with torch.no_grad():
+            out = model.generate(**enc, max_new_tokens=ROOT_ACCURACY_MAX_NEW_TOKENS, num_beams=1, do_sample=False)
+        model.train(was_training)
+        return tokenizer.batch_decode(out, skip_special_tokens=True)
+
     class TrainerWithDictionaryEval(Seq2SeqTrainer):
         """Each evaluation of the synthetic split (eval_loss) also scores the dictionary_nominal slice
-        (eval_dictionary_nominal_loss)."""
+        (eval_dictionary_nominal_loss) and, with --root_accuracy_rows, the generated roots of gold val pairs
+        (eval_root_accuracy, and eval_root_accuracy_seconds for the time it took)."""
         def evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix="eval", **kwargs):
             metrics = super().evaluate(eval_dataset, ignore_keys, metric_key_prefix, **kwargs)
             if eval_dataset is None and metric_key_prefix == "eval" and dictionary_eval:
                 metrics.update(super().evaluate(GeezDataset(dictionary_eval, tokenizer), ignore_keys,
                                                 f"eval_{DICTIONARY_EVAL_NAME}", **kwargs))
+            if eval_dataset is None and metric_key_prefix == "eval" and root_pairs:
+                start = time.time()
+                extra = {"eval_root_accuracy": root_accuracy(predict, root_pairs, args.batch_size)}
+                extra["eval_root_accuracy_seconds"] = round(time.time() - start, 2)
+                self.log(extra)
+                metrics.update(extra)
             return metrics
 
     trainer = TrainerWithDictionaryEval(
@@ -483,7 +621,7 @@ def main(argv=None) -> int:
     if not args.no_test_inference:
         model.eval()
         for word in ["ይቀትሉ", "ተቀተለት", "ይባርኩ", "ይቀድሱ", "ቀተለ"]:
-            inp = tokenizer(f"analyze: {word}", return_tensors="pt").to(model.device)
+            inp = tokenizer(dataset_loader.input_text(word), return_tensors="pt").to(model.device)
             with torch.no_grad():
                 out = model.generate(**inp, max_length=128, num_beams=2, repetition_penalty=1.5)
             print(f"  {word} -> {tokenizer.decode(out[0], skip_special_tokens=True)}")

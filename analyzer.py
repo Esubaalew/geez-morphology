@@ -988,7 +988,7 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
 
         try:
             import torch
-            inp = self._tokenizer(f"analyze: {word}", return_tensors="pt").to(self.device)
+            inp = self._tokenizer(dataset_loader.input_text(word), return_tensors="pt").to(self.device)
             with torch.no_grad():
                 out = self._model.generate(**inp, max_length=128, num_beams=2)
             pred_text = self._tokenizer.decode(out[0], skip_special_tokens=True)

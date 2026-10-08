@@ -144,7 +144,7 @@ class ByT5System:
         self.model.eval()
 
     def predict(self, surface):
-        inp = self.tok(f"analyze: {surface}", return_tensors="pt").to(self.device)
+        inp = self.tok(dataset_loader.input_text(surface), return_tensors="pt").to(self.device)
         with self.torch.no_grad():
             out = self.model.generate(**inp, max_length=128, num_beams=2)
         text = self.tok.decode(out[0], skip_special_tokens=True)

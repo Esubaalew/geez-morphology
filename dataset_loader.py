@@ -39,8 +39,14 @@ PARADIGMS_DIR = os.path.join("data", "paradigms")
 FLAGGED_ROWS_FILE = "merho_ges_gold_flagged_rows.tsv"
 TYPES = ("verb", "noun", "adjective")
 NOMINAL_TYPES = ("noun", "adjective")
-# Task of a pair whose target is the root alone. A pair without a "task" field has the full analysis.
-ROOT_ONLY_TASK = "root_only"
+# The "task" field of a pair says what the model is asked for, and so both its input prefix and its target.
+# A pair without a "task" field has the full analysis.
+ANALYZE_TASK = "analyze"          # target: the full analysis (dataset_loader.target_text)
+ROOT_ONLY_TASK = "root_only"      # target: the root alone, "root: <root>"
+TASK_PREFIXES = {ANALYZE_TASK: "analyze: ", ROOT_ONLY_TASK: "root: "}
+# The root written for a word that has none (target "root: none"); the analyzer and evaluate_gold.py read
+# "none" as no value.
+NO_ROOT = "none"
 
 
 def default_dataset_dir():
@@ -163,14 +169,24 @@ def load_gold_split(dataset_dir, split, stats=None):
     return file_pairs(records, split, read_flagged_rows(dataset_dir), stats)
 
 
-# ------------------------------------------------------------------ targets
+# ------------------------------------------------------------------ inputs and targets
+
+def task_of(pair):
+    return pair.get("task") or ANALYZE_TASK
+
+
+def input_text(form, task=ANALYZE_TASK, single_prefix=False):
+    """Model input: the prefix of the task (TASK_PREFIXES) followed by the form. With single_prefix every task
+    gets the full-analysis prefix "analyze: ", so the input does not tell the tasks apart."""
+    return TASK_PREFIXES[ANALYZE_TASK if single_prefix else task] + form
+
 
 def target_text(pair):
     """Training target. Verbs: 'root | tense | person | gender | number | stem' plus ' | object: X'
     when the form carries an object suffix. Nouns: 'root | type: noun | number'. Adjectives:
     'root | type: adjective | gender | number' (gender left out when the book gives none).
-    A pair whose task is ROOT_ONLY_TASK (the dictionary pairs) has the root alone: 'root: <root>'."""
-    if pair.get("task") == ROOT_ONLY_TASK:
+    A pair whose task is ROOT_ONLY_TASK has the root alone: 'root: <root>' ('root: none' for a word without root)."""
+    if task_of(pair) == ROOT_ONLY_TASK:
         return f"root: {pair['root']}"
     if pair["type"] in NOMINAL_TYPES:
         parts = [f"root: {pair['root']}", f"type: {pair['type']}"]
@@ -197,6 +213,7 @@ CITATION_NUMBER = "s"
 DICTIONARY_EVAL_FRACTION = 0.1
 DICTIONARY_SPLIT_SEED = 42
 # Words with no root (particles, pronouns, names, loanwords), one per line in column "word"; label "none".
+# They are left out of the dictionary pairs and trained on as root-only pairs (load_words_without_root).
 WORDS_WITHOUT_ROOT_FILE = os.path.join(SCRIPT_DIR, "data", "closed_class_words_without_root.tsv")
 # The dictionary's abbreviation for a Greek source, followed by the word separator, as it is written inside the
 # parenthesis that opens a definition. A word taken from Greek has no Ge'ez root. Other source abbreviations
@@ -251,6 +268,35 @@ def read_words_without_root(path=WORDS_WITHOUT_ROOT_FILE):
     """{word: label} of the words-without-root file (tab-separated, header line: word, label, kind, note)."""
     with open(path, encoding="utf-8", newline="") as f:
         return {r["word"]: r["label"] for r in csv.DictReader(f, delimiter="\t", quoting=csv.QUOTE_NONE)}
+
+
+def load_words_without_root(dataset_dir, stats=None, path=WORDS_WITHOUT_ROOT_FILE):
+    """Root-only pairs of the words in the words-without-root file, in file order, each with root NO_ROOT
+    (target "root: none"). A word is left out when it is a gold val/test form (or in the synthetic generator's
+    blocked forms file), or a form of the gold train file whose row has a root. Rows of the gold train file
+    that have no root are not read as pairs (load_gold_split), so they do not count here."""
+    import generate_synthetic_data
+    import split_heldout_synthetic
+
+    stats = stats if stats is not None else collections.Counter()
+    eval_forms = split_heldout_synthetic.gold_eval_forms(dataset_dir) | generate_synthetic_data.read_blocked_forms_file()
+    gold_train = gold_file_path(dataset_dir, "train")
+    gold_train_forms = {p["form"] for p in load_gold_split(dataset_dir, "train")} if os.path.exists(gold_train) else set()
+    out = []
+    for word, label in read_words_without_root(path).items():
+        if label != NO_ROOT:
+            raise ValueError(f"{path}: word {word!r} has label {label!r}, expected {NO_ROOT!r}")
+        if not is_geez_word(word):
+            raise ValueError(f"{path}: {word!r} is not one Ge'ez word")
+        if word in eval_forms:
+            stats["not loaded: form is a gold val/test form"] += 1
+            continue
+        if word in gold_train_forms:
+            stats["not loaded: form has a root in the gold train file"] += 1
+            continue
+        stats["loaded"] += 1
+        out.append({"form": word, "root": NO_ROOT, "task": ROOT_ONLY_TASK})
+    return out
 
 
 def names_greek_source(entry):
