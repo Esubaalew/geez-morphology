@@ -18,7 +18,7 @@ import geez_script as gc  # noqa: E402
 import kidane_wold_triples as kw  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
-NOTE = "CHECK: merged entry"
+NOTE = "merged entry"
 
 
 def word(*units):
@@ -90,4 +90,7 @@ def test_rebuild_on_the_dataset_keeps_the_7546_row(tmp_path):
     kw.build(KW, str(tmp_path / "triples.jsonl"), str(out), previous_fixes_path=FIXES)
     rebuilt = {json.loads(l)["id"]: l for l in out.read_text(encoding="utf-8").splitlines()}
     assert rebuilt[7546] == committed[7546]
-    assert json.loads(rebuilt[7546])["new_root"] is None and json.loads(rebuilt[7546])["root_notes"].startswith("CHECK:")
+    row = json.loads(rebuilt[7546])
+    # The root is left unknown: the entry is merged with another, and its gloss is the verb m-kh-S2.
+    assert row["new_root"] is None
+    assert "merged entry" in row["root_notes"] and "(m-kh-S2)" in row["root_notes"]
