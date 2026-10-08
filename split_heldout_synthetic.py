@@ -17,7 +17,7 @@ roots of Ethiopic letters. A synthetic line is held out when its root, written i
 the 1st order, is one of them.
 
 Usage:
-  python synthetic_heldout.py --full_dir <generator output dir> --dataset_dir <dataset repo> [--write | --check]
+  python split_heldout_synthetic.py --full_dir <generator output dir> --dataset_dir <dataset repo> [--write | --check]
     --write   write the four files into the dataset repo
     --check   compare what the split gives with the four files in the dataset repo, and count the lines of the
               four files whose surface form is a gold val or test form (exit 1 if the files differ or any

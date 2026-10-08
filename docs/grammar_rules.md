@@ -19,7 +19,7 @@ When the first radical is a guttural (ሀ ሐ ኀ አ ዐ), the imperfect prefix
 - Applied to the basic-stem imperfect of Type A, hollow and quadriliteral roots.
 - In a Kidane Wold triple, the imperfect is the የ-form and the subjunctive is the ይ-form. Where
   the dictionary lists them the other way round, they are swapped.
-- Ge'ez has one form here, the subjunctive (ይቅትል). Some older templates in `patterns.json` are
+- Ge'ez has one form here, the subjunctive (ይቅትል). Some older templates in `patterns_triliteral.json` are
   labelled "jussive"; they are read as subjunctive.
 
 ## 2. Middle guttural: ይምሕል, ይምሐል, ምሐል
@@ -179,7 +179,7 @@ stem label is `aste`.
 
 ## 9. Kidane Wold triple check
 
-`kw_verb_triples.py` reads the bracketed perfect ፡ imperfect ፡ subjunctive triples from the
+`kidane_wold_triples.py` reads the bracketed perfect ፡ imperfect ፡ subjunctive triples from the
 dictionary. A triple is used only if both of these hold:
 - all three forms show the same radicals in the same order (w/y may be missing in hollow,
   initial-w and final-weak verbs);

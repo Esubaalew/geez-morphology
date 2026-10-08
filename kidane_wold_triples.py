@@ -35,7 +35,7 @@ Running the script rewrites three files in <dataset>/data/lexicon/:
   kidane_wold_root_fixes.jsonl             corrected roots (read first, for its decisions)
 It reads classical_dictionary_kidane_wold.jsonl from the same folder.
 
-  python kw_verb_triples.py --dataset_dir ../geez-dataset
+  python kidane_wold_triples.py --dataset_dir ../geez-dataset
 """
 import argparse
 import json

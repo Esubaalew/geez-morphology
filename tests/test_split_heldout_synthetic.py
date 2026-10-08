@@ -1,10 +1,10 @@
-"""synthetic_heldout.py: lines whose root is a gold val/test root move to the held-out files, in order, with
+"""split_heldout_synthetic.py: lines whose root is a gold val/test root move to the held-out files, in order, with
 their analyze mirror; nothing is lost. The trainer reads data/paradigms/synthetic_morphology_train.jsonl only."""
 import json
 import os
 import tempfile
 
-import synthetic_heldout as H
+import split_heldout_synthetic as H
 import train_byt5_morphology as T
 
 

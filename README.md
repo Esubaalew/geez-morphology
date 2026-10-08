@@ -9,17 +9,17 @@ geez-morphology/
 ├── engine.py                     root-and-pattern interdigitation (language-agnostic)
 ├── pattern_learner.py            learns templates from (root, form) data
 ├── geez_config.py                Ge'ez script, vowels, transliteration, to_ethiopic_root()
-├── patterns.json                 triliteral templates
+├── patterns_triliteral.json      triliteral templates
 ├── patterns_quadriliteral.json   quadriliteral templates
 ├── patterns_rejected.json        templates removed in review (kept for reference)
 ├── verb_class_paradigms.py       checked paradigms: Type B, Type C, Type D, final-w, final-y, initial-w
 ├── verb_classes.py               class lookup and paradigm rows for generator and analyzer
-├── kw_verb_triples.py            parses Kidane Wold verb triples; rewrites three dataset lexicon files
+├── kidane_wold_triples.py        parses Kidane Wold verb triples; rewrites three dataset lexicon files
 ├── analyzer.py                   HybridAnalyzer: class paradigms -> fast path -> templates -> ByT5 fallback
 ├── cli.py                        analyze / lemmatize / generate / lookup
 ├── generate_synthetic_fixed.py   writes the synthetic training data
 ├── dataset_loader.py             reads the gold files of a geez-dataset checkout (trainer and evaluation)
-├── synthetic_heldout.py          moves synthetic lines with a gold val/test root out of the training file
+├── split_heldout_synthetic.py    moves synthetic lines with a gold val/test root out of the training file
 ├── train_byt5_morphology.py      ByT5 fine-tuning (resumable)
 ├── evaluate_gold.py              scores a system on the Merho Ges gold val and test splits
 ├── data/
@@ -88,7 +88,7 @@ Two more files in `data/` limit the output, and the generator stops if either is
 - `data/synthetic_roots_allowed_v4.txt`: the roots it may conjugate, one per line (1,271 roots). A root is on the list when it has a verb entry in the dictionary, a root in the gold files, or a Kidane Wold verb triple, or when the maintainers restore it. The list is the 2,148 roots of this generator's output on geez-dataset 3da9041 (with the list switched off) that have such evidence, minus the roots that `the exception table` (sha256 `ce8f608b...`) marks DROP or EXCLUDE_NO_VERB. Its eight RESTORE rows (m-h2-l, m-s-l, S-w-t, b-y-S, f-r-S, h2-r-g, m-s-k, w-k-a2) stay on the list. The file header gives the full hashes.
 - `data/heldout_gold_forms_6183c24.tsv`: every gold val and test form at dataset commit 6183c24 (2,939 rows, 2,832 distinct forms, rows with no root included), keyed by split, record_id, row and spelling. A synthetic line whose form equals one of them is not written; the root's other lines stay as they were. The run log lists the dropped lines by root (`BLOCKED_GOLD_FORMS_JSON`).
 
-`python synthetic_heldout.py --full_dir <generator output> --dataset_dir <dataset> --check` compares the split with the dataset files and fails when any synthetic line in the dataset has a gold val or test form, computed from the current gold files.
+`python split_heldout_synthetic.py --full_dir <generator output> --dataset_dir <dataset> --check` compares the split with the dataset files and fails when any synthetic line in the dataset has a gold val or test form, computed from the current gold files.
 
 ## Test
 
@@ -101,7 +101,7 @@ Without `--dataset_dir` the tests use `$GEEZ_DATASET_DIR`, else `../geez-dataset
 ## Rebuild the Kidane Wold triples
 
 ```bash
-python kw_verb_triples.py --dataset_dir ../geez-dataset
+python kidane_wold_triples.py --dataset_dir ../geez-dataset
 ```
 
 This reads `data/lexicon/classical_dictionary_kidane_wold.jsonl` of the dataset and rewrites three files next to it: `kidane_wold_verb_triples.jsonl`, `kidane_wold_verb_triples_rejected.jsonl` and `kidane_wold_root_fixes.jsonl`. Rows of the current root fixes file with `new_root` null or with `root_notes` are carried over. The generator and the analyzer read these files, so run it only when the dictionary changes.

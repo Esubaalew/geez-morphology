@@ -28,7 +28,7 @@ ENG = InterdigitationEngine(renderer=geez_config.render_unit)
 
 
 def patterns():
-    with open(os.path.join(HERE, "patterns.json"), encoding="utf-8") as f:
+    with open(os.path.join(HERE, "patterns_triliteral.json"), encoding="utf-8") as f:
         return json.load(f)
 
 

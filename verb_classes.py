@@ -13,7 +13,7 @@ exactly like Type A (ቀተለ). So class tags come from lexical sources only:
   2. the paradigm_class field of the Merho Ges TRAIN split, which files each
      verb under its class lemma. Records that name more than one class are skipped.
   3. the verb triples Kidane Wold prints after a verb headword
-     (ቀተለ ፡ ይቀትል ፡ ይቅትል), parsed by kw_verb_triples.py into
+     (ቀተለ ፡ ይቀትል ፡ ይቅትል), parsed by kidane_wold_triples.py into
      data/lexicon/kidane_wold_verb_triples.jsonl. The class is read off the
      written imperfect/subjunctive. Where a triple gives a class it wins over
      1 and 2; where it is missing or unclear, 1 and 2 are used.
@@ -114,7 +114,7 @@ def takes_w_drop(cons: Tuple[str, ...], tags: Dict[Tuple[str, ...], str]) -> boo
 
 
 def root_fixes(dataset_dir: str) -> Dict[int, str]:
-    """{dictionary entry id: corrected root} from kw_verb_triples.py. A row with new_root null stays in the
+    """{dictionary entry id: corrected root} from kidane_wold_triples.py. A row with new_root null stays in the
     dict with the value None: the entry's root is unknown (see entry_root)."""
     path = os.path.join(dataset_dir, ROOT_FIXES_FILE)
     fixes = {}
@@ -182,7 +182,7 @@ def _stem(word):
 
 
 def shape_classes(dataset_dir: str) -> Dict[Tuple[str, ...], str]:
-    """{root: class} for triples written in a Type C shape that kw_verb_triples.py
+    """{root: class} for triples written in a Type C shape that kidane_wold_triples.py
     does not name. Imperfect and subjunctive must be written alike (Type C), with the
     same radicals as the perfect:
       type_c_o  ጦመረ ፡ ይጦምር ፡ ይጦምር   ō on radical 1 in all three
@@ -614,7 +614,7 @@ def type_d_patterns(dataset_dir: str) -> List[dict]:
 
 
 def class_patterns() -> List[dict]:
-    """Checked class paradigms as pattern specs (same format as patterns.json)."""
+    """Checked class paradigms as pattern specs (same format as patterns_triliteral.json)."""
     out = []
     for cls, (ra, rb) in _DUMMIES.items():
         for (feat, fa), (_, fb) in zip(paradigm_rows(ra, cls), paradigm_rows(rb, cls)):

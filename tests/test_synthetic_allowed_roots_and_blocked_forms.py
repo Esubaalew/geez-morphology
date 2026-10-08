@@ -6,7 +6,7 @@
   generator stops if the file is missing.
 - data/heldout_gold_forms_6183c24.tsv: every gold val/test form of dataset commit 6183c24. A synthetic line
   with one of these forms is not written; the root's other lines do not change. Missing file: the generator stops.
-- synthetic_heldout.py --check fails when a dataset synthetic line has a gold val/test form.
+- split_heldout_synthetic.py --check fails when a dataset synthetic line has a gold val/test form.
 Any change to the two files shows in the sha256 tests.
 """
 import contextlib
@@ -27,7 +27,7 @@ sys.path.insert(0, ROOT)
 import engine as engine_module  # noqa: E402
 import generate_synthetic_fixed as gen  # noqa: E402
 import geez_config  # noqa: E402
-import synthetic_heldout as H  # noqa: E402
+import split_heldout_synthetic as H  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
 ALLOWED_SHA256 = "c198ab17acc44534bcdc916b9500526eeeb3d7be7dae7e043620c289d0a602ae"
@@ -177,7 +177,7 @@ def _heldout_setup(tmp, train_forms):
 
 
 def _check(tmp):
-    return subprocess.run([sys.executable, os.path.join(ROOT, "synthetic_heldout.py"), "--full_dir", os.path.join(tmp, "full"),
+    return subprocess.run([sys.executable, os.path.join(ROOT, "split_heldout_synthetic.py"), "--full_dir", os.path.join(tmp, "full"),
                            "--dataset_dir", os.path.join(tmp, "ds"), "--check"], capture_output=True, text=True, cwd=ROOT)
 
 

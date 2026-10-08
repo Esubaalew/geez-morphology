@@ -4,7 +4,7 @@ Synthetic morphology data generator for Classical Ge'ez.
 
 Writes two files with the same pairs: synthetic_morphology_train.jsonl (features -> surface form) and
 synthetic_morphology_analyze.jsonl (the same lines keyed by surface form). They cover:
-1. Base triliteral paradigms from the patterns.json templates.
+1. Base triliteral paradigms from the patterns_triliteral.json templates.
 2. Object pronoun suffixes (-ኒ, -ከ, -ኪ, -ሁ/-ዎ, -ሃ, -ነ, -ክሙ, -ክን, -ሙ/-ሆሙ, -ን/-ሆን);
    after a vowel the 3rd-person suffixes are -ዎ, -ሃ, -ሆሙ, -ሆን.
 3. Negative verbal prefix (ኢ-).
@@ -12,7 +12,7 @@ synthetic_morphology_analyze.jsonl (the same lines keyed by surface form). They 
 5. Checked class paradigms from verb_class_paradigms.py (via verb_classes.py):
    Type B (ቀደሰ), Type C (ባረከ), final-w (ተለወ), final-y (ሰተየ type), and the
    ወለደ/ወረደ subjunctive. New checked classes go in verb_class_paradigms.py.
-   Classes come from the Kidane Wold verb triples (kw_verb_triples.py), Merho
+   Classes come from the Kidane Wold verb triples (kidane_wold_triples.py), Merho
    Ges (the corrected gold train file, verb_classes.GOLD_TRAIN_FILE) and the class lemmas; roots come from the dictionary with the
    kidane_wold_root_fixes.jsonl corrections applied.
 
@@ -21,7 +21,7 @@ gold score measures unseen roots. By default these are the 185 roots in
 data/heldout_test_roots_c7bc587.txt (see below); --test_file takes them from a
 gold test file instead. By default the generator writes into the dataset folder: output goes to
 <dataset>/output and is copied to <dataset>/data/paradigms (what train_byt5_morphology.py reads).
-After the copy, synthetic_heldout.py moves every line whose root is a root of the
+After the copy, split_heldout_synthetic.py moves every line whose root is a root of the
 current gold val or test file into <dataset>/data/synthetic/ (held out, not read by
 the trainer); --no_heldout_split skips that step. --no_mirror skips the copy and the split, and
 --output_dir sends the output somewhere other than <dataset>/output.
@@ -153,7 +153,7 @@ QUADRILITERAL_TEMPLATES = load_quadriliteral_templates()
 
 
 # Ge'ez has one non-indicative prefix mood, the subjunctive (Lambdin, Dillmann).
-# patterns.json still has separate "jussive" templates that build the same
+# patterns_triliteral.json still has separate "jussive" templates that build the same
 # forms, so they are relabeled here; the duplicate rows are then dropped.
 TENSE_ALIASES = {"jussive": "subjunctive"}
 
@@ -312,7 +312,7 @@ def load_dictionary_and_patterns(dataset_dir: str):
             dict_path = c
             break
 
-    patterns_path = os.path.join(BASE_DIR, "patterns.json")
+    patterns_path = os.path.join(BASE_DIR, "patterns_triliteral.json")
     if not os.path.exists(patterns_path):
         patterns_path = os.path.join(dataset_dir, "..", "geez-morphology-model", "patterns.json")
 
@@ -874,10 +874,10 @@ def generate_extended_dataset(
             shutil.copyfile(path, os.path.join(mirror_dir, os.path.basename(path)))
         print(f"Copied to:  {mirror_dir} (train_byt5_morphology.py reads this copy)")
         if split_heldout:
-            import synthetic_heldout
-            moved, _ = synthetic_heldout.split_into_dataset(output_dir, dataset_dir)
-            print(f"Held out (synthetic_heldout.py): {sum(moved.values()):,} lines whose root is a gold val/test root "
-                  f"-> {os.path.join(dataset_dir, synthetic_heldout.HELDOUT_DIR)}")
+            import split_heldout_synthetic
+            moved, _ = split_heldout_synthetic.split_into_dataset(output_dir, dataset_dir)
+            print(f"Held out (split_heldout_synthetic.py): {sum(moved.values()):,} lines whose root is a gold val/test root "
+                  f"-> {os.path.join(dataset_dir, split_heldout_synthetic.HELDOUT_DIR)}")
     print("============================================================")
 
 

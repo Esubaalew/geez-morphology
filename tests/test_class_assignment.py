@@ -54,7 +54,7 @@ def test_type_a_a_subjunctive_spec():               # ገብረ -> ይግበር,
 
 # ---- OCR gate and class corrections
 def test_ocr_gate():
-    import kw_verb_triples as kw
+    import kidane_wold_triples as kw
     assert kw.ocr_gate("ቀተለ", "ይቀትል", "ይቅትል") is None
     assert kw.ocr_gate("ቆመ", "ይቀውም", "ይቁም") is None          # w may be missing
     assert kw.ocr_gate("ኀንጽጽ", "የኀንጽጽ", "የኀንጽጽ") is not None   # perfect not 1st order at the end

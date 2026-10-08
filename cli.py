@@ -71,7 +71,7 @@ def cmd_generate(args):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     vtype = getattr(args, "verb_type", None)
     patterns_file = os.path.join(base_dir, "patterns_quadriliteral.json" if vtype == "quadriliteral"
-                                 else "patterns.json")
+                                 else "patterns_triliteral.json")
     with open(patterns_file, "r", encoding="utf-8") as f:
         patterns = json.load(f)
     if vtype in TEMPLATE_CLASSES:

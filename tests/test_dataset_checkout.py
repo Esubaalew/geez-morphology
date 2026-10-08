@@ -18,7 +18,7 @@ sys.path.insert(0, HERE)
 
 import dataset_loader as G  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
-import synthetic_heldout as H  # noqa: E402
+import split_heldout_synthetic as H  # noqa: E402
 
 DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)
 CHECKER = os.path.join(DATASET, "scripts", "check_dataset.py")

@@ -23,14 +23,14 @@ try:
 except ImportError:
     verb_classes = None
 
-# Ge'ez has one subjunctive; patterns.json still says "jussive" for some templates.
+# Ge'ez has one subjunctive; patterns_triliteral.json still says "jussive" for some templates.
 TENSE_ALIASES = {"jussive": "subjunctive"}
 
 
 def _project_dir() -> str:
-    """Folder that holds patterns.json and the trained model (normally this file's folder)."""
+    """Folder that holds patterns_triliteral.json and the trained model (normally this file's folder)."""
     here = os.path.dirname(os.path.abspath(__file__))
-    if os.path.exists(os.path.join(here, "patterns.json")):
+    if os.path.exists(os.path.join(here, "patterns_triliteral.json")):
         return here
     return os.path.dirname(here)
 
@@ -166,7 +166,7 @@ class GeezMorphologicalAnalyzer:
 
         # Load patterns
         if patterns_path is None:
-            patterns_path = os.path.join(base_dir, "patterns.json")
+            patterns_path = os.path.join(base_dir, "patterns_triliteral.json")
         with open(patterns_path, "r", encoding="utf-8") as f:
             self.patterns_data = json.load(f)
 
@@ -194,11 +194,11 @@ class GeezMorphologicalAnalyzer:
                     p["not_first"] = GUTTURAL_FIRST
                     gutt_copies.append(dict(p, pattern_spec=new + spec[len(old):],
                                             first_in=GUTTURAL_FIRST, not_first=None,
-                                            source=p.get("source", "patterns.json") + "+guttural_prefix"))
+                                            source=p.get("source", "patterns_triliteral.json") + "+guttural_prefix"))
                     if f.get("verb_type") == "strong_A" and spec[len(old):].startswith("-C0a-C1I-C2"):
                         gutt_copies.append(dict(p, features=dict(f, tense="subjunctive"),
                                                 first_in=GUTTURAL_FIRST, not_first=None,
-                                                source=p.get("source", "patterns.json") + "+guttural_subjunctive"))
+                                                source=p.get("source", "patterns_triliteral.json") + "+guttural_subjunctive"))
                     break
         # Middle guttural (ፍሬ ግእዝ pp. 18, 63), non-guttural first radical: imperfect
         # ይምሕል (all 6th, no doubling), subjunctive and imperative ይምሐል / ምሐል.
@@ -217,7 +217,7 @@ class GeezMorphologicalAnalyzer:
             p["not_mid_gutt"] = True
             gutt_copies.append(dict(p, pattern_spec=new, not_mid_gutt=None, mid_gutt_only=True,
                                     not_first=None, first_in=None,
-                                    source=p.get("source", "patterns.json") + "+middle_guttural"))
+                                    source=p.get("source", "patterns_triliteral.json") + "+middle_guttural"))
         dataset_dir = self.dataset_dir
         type_d_pats = verb_classes.type_d_patterns(dataset_dir) if verb_classes else []
 
@@ -238,7 +238,7 @@ class GeezMorphologicalAnalyzer:
                 "slots": slots,
                 "expanded_slots": expanded_slots,
                 "implied": p.get("implied_radicals", {}),
-                "source": p.get("source", "patterns.json"),
+                "source": p.get("source", "patterns_triliteral.json"),
             })
             for key in ("only_roots", "first_in", "not_first", "not_mid_gutt", "mid_gutt_only"):
                 if p.get(key) is not None:
@@ -961,7 +961,7 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
     Hybrid morphological analyzer for Classical Ge'ez. Tries, in order:
     1. the class paradigms licensed by the lexicon;
     2. affix stripping with a lookup in the dictionary's root index;
-    3. root-and-pattern matching with the 138 triliteral templates (patterns.json), the 38
+    3. root-and-pattern matching with the 138 triliteral templates (patterns_triliteral.json), the 38
        quadriliteral templates (patterns_quadriliteral.json) and the class paradigms;
     4. the ByT5 model, for words the rules do not analyze.
     """
@@ -1053,7 +1053,7 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
         """
         Analyze a Ge'ez surface word using hybrid multi-tiered resolution:
         1. Affix stripping + dictionary lookup.
-        2. Interdigitation pattern matching (patterns.json, patterns_quadriliteral.json,
+        2. Interdigitation pattern matching (patterns_triliteral.json, patterns_quadriliteral.json,
            checked class paradigms).
         3. Neural ByT5 sequence-to-sequence model fallback for unseen roots.
         """

@@ -1,4 +1,4 @@
-"""kw_verb_triples.build() keeps the decisions recorded in the previous root fixes file.
+"""kidane_wold_triples.build() keeps the decisions recorded in the previous root fixes file.
 
 A row of the previous fixes file with new_root null means "root unknown, don't guess" (entry 7546). A rebuild
 writes that entry's row with new_root null and the decision's root_notes; if the rebuild finds no row for the
@@ -15,7 +15,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
 import geez_config as gc  # noqa: E402
-import kw_verb_triples as kw  # noqa: E402
+import kidane_wold_triples as kw  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
 NOTE = "CHECK: merged entry"

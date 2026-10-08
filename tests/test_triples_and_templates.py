@@ -9,7 +9,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
 import geez_config  # noqa: E402
-import kw_verb_triples as kw  # noqa: E402
+import kidane_wold_triples as kw  # noqa: E402
 from engine import InterdigitationEngine, slots_from_spec  # noqa: E402
 
 TRIPLES = [
@@ -70,15 +70,15 @@ def forms(patterns, root, stem, tense, pgn):
 
 # Reference forms (3ms; imperative 2ms)
 REFERENCE = [
-    ("patterns.json", ("q", "t", "l"), "passive", "past", "3ms", "ተቀትለ"),
-    ("patterns.json", ("q", "t", "l"), "passive", "present", "3ms", "ይትቀተል"),
-    ("patterns.json", ("q", "t", "l"), "passive", "subjunctive", "3ms", "ይትቀተል"),
-    ("patterns.json", ("q", "t", "l"), "passive", "imperative", "2ms", "ተቀተል"),
-    ("patterns.json", ("q", "t", "l"), "causative", "past", "3ms", "አቅተለ"),
-    ("patterns.json", ("q", "t", "l"), "causative", "present", "3ms", "ያቀትል"),
-    ("patterns.json", ("q", "t", "l"), "causative", "subjunctive", "3ms", "ያቅትል"),
-    ("patterns.json", ("q", "t", "l"), "causative", "imperative", "2ms", "አቅትል"),
-    ("patterns.json", ("q", "t", "l"), "basic", "imperative", "2ms", "ቅትል"),
+    ("patterns_triliteral.json", ("q", "t", "l"), "passive", "past", "3ms", "ተቀትለ"),
+    ("patterns_triliteral.json", ("q", "t", "l"), "passive", "present", "3ms", "ይትቀተል"),
+    ("patterns_triliteral.json", ("q", "t", "l"), "passive", "subjunctive", "3ms", "ይትቀተል"),
+    ("patterns_triliteral.json", ("q", "t", "l"), "passive", "imperative", "2ms", "ተቀተል"),
+    ("patterns_triliteral.json", ("q", "t", "l"), "causative", "past", "3ms", "አቅተለ"),
+    ("patterns_triliteral.json", ("q", "t", "l"), "causative", "present", "3ms", "ያቀትል"),
+    ("patterns_triliteral.json", ("q", "t", "l"), "causative", "subjunctive", "3ms", "ያቅትል"),
+    ("patterns_triliteral.json", ("q", "t", "l"), "causative", "imperative", "2ms", "አቅትል"),
+    ("patterns_triliteral.json", ("q", "t", "l"), "basic", "imperative", "2ms", "ቅትል"),
     ("patterns_quadriliteral.json", ("d", "n", "g", "S2"), "basic", "past", "3ms", "ደንገፀ"),
     ("patterns_quadriliteral.json", ("d", "n", "g", "S2"), "basic", "present", "3ms", "ይደነግፅ"),
     ("patterns_quadriliteral.json", ("d", "n", "g", "S2"), "basic", "subjunctive", "3ms", "ይደንግፅ"),
@@ -92,4 +92,4 @@ def test_reference_forms(fname, root, stem, tense, pgn, expected):
 
 
 def test_passive_perfect_keeps_ተቀተል_before_consonant_suffix():
-    assert forms(load("patterns.json"), ("q", "t", "l"), "passive", "past", "2ms") == {"ተቀተልከ"}
+    assert forms(load("patterns_triliteral.json"), ("q", "t", "l"), "passive", "past", "2ms") == {"ተቀተልከ"}
