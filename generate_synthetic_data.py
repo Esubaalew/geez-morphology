@@ -12,6 +12,8 @@ synthetic_morphology_analyze.jsonl (the same lines keyed by surface form). They 
 5. Checked class paradigms from verb_class_paradigms.py (via verb_classes.py):
    Type B (ቀደሰ), Type C (ባረከ), final-w (ተለወ), final-y (ሰተየ type), and the
    ወለደ/ወረደ subjunctive. New checked classes go in verb_class_paradigms.py.
+   Type B roots with strong radicals also get passive, causative and aste rows
+   (verb_classes.type_b_derived_rows); the other classes have the basic stem only.
    Classes come from the Kidane Wold verb triples (kidane_wold_triples.py), Merho
    Ges (the corrected gold train file, verb_classes.GOLD_TRAIN_FILE) and the class lemmas; roots come from the dictionary with the
    kidane_wold_root_fixes.jsonl corrections applied.
@@ -499,6 +501,8 @@ def generate_extended_dataset(
     blocked_lines = {}          # root -> {form: lines} left out because the form is a gold val/test form
     final_roots_skipped = {}
     class_counts = {}
+    type_b_derived_counts = {}      # stem -> pairs
+    type_b_no_derived = []          # type_b roots with a w/y radical: no derived stems
 
     with open(out_train, "w", encoding="utf-8") as f_train, \
          open(out_analyze, "w", encoding="utf-8") as f_analyze:
@@ -541,6 +545,20 @@ def generate_extended_dataset(
                     total_base += 1
                     class_counts[cls] = class_counts.get(cls, 0) + 1
 
+        def write_type_b_derived_rows(cons):
+            """Passive, causative and aste rows of one type_b root; like the class rows, not used for augmentation."""
+            nonlocal total_base, unassigned_forms
+            rows = verb_classes.type_b_derived_rows(cons)
+            if not rows:
+                type_b_no_derived.append("-".join(cons))
+            for feat, form in rows:
+                if has_unassigned_char(form):
+                    unassigned_forms += 1
+                    continue
+                if write_pair(feat, form):
+                    total_base += 1
+                    type_b_derived_counts[feat["stem"]] = type_b_derived_counts.get(feat["stem"], 0) + 1
+
         for cons in triliteral_roots:
             rtype = get_root_type(cons)
             cls = class_of.get(cons)
@@ -549,8 +567,10 @@ def generate_extended_dataset(
             if cls == "type_d" and cons not in d_orders:
                 cls = None   # no usable triple vowels: ordinary templates
             if cls in ("type_b", "type_c", "type_c_o", "type_c_e", "type_d"):
-                # Basic stem only; derived stems of Type B/C are not checked yet.
+                # Basic stem; Type B also passive, causative and aste. Derived stems of the other classes are not checked yet.
                 write_class_rows(cons, cls)
+                if cls == "type_b":
+                    write_type_b_derived_rows(cons)
                 continue
             if rtype == "weak_final":
                 # Only with a tag: ተለወ-type needs a ይተሉ/ይትሉ imperfect (ሀለወ, ይሄሉ,
@@ -830,6 +850,8 @@ def generate_extended_dataset(
     print(f"Unchecked weak templates skipped: {skipped_templates:,}")
     print(f"Objects skipped:      {skipped_objects:8,}  (1p, 2mp, 2fp subjects: object forms not settled yet)")
     print(f"Checked class paradigm pairs: {class_counts}")
+    print(f"Type B derived-stem pairs: {type_b_derived_counts}; type_b roots with a w/y radical, no derived stems: "
+          f"{sorted(type_b_no_derived)}")
     print(f"Final-weak roots skipped (no ተለወ/ሰተየ tag): {final_roots_skipped}")
     print(f"Dropped roots: Amharic-only letter: triliteral {len(amharic_dropped['triliteral'])}, "
           f"quad (in sample) {len(amharic_dropped['quadriliteral'])}, class tags {len(amharic_dropped['class_tags'])}, "

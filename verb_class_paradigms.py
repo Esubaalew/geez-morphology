@@ -82,6 +82,57 @@ def type_b(r, subj=None):  # ቀደሰ qaddasa / ይቄድስ yəqeddəs / ይ�
             "subjunctive": prefixed(r, v1, v2), "imperative": imperative(r, v1, v2)}
 
 
+# Prefixes of the Type B passive and causative imperfect/subjunctive, by the basic prefix (PREFIX).
+PASSIVE_PREFIX = {"ይ": "ይት", "ት": "ትት", "እ": "እት", "ን": "ንት"}
+CAUSATIVE_PREFIX = {"ይ": "ያ", "ት": "ታ", "እ": "አ", "ን": "ና"}
+
+
+def type_b_derived(r):
+    """Passive, causative and aste stems of a Type B verb (ቀደሰ), strong radicals only.
+
+    passive    ተቀደሰ, ይትቄደስ, ይትቀደስ, ተቀደስ
+    causative  the Type A causative: አቅደሰ, ያቀድስ, ያቅድስ, imperative with the same stem as the subjunctive
+    aste       past only, as for Type A: አስተቀደሰ
+    Last radical a guttural (አ ዐ ሀ ሐ ኀ):
+      passive and aste past follow the basic perfect: radical 2 in the 6th order in the 3rd person
+        (ተሰብሐ, አስተሰብሐ) and in the 4th before a consonant ending;
+      passive present, subjunctive and imperative: radical 2 in the 4th order when the guttural ends the word,
+        else in the 1st (ይትሌቃሕ, ይትሌቀሑ; ይትሰባሕ, ተሰባሕ);
+      causative: radical 1 in the 1st order, radical 2 in the 6th: 3rd-person past (አጸንዐ, አመልዐ), present
+        (ያጼንዕ) and subjunctive (ያጸንዕ). Its 1st/2nd-person past and its imperative have no
+        attested pattern and are not built.
+    Returns {stem: {table: {person: form}}}, tables named as in type_b()."""
+    gutt = syl(r[2], 1) in GUTTURAL_FINAL
+
+    def last(end):
+        return syl(r[2], END_ORDER[end]) if end else syl(r[2], 6)
+
+    def passive_middle(end):
+        return 4 if gutt and end is None else 1
+
+    def with_prefixes(prefixes, v1, v2=None):
+        return {p: prefixes[pre] + syl(r[0], v1) + syl(r[1], v2 or passive_middle(end)) + last(end)
+                for p, (pre, end) in PREFIX.items()}
+
+    perfect = strong_perfect(r, 1)
+    passive = {"perfect": {p: "ተ" + f for p, f in perfect.items()},
+               "imperfect": with_prefixes(PASSIVE_PREFIX, 5),
+               "subjunctive": with_prefixes(PASSIVE_PREFIX, 1),
+               "imperative": {p: "ተ" + syl(r[0], 1) + syl(r[1], passive_middle(end)) + last(end)
+                              for p, end in IMP_END.items()}}
+    if gutt:
+        causative = {"perfect": {p: "አ" + f for p, f in perfect.items() if p.startswith("3")},
+                     "imperfect": with_prefixes(CAUSATIVE_PREFIX, 5, 6),
+                     "subjunctive": with_prefixes(CAUSATIVE_PREFIX, 1, 6)}
+    else:
+        causative = {"perfect": {p: "አ" + f for p, f in strong_perfect(r, 6).items()},
+                     "imperfect": with_prefixes(CAUSATIVE_PREFIX, 1, 6),
+                     "subjunctive": with_prefixes(CAUSATIVE_PREFIX, 6, 6),
+                     "imperative": {p: "አ" + f for p, f in imperative(r, 6, 6).items()}}
+    aste = {"perfect": {p: "አስተ" + f for p, f in perfect.items()}}
+    return {"passive": passive, "causative": causative, "aste": aste}
+
+
 def type_c(r):  # ባረከ bāraka / ይባርክ / ይባርክ / ባርክ  (imperfect == subjunctive)
     return {"perfect": strong_perfect(r, 4), "imperfect": prefixed(r, 4, 6),
             "subjunctive": prefixed(r, 4, 6), "imperative": imperative(r, 4, 6)}

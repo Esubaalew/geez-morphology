@@ -5,6 +5,7 @@ generator and the analyzer.
   class_tags()      which roots are Type B, Type C, or final-y (ሰተየ type)
   class_fits_root() whether a class's template can take a root at all
   paradigm_rows()   (features, surface) pairs for one root of a checked class
+  type_b_derived_rows()  passive, causative and aste pairs for one type_b root (generator only)
   class_patterns()  the same paradigms as pattern specs, for the analyzer
 
 Verb class cannot be read off the spelling: a Type B perfect (ቀደሰ) is written
@@ -549,6 +550,23 @@ def paradigm_rows(cons: Tuple[str, ...], cls: str, orders: dict = None) -> List[
             rows.append(({"person": person, "gender": gender, "number": number,
                           "tense": TENSE_OF[tname], "stem": "basic",
                           "verb_type": VERB_TYPE_OF[cls], "root": "-".join(cons)}, form))
+    return rows
+
+
+def type_b_derived_rows(cons: Tuple[str, ...]) -> List[Tuple[dict, str]]:
+    """Passive, causative and aste rows of a type_b root (verb_class_paradigms.type_b_derived), with the features of
+    paradigm_rows. [] for a root with a w or y radical: the derived-stem templates are for strong radicals."""
+    if not class_fits_root("type_b", cons):
+        return []
+    letters = [geez_script.render_unit(c, "a") for c in cons]
+    rows = []
+    for stem, tables in vcp.type_b_derived(letters).items():
+        for tname, table in tables.items():
+            for pkey, form in table.items():
+                person, gender, number = PERSON_OF[pkey]
+                rows.append(({"person": person, "gender": gender, "number": number,
+                              "tense": TENSE_OF[tname], "stem": stem,
+                              "verb_type": VERB_TYPE_OF["type_b"], "root": "-".join(cons)}, form))
     return rows
 
 
