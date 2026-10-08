@@ -16,7 +16,9 @@ Generates bidirectional training pairs covering:
    kidane_wold_root_fixes.jsonl corrections applied.
 
 Roots of the gold test split are left out (see --keep_test_roots), so the
-gold score measures unseen roots. Output goes to <dataset>/output and is
+gold score measures unseen roots. By default these are the 185 roots in
+data/heldout_test_roots_c7bc587.txt (see below); --test_file takes them from a
+gold test file instead. Output goes to <dataset>/output and is
 copied to <dataset>/data/paradigms (what train_byt5_morphology.py reads).
 After the copy, synthetic_heldout.py moves every line whose root is a root of the
 current gold val or test file into <dataset>/data/synthetic/ (held out, not read by
@@ -28,9 +30,9 @@ sha256("<SEED>:<purpose>:<root>") (root_rng). A change to one root (its class ta
 changes only that root's lines; every other root's lines stay identical and in the same order.
 The synthetic files in the dataset were generated with the gold test file as extracted, dataset
 commit c7bc587 (544271a before the dataset history was rewritten). Its test roots differ from the
-current test file's, so to reproduce the files:
-  git -C <dataset> show c7bc587:data/paradigms/merho_ges_gold_test.jsonl > /tmp/test_c7bc587.jsonl
-  python generate_synthetic_fixed.py --test_file /tmp/test_c7bc587.jsonl
+current test file's. They are frozen in data/heldout_test_roots_c7bc587.txt (in this repo), so
+reproducing the files needs no git history of the dataset:
+  python generate_synthetic_fixed.py --dataset_dir <dataset>
 """
 
 import os
@@ -198,8 +200,25 @@ def guttural_prefix(spec: str) -> str:
     return spec
 
 
+# The gold test roots of dataset commit c7bc587, one root per line (made with load_held_out_roots
+# from that commit's merho_ges_gold_test.jsonl). The sha256 is checked in tests/test_heldout_roots_file.py.
+HELD_OUT_ROOTS_FILE = os.path.join(BASE_DIR, "data", "heldout_test_roots_c7bc587.txt")
+
+
+def read_held_out_roots_file(path: str = HELD_OUT_ROOTS_FILE) -> set:
+    """Roots listed in a held-out roots file ("ቀ-ተ-ለ" per line, "#" lines are notes), as
+    consonant-symbol tuples."""
+    roots = set()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                roots.add(geez_config.root_symbols(line))
+    return roots
+
+
 def load_held_out_roots(test_file: Optional[str]) -> set:
-    """Roots of the gold test split, as consonant-symbol tuples."""
+    """Roots of a gold test file (each record's root, every "/" alternative), as consonant-symbol tuples."""
     roots = set()
     if not test_file or not os.path.exists(test_file):
         return roots
@@ -249,7 +268,7 @@ def generate_extended_dataset(
     include_objects: bool = True,
     include_negative: bool = True,
     include_quads: bool = True,
-    test_file: Optional[str] = None,
+    held_out: Optional[set] = None,
     mirror_dir: Optional[str] = None,
     split_heldout: bool = False,
 ):
@@ -289,7 +308,7 @@ def generate_extended_dataset(
             elif len(parts) == 4:
                 quadriliteral_roots.add(tuple(parts))
 
-    held_out = load_held_out_roots(test_file)
+    held_out = held_out or set()   # root tuples left out of the data
     class_of, tag_counts = verb_classes.class_tags(dataset_dir, exclude=held_out)
     # Roots named by the checked lists are attested verbs even where the
     # dictionary's root inference missed them (ወለደ has no inferred root).
@@ -733,12 +752,19 @@ if __name__ == "__main__":
     parser.add_argument("--no_mirror", action="store_true",
                         help="Do not copy the output to <dataset>/data/paradigms")
     parser.add_argument("--test_file", default=None,
-                        help="Gold test file whose roots are left out (default <dataset>/data/paradigms/merho_ges_gold_test.jsonl)")
+                        help="Leave out the roots of this gold test file instead of the frozen list "
+                             "data/heldout_test_roots_c7bc587.txt (the default)")
     parser.add_argument("--no_heldout_split", action="store_true",
                         help="Do not move the lines with a gold val/test root to <dataset>/data/synthetic/ after the copy")
     args = parser.parse_args()
 
     resolved_dataset_dir = os.path.abspath(args.dataset_dir)
+    if args.keep_test_roots:
+        held_out = set()
+    elif args.test_file:
+        held_out = load_held_out_roots(args.test_file)
+    else:
+        held_out = read_held_out_roots_file()
 
     generate_extended_dataset(
         dataset_dir=resolved_dataset_dir,
@@ -746,8 +772,7 @@ if __name__ == "__main__":
         include_objects=not args.no_objects,
         include_negative=not args.no_negative,
         include_quads=not args.no_quads,
-        test_file=None if args.keep_test_roots else (args.test_file or os.path.join(
-            resolved_dataset_dir, "data", "paradigms", "merho_ges_gold_test.jsonl")),
+        held_out=held_out,
         mirror_dir=None if args.no_mirror else os.path.join(resolved_dataset_dir, "data", "paradigms"),
         split_heldout=not args.no_mirror and not args.no_heldout_split,
     )

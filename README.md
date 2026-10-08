@@ -22,6 +22,8 @@ geez-morphology/
 ├── synthetic_heldout.py          moves synthetic lines with a gold val/test root out of the training file
 ├── train_byt5_morphology.py      ByT5 fine-tuning (resumable)
 ├── evaluate_gold.py              scores a system on the Merho Ges gold val and test splits
+├── data/
+│   └── heldout_test_roots_c7bc587.txt   gold test roots left out of the synthetic data
 ├── tests/                        unit and regression tests
 └── docs/
     └── grammar_rules.md          the language decisions behind the data, with sources
@@ -52,10 +54,12 @@ python cli.py --dataset_dir ../geez-dataset lookup ቀተለ
 ## Generate the data
 
 ```bash
-python generate_synthetic_fixed.py
+python generate_synthetic_fixed.py --dataset_dir ../geez-dataset
 ```
 
-Writes `<dataset>/output/` (not in git), copies the synthetic files to `<dataset>/data/paradigms/`, and moves the lines whose root is a gold val or test root to `<dataset>/data/synthetic/`. Line counts are in the dataset README. The files in the dataset were generated with the test file of dataset commit c7bc587; the docstring of `generate_synthetic_fixed.py` shows how to reproduce them.
+Writes `<dataset>/output/` (not in git), copies the synthetic files to `<dataset>/data/paradigms/`, and moves the lines whose root is a gold val or test root to `<dataset>/data/synthetic/`. Line counts are in the dataset README.
+
+The generator leaves out the roots listed in `data/heldout_test_roots_c7bc587.txt`: the 185 roots of the gold test file at dataset commit c7bc587 (`data/paradigms/merho_ges_gold_test.jsonl`, the file as extracted), one per line. The synthetic files in the dataset were generated without these roots. The list is committed here, so the generator does not need the dataset's git history (a shallow or fresh clone works). sha256 of the file: `8a6b64053cddd0d54301acc4142e3aa9e2b25cc88bb6334ce5a05dd061b7c88d` (checked by `tests/test_heldout_roots_file.py`). `--test_file <gold test file>` leaves out the roots of another test file instead.
 
 ## Test
 
