@@ -36,9 +36,10 @@ reproducing the files needs no git history of the dataset:
 
 Two more committed files in data/ limit the output; the
 generator stops if either is missing:
-  data/synthetic_roots_allowed_6183c24.txt  the only roots it conjugates: roots with a dictionary verb
-      entry, a gold root or a Kidane Wold verb triple (all roots of the 6d5297a output minus the ones
-      the root list rules DROP or EXCLUDE_NO_VERB).
+  data/synthetic_roots_allowed_6183c24_v2.txt  the only roots it conjugates: roots with a dictionary verb
+      entry, a gold root or a Kidane Wold verb triple, or restored by the maintainers (all roots of the
+      6d5297a output minus the ones the root list rules DROP or EXCLUDE_NO_VERB;
+      its RESTORE rows stay).
   data/heldout_gold_forms_6183c24.tsv       every gold val/test form of dataset commit 6183c24; a line
       whose surface form is one of them is not written. The rest of that root's lines are made as if
       the line were there, so no other line changes.
@@ -229,7 +230,7 @@ def read_held_out_roots_file(path: str = HELD_OUT_ROOTS_FILE) -> set:
 # Roots the generator may conjugate, one per line as the "root" feature writes them ("h2-s-t"); "#" lines are
 # notes. Made from the root list (see the file's header). Checked in
 # tests/test_synthetic_allowed_roots_and_blocked_forms.py.
-ALLOWED_ROOTS_FILE = os.path.join(BASE_DIR, "data", "synthetic_roots_allowed_6183c24.txt")
+ALLOWED_ROOTS_FILE = os.path.join(BASE_DIR, "data", "synthetic_roots_allowed_6183c24_v2.txt")
 # Every gold val/test form of dataset commit 6183c24 (column geez_form; "#" lines are notes).
 BLOCKED_FORMS_FILE = os.path.join(BASE_DIR, "data", "heldout_gold_forms_6183c24.tsv")
 

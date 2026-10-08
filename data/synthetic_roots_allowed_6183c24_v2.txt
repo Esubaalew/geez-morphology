@@ -1,12 +1,13 @@
 # Roots the synthetic verb generator may conjugate. generate_synthetic_fixed.py reads this file and stops if it is missing.
 # One root per line, written as the generator writes the "root" feature (h2-s-t is ሐ-ሰ-ተ). Lines starting with # are notes.
 # Rule: conjugate only roots that have a dictionary verb entry, a gold root,
-# or a Kidane Wold verb triple.
+# or a Kidane Wold verb triple, or that the maintainers restore (RESTORE).
 # Made from: the 2,007 roots in the generator output that the synthetic files of geez-dataset 6183c24a38dccb741b29f5867d251fb25e139c4e
 #   were split from (generate_synthetic_fixed.py at geez-morphology-model 6d5297a; synthetic_morphology_train.jsonl sha256 4ce710837625e6ab9e8d11210cce634659bdb77c81fac0bffbc29282d3436f70),
-#   minus the 879 roots that the root list
-#   rules DROP (134) or EXCLUDE_NO_VERB (745). A root ruled RESTORE there stays on the list.
-# 1,128 roots, sorted. 59 of them are gold val/test roots; synthetic_heldout.py moves their lines to data/synthetic/ in the dataset.
+#   minus the 876 roots that the root list
+#   rules DROP (131) or EXCLUDE_NO_VERB (745). Its 3 RESTORE rows stay on the list: m-h2-l, m-kh-l, m-s-l.
+#   (v2 replaces the root list, which had those 3 roots as DROP.)
+# 1,131 roots, sorted. 59 of them are gold val/test roots; synthetic_heldout.py moves their lines to data/synthetic/ in the dataset.
 S-T-f
 S-a-n
 S-a2-T
@@ -570,9 +571,11 @@ m-g-b
 m-g-l
 m-h1-l
 m-h2-S
+m-h2-l
 m-h2-r
 m-k-h2
 m-k-r
+m-kh-l
 m-l-T
 m-l-a
 m-l-a2
@@ -594,6 +597,7 @@ m-r-s
 m-r-z
 m-s-T-r
 m-s-h2
+m-s-l
 m-s-q-s
 m-s-y
 m-s2-T

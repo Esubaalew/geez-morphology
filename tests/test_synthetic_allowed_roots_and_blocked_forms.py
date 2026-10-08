@@ -1,7 +1,8 @@
 """The two files that limit the synthetic data.
 
-- data/synthetic_roots_allowed_6183c24.txt: the only roots the generator conjugates (roots with a dictionary
-  verb entry, a gold root or a Kidane Wold verb triple). The generator stops if the file is missing.
+- data/synthetic_roots_allowed_6183c24_v2.txt: the only roots the generator conjugates (roots with a dictionary
+  verb entry, a gold root or a Kidane Wold verb triple, plus the 3 roots the maintainers restored by decision in
+  the root list: m-h2-l, m-kh-l, m-s-l). The generator stops if the file is missing.
 - data/heldout_gold_forms_6183c24.tsv: every gold val/test form of dataset commit 6183c24. A synthetic line
   with one of these forms is not written; the root's other lines do not change. Missing file: the generator stops.
 - synthetic_heldout.py --check fails when a dataset synthetic line has a gold val/test form.
@@ -28,7 +29,7 @@ import geez_config  # noqa: E402
 import synthetic_heldout as H  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
-ALLOWED_SHA256 = "4a2961277c540aa19dbbcd8decae235e9ccecfd5da6203e544ae991348ddd90a"
+ALLOWED_SHA256 = "4c5d03c9e024b5cd665e5791f4d48ad1b528ba6b2fc897a24275d34aa6770f8f"
 BLOCKED_SHA256 = "5c046ce68762d3e18d3510377b3a5bcb45ddded6fdd3c9c24df17dea1b594f4e"
 TRILITERAL = ["q-t-l", "g-b-r", "n-g-r", "s-b-r", "k-t-b", "d-m-r", "f-t-l", "m-s-l"]
 QUADRILITERAL = ["d-n-g-s", "s-n-b-t", "t-r-g-m", "m-s-k-r", "q-n-d-l", "b-r-b-r"]
@@ -50,9 +51,13 @@ def test_files_are_unchanged():
     assert _sha(gen.BLOCKED_FORMS_FILE) == BLOCKED_SHA256
 
 
-def test_allow_list_has_1128_roots():
+def test_allow_list_has_1131_roots():
     roots = gen.read_allowed_roots_file()
-    assert len(roots) == 1128
+    assert len(roots) == 1131
+    # RESTORE rows of the v2 decisions: kept on the decision (dictionary has noun entries only)
+    assert {("m", "h2", "l"), ("m", "kh", "l"), ("m", "s", "l")} <= roots
+    assert os.path.basename(gen.ALLOWED_ROOTS_FILE) == "synthetic_roots_allowed_6183c24_v2.txt"
+    assert not os.path.exists(os.path.join(ROOT, "data", "synthetic_roots_allowed_6183c24.txt"))   # only one list
     assert all(len(r) in (3, 4) for r in roots)
 
 

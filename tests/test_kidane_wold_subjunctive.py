@@ -25,14 +25,14 @@ DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-da
 SYNTH = os.path.join(DATASET, "data", "paradigms", "synthetic_morphology_train.jsonl")
 
 
-# Roots off the allow-list (data/synthetic_roots_allowed_6183c24.txt, 2026-10-08: no dictionary verb entry, gold
+# Roots off the allow-list (data/synthetic_roots_allowed_6183c24_v2.txt, v2 decisions: no dictionary verb entry, gold
 # root or Kidane Wold triple) have no synthetic lines any more; their cases are skipped.
 ALLOWED = {"-".join(r) for r in gen.read_allowed_roots_file()}
 
 
 def need_allowed(root):
     if root not in ALLOWED:
-        pytest.skip(f"{root} is not on data/synthetic_roots_allowed_6183c24.txt: no synthetic lines")
+        pytest.skip(f"{root} is not on data/synthetic_roots_allowed_6183c24_v2.txt: no synthetic lines")
 
 
 @pytest.fixture(scope="module")

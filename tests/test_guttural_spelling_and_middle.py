@@ -29,14 +29,14 @@ HELD = os.path.join(DATASET, "data", "synthetic", "synthetic_forms_for_val_test_
 GUTT = {"a", "a2", "h1", "h2", "kh"}
 
 
-# Roots off the allow-list (data/synthetic_roots_allowed_6183c24.txt, 2026-10-08: no dictionary verb entry, gold
+# Roots off the allow-list (data/synthetic_roots_allowed_6183c24_v2.txt, v2 decisions: no dictionary verb entry, gold
 # root or Kidane Wold triple) have no synthetic lines any more; their cases are skipped.
 ALLOWED = {"-".join(r) for r in gen.read_allowed_roots_file()}
 
 
 def need_allowed(root):
     if root not in ALLOWED:
-        pytest.skip(f"{root} is not on data/synthetic_roots_allowed_6183c24.txt: no synthetic lines")
+        pytest.skip(f"{root} is not on data/synthetic_roots_allowed_6183c24_v2.txt: no synthetic lines")
 
 
 # ---- 1. spelling variants -------------------------------------------------
@@ -166,5 +166,5 @@ def test_no_doubled_guttural_present_in_changed_roots(synth):
             bad.append(r["surface_form"])
         if f["tense"] in ("subjunctive", "imperative") and dec[j][1] != "a":
             bad.append(r["surface_form"])
-    assert len(seen) == 84      # 155 before the 2026-10-08 allow-list; the other 71 roots have no verb evidence
+    assert len(seen) == 86      # 155 before the 2026-10-08 allow-list; 84 + m-h2-l, m-kh-l (RESTORE in the v2 decisions)
     assert bad == []
