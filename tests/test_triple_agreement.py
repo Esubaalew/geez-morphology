@@ -1,16 +1,17 @@
 """Generated forms against each root's own Kidane Wold triple, and the listed exceptions.
 
 The exception files in data/ are checked by sha256:
-- triple_check_exceptions.tsv: triple_followed rows fix the generator, tagged_type_b rows tag type_b,
-  S-a2-l gets the type_b subjunctive override, generator_kept rows keep the generator (the book form is a
-  misprint or misread), w-kh-T is off the allow-list (CHECK), covered_by_rule rows fall under the collapsed-subjunctive rule.
+- triple_check_exceptions.tsv (column decision): triple_followed rows fix the generator, tagged_type_b rows tag type_b,
+  S-a2-l gets the type_b subjunctive override (subjunctive_override), generator_kept rows keep the generator (the book
+  form is a misprint or misread), w-kh-T is off the allow-list (off_allow_list), covered_by_rule rows fall under the
+  collapsed-subjunctive rule.
 - final_y_past_stem_roots.tsv: the -y past stem (l-f-y, l-q-y, m-l-y, s-t-y, a-b-y; m-s-y and s-b-y not confirmed yet).
 - triple_check_exceptions_extra.tsv: S-b-r, kh-r-s and m-l-a: the generator stands; the final-guttural 4th order only
   where the guttural ends the word; a-b-y joins the -y rule; n-s2-a: the generator stands (a known mismatch with a gold
   train cell).
-- class_changes.tsv: one row per class change.
-- phantom_root_qh_h2_m.tsv: the restored row for qh-h2-m is withdrawn (its Type D triple was an OCR misread of
-  entry 360), so qh-h2-m stays Type A.
+- class_changes.tsv: one row per class change; restored rows keep the class before the change.
+- phantom_root_qh_h2_m.tsv: the restored Type D row for qh-h2-m does not apply (restore_not_applied; its Type D
+  triple was an OCR misread of entry 360), so qh-h2-m stays Type A.
 Expected forms are built from root letters (geez_script.render_unit), so this file types no Ge'ez letters.
 """
 import csv
@@ -36,6 +37,8 @@ CLASS_CHANGES_FILE = os.path.join(HERE, "data", "class_changes.tsv")
 FINAL_Y_FILE = os.path.join(HERE, "data", "final_y_past_stem_roots.tsv")
 PHANTOM_FILE = os.path.join(HERE, "data", "phantom_root_qh_h2_m.tsv")
 ALLOWED = {"-".join(r) for r in gen.read_allowed_roots_file()}
+# decision values of triple_check_exceptions.tsv for which the generator follows the triple or a tag
+GENERATOR_FOLLOWS = {"triple_followed", "tagged_type_b", "subjunctive_override"}
 BLOCKED = gen.read_blocked_forms_file()
 
 
@@ -99,12 +102,12 @@ def one(cells, root, tense, per):
 
 def test_exception_files_unchanged():
     with open(EXCEPTIONS_FILE, "rb") as f:
-        assert hashlib.sha256(f.read()).hexdigest().startswith("19c24527")
+        assert hashlib.sha256(f.read()).hexdigest().startswith("365b423a")
     kinds = [r["decision"] for r in exceptions().values()]
     assert kinds.count("triple_followed") == 27 and kinds.count("generator_kept") == 24
     assert kinds.count("tagged_type_b") == 3 and kinds.count("covered_by_rule") == 3
     with open(EXTRA_FILE, "rb") as f:
-        assert hashlib.sha256(f.read()).hexdigest().startswith("2347efd6")
+        assert hashlib.sha256(f.read()).hexdigest().startswith("b9d6ff1f")
     with open(CLASS_CHANGES_FILE, "rb") as f:
         assert hashlib.sha256(f.read()).hexdigest().startswith("2a98caed")
     with open(PHANTOM_FILE, "rb") as f:
@@ -278,7 +281,7 @@ def test_y_past_stem_waiting_unchanged(cells, root):
 # ------------------------------------------------------------------ allow-list
 @pytest.mark.parametrize("root", ["w-kh-T", "w-s-n", "g-n-f-l", "T-b-l-l", "z-n-g-a2", "q-y-a"])
 def test_not_on_allow_list(root):
-    """w-kh-T: CHECK in the triple check. w-s-n, g-n-f-l, T-b-l-l, z-n-g-a2, q-y-a: left out by hand."""
+    """w-kh-T: off_allow_list in the triple check. w-s-n, g-n-f-l, T-b-l-l, z-n-g-a2, q-y-a: left out by hand."""
     assert root not in ALLOWED
 
 
@@ -312,14 +315,14 @@ def test_triple_agreement_listed_or_known(cells, triples):
     rul = exceptions()
     listed = {r for r, x in rul.items() if x["decision"] in ("generator_kept", "covered_by_rule")}
     listed |= {r for r, x in extra_exceptions().items() if x["decision"] == "generator_kept"}   # S-b-r, kh-r-s, m-l-a
-    listed |= {r for r, x in class_changes().items() if x["decision"].startswith("RESTORE_")}   # gold class outranks the new triple
+    listed |= {r for r, x in class_changes().items() if x["decision"] == "restored"}   # gold class outranks the new triple
     dis = _disagreeing(cells, triples)
     # w-S2-f: present from the book, subjunctive by the regular type_b rule (the book's is the minority shape)
     if dis.get("w-S2-f") == ["subjunctive"]:
         dis.pop("w-S2-f")
     left = set(dis) - listed - KNOWN_DISAGREEMENTS
     assert not left, sorted(left)
-    assert not {r for r, x in rul.items() if x["decision"].startswith("a_")} & set(dis) - {"w-S2-f"}
+    assert not {r for r, x in rul.items() if x["decision"] in GENERATOR_FOLLOWS} & set(dis) - {"w-S2-f"}
 
 
 def test_m_a2_z_misprint(cells):
@@ -344,7 +347,7 @@ def test_extra_generator_stands(cells):
 
 def test_n_s2_a_imperative(cells):
     """The imperative 2ms takes the final-guttural rule; gold train's 6th-order spelling is a known mismatch."""
-    assert extra_exceptions()["n-s2-a"]["decision"].startswith("generator_kept")
+    assert extra_exceptions()["n-s2-a"]["decision"] == "generator_kept_gold_variant"
     need_allowed("n-s2-a")
     assert one(cells, "n-s2-a", "imperative", "2ms") == _w(("n", "I"), ("s2", "A"), ("a", "I"))
 
@@ -376,7 +379,7 @@ def restores_not_applied():
 
 
 def test_class_change_outcome(verb_type):
-    """Every class change has a row; RESTORE rows bring the old class back, the others give the new one."""
+    """Every class change has a row; restored rows bring the old class back, the others give the new one."""
     changes = class_changes()
     assert len(changes) == 39
     gone = restores_not_applied()
@@ -384,7 +387,7 @@ def test_class_change_outcome(verb_type):
     for root, x in changes.items():
         need = x["decision"]
         old, new = x["change"].split("->")
-        want = gone.get(root) or {"restored": "strong_C", "restored": "strong_D"}.get(need, CLASS_OF_CHANGE.get(new))
+        want = gone.get(root) or CLASS_OF_CHANGE.get(old if need == "restored" else new)
         if root not in ALLOWED:
             continue
         assert verb_type.get(root) == {want}, (root, x["change"], need, verb_type.get(root))

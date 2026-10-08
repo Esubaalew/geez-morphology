@@ -10,7 +10,7 @@ f-t-t	A->B	class_changed	new KW type_b triple (present ይCeC-); generator match
 g-l-d	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it
 g-m-a2	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it
 g-m-m	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it
-g-m-n	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it. Gold train cell ኢይገምን: CHECK and leave it unchanged; the book has ይጌምን
+g-m-n	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it. Gold train cell ኢይገምን is left unchanged; the book has ይጌምን
 l-q-h2	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it
 l-s-n	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it
 m-T-n	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it
@@ -21,7 +21,7 @@ n-z-r	A->B	class_changed	new KW type_b triple (present ይCeC-); generator match
 q-S-l	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it
 q-m-r	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it. Gold also shows Type B (ይዴነሱ/ይቄምሮ/ይኔዝሩ/ይፌክር/ይጼዕሉኒ/ይዴልጉ)
 qh-l-z	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it
-s-b-h2	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it. Gold train cell ይሰብሕ: CHECK and leave it unchanged; the usual form is ይሴብሕ (ንሴብሖ)
+s-b-h2	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it. Gold train cell ይሰብሕ is left unchanged; the usual form is ይሴብሕ (ንሴብሖ)
 s-d-s	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it
 t-k-z	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it
 z-k-r	A->B	class_changed	new KW type_b triple (present ይCeC-); generator matches it
@@ -29,11 +29,11 @@ z-m-r	A->B	class_changed	new KW type_b triple (present ይCeC-); generator match
 S-h2-d	A->D	class_changed	KW ጽሕደ ይጽሕድ ይጽሐድ; stative Type D
 b-h2-a	A->D	class_changed	KW ብሕአ ይብሕእ ይብሐእ; val gold causative አብሕአ ያበሕእ fits
 n-a-d	A->D	class_changed	KW ንእደ ይንእድ ይንአድ
-n-kh-r	A->D	class_changed	KW ንኅረ ይንኅር; val gold ንኅረ; subjunctive ይንኀር covered by the collapsed-subjunctive rule
-kh-y-r	A->weak_middle	generator_kept	The book lists ኀየረ and the contracted form; present የኀይር matches the book, subjunctive ይኂር matches the rebuild read. CHECK the perfect ኄረ vs ኀየረ on the scan later; not blocking
-a-l-l	C->A	class_changed	19c24527 generator_kept: አለለ የአልል ይእልል (ይኤ- is a misread)
-s-a-l	D->A	class_changed	patch a1cd1f98: ሰአለ ይስእል ይስአል
-qh-h2-m	D->A	restored	Book 360: ቍሕመ ይቍሕም ይቍሐም (also the example in grammar_rules §4). The triple dropped only because entry 360 has the stale root qh-h2. Set 360 inferred_root to qh-h2-m (logged) so the triple returns; expected output ቍሕመ ይቍሕም ይቍሐም as at ab7a166
+n-kh-r	A->D	class_changed	KW ንኅረ ይንኅር; val gold ንኅረ; subjunctive ይንኀር follows the collapsed-subjunctive rule
+kh-y-r	A->weak_middle	generator_kept	The book lists ኀየረ and the contracted form; present የኀይር matches the book, subjunctive ይኂር matches the rebuild read. The perfect ኄረ vs ኀየረ is still to be read against the printed page
+a-l-l	C->A	class_changed	generator kept, as in triple_check_exceptions.tsv: አለለ የአልል ይእልል (ይኤ- is a misread)
+s-a-l	D->A	class_changed	Type A with a guttural middle radical: ሰአለ ይስእል ይስአል
+qh-h2-m	D->A	restored	Entry 360 was read as ቍሕመ ይቍሕም ይቍሐም. The page has a plain first letter, so this restore does not apply: qh-h2-m is a phantom root (phantom_root_qh_h2_m.tsv)
 d-r-g	C->A/B	restored	Gold train basic stem is Type C (ዳረገ, present ይዳርገዎ). The new KW triple belongs to a different verb on the same root code, and the generator allows only one class per root. The Merho gold class outranks the KW triple for this root
 n-z-z	C->A/B	restored	Gold train basic stem is Type C (ናዘዘ, present ይናዝዘኒ). The new KW triple belongs to a different verb on the same root code, and the generator allows only one class per root. The Merho gold class outranks the KW triple for this root
 q-r-h2	C->A/B	restored	Gold train basic stem is Type C (ቃርሐ). The new KW triple belongs to a different verb on the same root code, and the generator allows only one class per root. The Merho gold class outranks the KW triple for this root

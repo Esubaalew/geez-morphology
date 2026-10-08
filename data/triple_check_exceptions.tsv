@@ -29,7 +29,7 @@ q-n-S	triple_followed	regular Type A; present ይቀንጽ is missing from the g
 T-y-r	tagged_type_b	the book present ይጤይር / ይሬይፅ is Type B, so tag type_b. Subjunctive ይጠይር / ይረይፅ (no contraction)
 r-y-S2	tagged_type_b	the book present ይጤይር / ይሬይፅ is Type B, so tag type_b. Subjunctive ይጠይር / ይረይፅ (no contraction)
 w-S2-f	tagged_type_b	the book present ይዌፅፍ is Type B, so tag type_b. Subjunctive by the type_b rule ይወፅፍ; the book ይውፅፍ is the minority shape (see n-z-r)
-S-a2-l	subjunctive_override	apply the draft override: a guttural middle cannot double, so the type_b subjunctive is ይጽዐል, as in the book (cf. በዐለ ይብዐል, መሀረ ይምሀር). Restrict the switch to type_b roots with a guttural middle. Replaces the earlier CHECK
+S-a2-l	subjunctive_override	A guttural middle cannot double, so the type_b subjunctive is ይጽዐል, as in the book (cf. በዐለ ይብዐል, መሀረ ይምሀር). Restrict the switch to type_b roots with a guttural middle.
 n-z-r	generator_kept	Type B subjunctive has C1 in the 1st order (ይቀድስ). 72 book type_b triples show that shape; the 6th-order ones are a minority, likely print/OCR. Do NOT extend the S-a2-l override to these
 s-b-h2	generator_kept	Type B subjunctive has C1 in the 1st order (ይቀድስ). 72 book type_b triples show that shape; the 6th-order ones are a minority, likely print/OCR. Do NOT extend the S-a2-l override to these
 s-d-s	generator_kept	Type B subjunctive has C1 in the 1st order (ይቀድስ). 72 book type_b triples show that shape; the 6th-order ones are a minority, likely print/OCR. Do NOT extend the S-a2-l override to these
@@ -44,17 +44,17 @@ a-m-t	generator_kept	initial guttural Type A subjunctive is ይእ- / ይዕ- / 
 a2-q-m	generator_kept	initial guttural Type A subjunctive is ይእ- / ይዕ- / ይሕ- in the 6th order (ይእበይ, ~101 book triples); the ይኤ- shape is a misread
 a2-s2-r	generator_kept	initial guttural Type A subjunctive is ይእ- / ይዕ- / ይሕ- in the 6th order (ይእበይ, ~101 book triples); the ይኤ- shape is a misread
 h2-m-s	generator_kept	initial guttural Type A subjunctive is ይእ- / ይዕ- / ይሕ- in the 6th order (ይእበይ, ~101 book triples); the ይኤ- shape is a misread
-kh-S-d	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
-kh-S-r	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
-kh-T-T	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
-kh-l-q	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
-kh-n-q	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
-kh-s-r	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
-kh-w-s2	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
+kh-S-d	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). The headword is to be corrected separately, against the printed page
+kh-S-r	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). The headword is to be corrected separately, against the printed page
+kh-T-T	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). The headword is to be corrected separately, against the printed page
+kh-l-q	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). The headword is to be corrected separately, against the printed page
+kh-n-q	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). The headword is to be corrected separately, against the printed page
+kh-s-r	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). The headword is to be corrected separately, against the printed page
+kh-w-s2	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). The headword is to be corrected separately, against the printed page
 w-s-d	generator_kept	the present of an initial-w Type A verb is ይወስድ / ይወቅር; the book ይውስድ / ይውቅር is a subjunctive-shaped misread
 w-q-r	generator_kept	the present of an initial-w Type A verb is ይወስድ / ይወቅር; the book ይውስድ / ይውቅር is a subjunctive-shaped misread
 m-a2-z	generator_kept	the book ይምዐዘ ends in the 1st order, so it is a misprint for ይምዐዝ, which is what the generator gives. Fix the test expectation
-w-kh-T	off_allow_list	ይውኅጥ / የኅጥ is unclear (could be የኀጥ like ወሀበ የሀብ). Take it off the allow-list until it is read against the scan
-n-kh-r	covered_by_rule	covered by the collapsed-subjunctive rule already in force
-z-kh-n	covered_by_rule	covered by the collapsed-subjunctive rule already in force
-z-kh-r	covered_by_rule	covered by the collapsed-subjunctive rule already in force
+w-kh-T	off_allow_list	ይውኅጥ / የኅጥ is unclear (could be የኀጥ like ወሀበ የሀብ). Off the allow-list until it is read against the printed page
+n-kh-r	covered_by_rule	covered by the collapsed-subjunctive rule
+z-kh-n	covered_by_rule	covered by the collapsed-subjunctive rule
+z-kh-r	covered_by_rule	covered by the collapsed-subjunctive rule

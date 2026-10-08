@@ -1,6 +1,6 @@
 item	decision	evidence	effect
-360 / qh-h2-m	restore_not_applied	Kidane Wold page 788, header ቀዘፈ—ቄጢጥ: ቅሒም ፤ ሞት ፤ (ቀሐመ ፡ ይቅሕም ፡ ይቅሐም ፡፡ ቀምሐ) "chew". Plain ቀ, no ቍ. The old ቍሕመ ይቍሕም triple (export 0d0ceaa) was an OCR misread.	Revert the 360 inferred_root edit (unlog it). The 360 fix row stays q-h2-m. qh-h2-m stays strong_A for y. Change test_class_decisions_outcome so it no longer expects qh-h2-m Type D.
+360 / qh-h2-m	restore_not_applied	Kidane Wold page 788, header ቀዘፈ—ቄጢጥ: ቅሒም ፤ ሞት ፤ (ቀሐመ ፡ ይቅሕም ፡ ይቅሐም ፡፡ ቀምሐ) "chew". Plain ቀ, no ቍ. The old ቍሕመ ይቍሕም triple was an OCR misread.	Entry 360 keeps the root q-h2-m; qh-h2-m stays Type A (its restored row in class_changes.tsv does not apply).
 361 ቀሓሚ, 364 አቅሐመ	root_kept	Same page, plain ቀ; 364 is glossed አቃመ ፡ አስቃመ	no change
-q-h2-m	triple_followed	ቀሐመ ይቅሕም ይቅሐም, the same pattern as ሰአለ ይስእል ይስአል; the generator already matches it	no change
-qh-h2-m	dropped	Its only book source was the 360 misread. Its rows are 137 in the train file and 71 in verbs_rbha_anqets.	drop only with confirmation
-grammar_rules.md §4	example_changed	The ቍሕመ example rests on the misread	Use the ruled Type D name ስእለ, as in grammar_markup 5be8b46c
+q-h2-m	triple_followed	Type A with a guttural middle radical: ቀሐመ ይቅሕም ይቅሐም, the same pattern as ሰአለ ይስእል ይስአል; the generator already matches it	no change
+qh-h2-m	dropped	Its only book source was the 360 misread.	Not on the allow-list: no synthetic lines and no lines in verbs_rbha_anqets.jsonl.
+grammar_rules.md §4	example_changed	The ቍሕመ example rests on the misread	The Type D example is ንእደ (n-a-d).
