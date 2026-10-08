@@ -18,11 +18,11 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
 import geez_config  # noqa: E402
-import gold_filters  # noqa: E402
+from conftest import DATASET_DIR  # noqa: E402
 import verb_classes  # noqa: E402
 from engine import InterdigitationEngine, slots_from_spec  # noqa: E402
 
-DATASET = gold_filters.default_dataset_dir()
+DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)
 SYNTH = os.path.join(DATASET, "data", "paradigms", "synthetic_morphology_train.jsonl")
 ENG = InterdigitationEngine(renderer=geez_config.render_unit)
 
@@ -147,7 +147,7 @@ def analyzer():
     if not os.path.exists(DATASET):
         pytest.skip("dataset folder not found")
     from analyzer import HybridAnalyzer
-    a = HybridAnalyzer()
+    a = HybridAnalyzer(dataset_dir=DATASET)
     a.checkpoint_dir = None   # rules only, as in the rules-only eval; never load the model
     return a
 

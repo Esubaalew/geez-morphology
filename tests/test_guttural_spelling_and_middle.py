@@ -18,10 +18,10 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
 import geez_config  # noqa: E402
-import gold_filters  # noqa: E402
+from conftest import DATASET_DIR  # noqa: E402
 import verb_classes  # noqa: E402
 
-DATASET = gold_filters.default_dataset_dir()
+DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)
 SYNTH = os.path.join(DATASET, "data", "paradigms", "synthetic_morphology_train.jsonl")
 # the generator's output is the training file plus the lines held out for the gold val/test roots (14:35)
 HELD = os.path.join(DATASET, "data", "synthetic", "synthetic_forms_for_val_test_roots.jsonl")
@@ -51,7 +51,7 @@ def analyzer():
     if not os.path.exists(DATASET):
         pytest.skip("no geez-dataset checkout (the analyzer reads its lexicon)")
     from analyzer import HybridAnalyzer
-    return HybridAnalyzer()
+    return HybridAnalyzer(dataset_dir=DATASET)
 
 
 def top(analyzer, word):

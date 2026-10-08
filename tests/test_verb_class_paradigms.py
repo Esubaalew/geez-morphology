@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import verb_class_paradigms as vcp  # noqa: E402
 import verb_classes  # noqa: E402
+from conftest import DATASET_DIR  # noqa: E402
 
 
 def test_templates_match_expected_tables():
@@ -39,8 +40,10 @@ def test_initial_w_drop_only_for_listed_roots():
 
 @pytest.fixture(scope="module")
 def analyzer():
+    if not os.path.exists(DATASET_DIR):
+        pytest.skip("no geez-dataset checkout (the analyzer reads its dictionary)")
     from analyzer import HybridAnalyzer
-    a = HybridAnalyzer()
+    a = HybridAnalyzer(dataset_dir=DATASET_DIR)
     a.checkpoint_dir = None  # rules only
     return a
 

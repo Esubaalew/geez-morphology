@@ -1,4 +1,4 @@
-"""Checks on a geez-dataset checkout ($GEEZ_DATASET_DIR, else ../geez-dataset); skipped without one.
+"""Checks on a geez-dataset checkout (--dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset); skipped without one.
 
 - the loader gives the same pair counts as the dataset's own scripts/check_dataset.py;
 - no row of merho_ges_gold_flagged_rows.tsv loads;
@@ -17,9 +17,10 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
 import gold_filters as G  # noqa: E402
+from conftest import DATASET_DIR  # noqa: E402
 import synthetic_heldout as H  # noqa: E402
 
-DATASET = G.default_dataset_dir()
+DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)
 CHECKER = os.path.join(DATASET, "scripts", "check_dataset.py")
 
 pytestmark = pytest.mark.skipif(not os.path.exists(G.gold_file_path(DATASET, "train")),

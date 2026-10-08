@@ -11,8 +11,9 @@ HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, HERE)
 
 import gold_filters as G  # noqa: E402
+from conftest import DATASET_DIR  # noqa: E402
 
-DATASET = G.default_dataset_dir()
+DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)
 
 
 def test_clean_variants():

@@ -11,10 +11,11 @@ import json
 from analyzer import GeezMorphologicalAnalyzer
 from engine import InterdigitationEngine, slots_from_spec
 import geez_config
+import gold_filters
 
 
 def cmd_analyze(args):
-    analyzer = GeezMorphologicalAnalyzer()
+    analyzer = GeezMorphologicalAnalyzer(dataset_dir=args.dataset_dir)
     results = analyzer.analyze(args.word)
     if not results:
         print(f"No morphological pattern matched for: {args.word}")
@@ -40,7 +41,7 @@ def cmd_analyze(args):
 
 
 def cmd_lemmatize(args):
-    analyzer = GeezMorphologicalAnalyzer()
+    analyzer = GeezMorphologicalAnalyzer(dataset_dir=args.dataset_dir)
     tokens = analyzer.lemmatize_text(args.text)
     print(f"\nLemmatizing sentence: \"{args.text}\"")
     print("=" * 60)
@@ -107,7 +108,7 @@ def cmd_generate(args):
 
 
 def cmd_lookup(args):
-    analyzer = GeezMorphologicalAnalyzer()
+    analyzer = GeezMorphologicalAnalyzer(dataset_dir=args.dataset_dir)
     entries = analyzer.lookup_lexicon(args.word)
     if not entries:
         print(f"'{args.word}' was not found in the Kidane Wold Kifle lexicon.")
@@ -129,6 +130,9 @@ def cmd_lookup(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Classical Ge'ez Computational Morphology Toolkit")
+    parser.add_argument("--dataset_dir", default=gold_filters.default_dataset_dir(),
+                        help="Checkout of the geez-dataset repo, for the dictionary "
+                             "(default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # analyze

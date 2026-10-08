@@ -39,12 +39,14 @@ pip install torch transformers accelerate pytest
 
 The rule engine, analyzer (rules only), CLI and generator need only the Python standard library; torch and transformers are for training and the ByT5 fallback, pytest for the tests.
 
+The analyzer reads the dictionary `data/geez_amharic_dictionary.jsonl` of the dataset checkout. If that file is not there it stops with `Dictionary not found: ...`; it does not run without a dictionary.
+
 ## Use
 
 ```bash
-python cli.py analyze ይቀትል
+python cli.py --dataset_dir ../geez-dataset analyze ይቀትል
 python cli.py generate q-t-l --verb_type strong_A --tense present
-python cli.py lookup ቀተለ
+python cli.py --dataset_dir ../geez-dataset lookup ቀተለ
 ```
 
 ## Generate the data
@@ -58,10 +60,10 @@ Writes `<dataset>/output/` (not in git), copies the synthetic files to `<dataset
 ## Test
 
 ```bash
-GEEZ_DATASET_DIR=/path/to/geez-dataset python -m pytest tests/
+python -m pytest tests/ --dataset_dir /path/to/geez-dataset
 ```
 
-Without a dataset checkout the tests that need one are skipped. `tests/test_dataset_checkout.py` checks that the loader gives the same pair counts as the dataset's `scripts/check_dataset.py`, that no flagged row loads, that a root is in one gold split only, and that no synthetic training line has a gold val or test root.
+Without `--dataset_dir` the tests use `$GEEZ_DATASET_DIR`, else `../geez-dataset`. Without a dataset checkout the tests that need one are skipped. `tests/test_dataset_checkout.py` checks that the loader gives the same pair counts as the dataset's `scripts/check_dataset.py`, that no flagged row loads, that a root is in one gold split only, and that no synthetic training line has a gold val or test root.
 
 ## Train and evaluate from a dataset checkout
 

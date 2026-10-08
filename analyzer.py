@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple, Any, Set
 
 import geez_config
+import gold_filters  # default_dataset_dir(): --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset
 try:
     from .engine import InterdigitationEngine, slots_from_spec, Pattern
 except ImportError:
@@ -34,10 +35,8 @@ def _project_dir() -> str:
     return os.path.dirname(here)
 
 
-def _dataset_dir() -> str:
-    """The geez-dataset checkout: $GEEZ_DATASET_DIR, else ../geez-dataset (gold_filters.default_dataset_dir)."""
-    import gold_filters
-    return gold_filters.default_dataset_dir()
+# The dictionary the analyzer reads, inside the geez-dataset checkout.
+DICTIONARY_FILE = os.path.join("data", "geez_amharic_dictionary.jsonl")
 
 
 # Guttural first radical (አ ዐ ሀ ሐ ኀ): imperfect prefix in the 1st order.
@@ -136,9 +135,23 @@ class GeezMorphologicalAnalyzer:
 
     _loose_gutturals = False   # set only during the spelling-variant pass in HybridAnalyzer
 
-    def __init__(self, patterns_path: Optional[str] = None, dictionary_path: Optional[str] = None):
+    def __init__(self, patterns_path: Optional[str] = None, dictionary_path: Optional[str] = None,
+                 dataset_dir: Optional[str] = None):
+        """dataset_dir: the geez-dataset checkout (the scripts' --dataset_dir). When it is None the
+        usual default is used: $GEEZ_DATASET_DIR, else ../geez-dataset. The dictionary
+        (<dataset_dir>/data/geez_amharic_dictionary.jsonl, or dictionary_path) must exist:
+        without it the analyzer would run with no lexicon and give much worse answers, so a
+        missing dictionary is an error, not a silent fallback."""
         base_dir = _project_dir()
-        
+        self.dataset_dir = os.path.abspath(dataset_dir or gold_filters.default_dataset_dir())
+        if dictionary_path is None:
+            dictionary_path = os.path.join(self.dataset_dir, DICTIONARY_FILE)
+        if not os.path.exists(dictionary_path):
+            raise FileNotFoundError(
+                f"Dictionary not found: {dictionary_path}. The analyzer needs a geez-dataset checkout: "
+                "pass --dataset_dir (dataset_dir=...), or set $GEEZ_DATASET_DIR, or clone the dataset "
+                "to ../geez-dataset.")
+
         # Load patterns
         if patterns_path is None:
             patterns_path = os.path.join(base_dir, "patterns.json")
@@ -193,7 +206,7 @@ class GeezMorphologicalAnalyzer:
             gutt_copies.append(dict(p, pattern_spec=new, not_mid_gutt=None, mid_gutt_only=True,
                                     not_first=None, first_in=None,
                                     source=p.get("source", "patterns.json") + "+middle_guttural"))
-        dataset_dir = _dataset_dir()
+        dataset_dir = self.dataset_dir
         type_d_pats = verb_classes.type_d_patterns(dataset_dir) if verb_classes else []
 
         # Precompile pattern slots
@@ -221,7 +234,6 @@ class GeezMorphologicalAnalyzer:
 
         # Verb class per root (Type B / Type C / ሰትየ-type) from lexical sources only;
         # a Type B perfect is spelled like Type A, so spelling cannot decide it.
-        dataset_dir = _dataset_dir()
         self.class_tags = verb_classes.class_tags(dataset_dir)[0] if verb_classes else {}
         if verb_classes:
             # A class paradigm only matches roots of that class: Type B, Type C,
@@ -250,64 +262,51 @@ class GeezMorphologicalAnalyzer:
         self.root_canonical_lemma: Dict[str, str] = {}
         self.root_verb_class: Dict[str, str] = {}
 
-        if dictionary_path is None:
-            candidates = [
-                os.path.join(_dataset_dir(), "dictionary.jsonl"),
-                os.path.join(_dataset_dir(), "data", "geez_amharic_dictionary.jsonl"),
-                os.path.join(_dataset_dir(), "data", "lexicon", "classical_dictionary_kidane_wold.jsonl"),
-                os.path.abspath(os.path.join(base_dir, "dictionary.jsonl")),
-            ]
-            for c in candidates:
-                if os.path.exists(c):
-                    dictionary_path = c
-                    break
-
         self.root_fixes = verb_classes.root_fixes(dataset_dir) if verb_classes else {}
-        if dictionary_path and os.path.exists(dictionary_path):
-            with open(dictionary_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    entry = json.loads(line)
-                    hw = entry.get("headword_geez")
-                    if hw:
-                        self.lexicon.setdefault(hw, []).append(entry)
-                        
-                        # Also index 1st-order lemma if headword is 6th-order (e.g. ቀተል -> ቀተለ)
-                        if len(hw) >= 3 and (hw.endswith("ል") or any(hw.endswith(c) for c in ["ር", "ም", "ስ", "ቅ", "ብ", "ት", "ክ"])):
-                            units = geez_config.decompose_string(hw)
-                            if units and units[-1][1] == "I":
-                                alt_chars = list(hw)
-                                alt_chars[-1] = geez_config.render_unit(units[-1][0], "a")
-                                alt_hw = "".join(alt_chars)
-                                self.lexicon.setdefault(alt_hw, []).append(entry)
+        with open(dictionary_path, "r", encoding="utf-8") as f:
+            for line in f:
+                entry = json.loads(line)
+                hw = entry.get("headword_geez")
+                if hw:
+                    self.lexicon.setdefault(hw, []).append(entry)
+                    
+                    # Also index 1st-order lemma if headword is 6th-order (e.g. ቀተል -> ቀተለ)
+                    if len(hw) >= 3 and (hw.endswith("ል") or any(hw.endswith(c) for c in ["ር", "ም", "ስ", "ቅ", "ብ", "ት", "ክ"])):
+                        units = geez_config.decompose_string(hw)
+                        if units and units[-1][1] == "I":
+                            alt_chars = list(hw)
+                            alt_chars[-1] = geez_config.render_unit(units[-1][0], "a")
+                            alt_hw = "".join(alt_chars)
+                            self.lexicon.setdefault(alt_hw, []).append(entry)
 
-                    # Index by consonantal root (with the Kidane Wold root fixes)
-                    root = (verb_classes.entry_root(entry, self.root_fixes) if verb_classes
-                            else entry.get("inferred_root") or entry.get("root"))
-                    cleaned_root = root.split("(")[0].strip().replace("-", "") if root else ""
-                    if cleaned_root:  # never index an empty or blank root
-                        self.root_index.setdefault(cleaned_root, []).append(entry)
-                        self.inferred_root_index.setdefault(cleaned_root, []).append(entry)
+                # Index by consonantal root (with the Kidane Wold root fixes)
+                root = (verb_classes.entry_root(entry, self.root_fixes) if verb_classes
+                        else entry.get("inferred_root") or entry.get("root"))
+                cleaned_root = root.split("(")[0].strip().replace("-", "") if root else ""
+                if cleaned_root:  # never index an empty or blank root
+                    self.root_index.setdefault(cleaned_root, []).append(entry)
+                    self.inferred_root_index.setdefault(cleaned_root, []).append(entry)
 
-                        conf = entry.get("root_confidence")
-                        if conf == "high":
-                            self.high_conf_roots.add(cleaned_root)
-                        elif conf == "medium" and cleaned_root not in self.high_conf_roots:
-                            # If no high exists yet, keep medium
-                            pass
+                    conf = entry.get("root_confidence")
+                    if conf == "high":
+                        self.high_conf_roots.add(cleaned_root)
+                    elif conf == "medium" and cleaned_root not in self.high_conf_roots:
+                        # If no high exists yet, keep medium
+                        pass
 
-                        # Cache canonical lemma
-                        if cleaned_root not in self.root_canonical_lemma:
-                            if entry.get("pos") == "verb" or entry.get("verb_class"):
-                                if hw:
-                                    units = geez_config.decompose_string(hw)
-                                    if units and units[-1][1] == "I":
-                                        alt = list(hw)
-                                        alt[-1] = geez_config.render_unit(units[-1][0], "a")
-                                        self.root_canonical_lemma[cleaned_root] = "".join(alt)
-                                    else:
-                                        self.root_canonical_lemma[cleaned_root] = hw
-                                if entry.get("verb_class"):
-                                    self.root_verb_class[cleaned_root] = entry["verb_class"]
+                    # Cache canonical lemma
+                    if cleaned_root not in self.root_canonical_lemma:
+                        if entry.get("pos") == "verb" or entry.get("verb_class"):
+                            if hw:
+                                units = geez_config.decompose_string(hw)
+                                if units and units[-1][1] == "I":
+                                    alt = list(hw)
+                                    alt[-1] = geez_config.render_unit(units[-1][0], "a")
+                                    self.root_canonical_lemma[cleaned_root] = "".join(alt)
+                                else:
+                                    self.root_canonical_lemma[cleaned_root] = hw
+                            if entry.get("verb_class"):
+                                self.root_verb_class[cleaned_root] = entry["verb_class"]
 
     def _match_compiled_pattern(self, surface: str, compiled_p: Dict[str, Any]) -> Optional[Tuple[str, ...]]:
         expanded = compiled_p["expanded_slots"]
@@ -959,9 +958,10 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
         patterns_path: Optional[str] = None,
         dictionary_path: Optional[str] = None,
         checkpoint_dir: Optional[str] = None,
-        device: Optional[str] = None
+        device: Optional[str] = None,
+        dataset_dir: Optional[str] = None,
     ):
-        super().__init__(patterns_path=patterns_path, dictionary_path=dictionary_path)
+        super().__init__(patterns_path=patterns_path, dictionary_path=dictionary_path, dataset_dir=dataset_dir)
         base_dir = _project_dir()
         
         if checkpoint_dir is None:

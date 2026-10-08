@@ -167,9 +167,9 @@ class ByT5System:
 
 
 class HybridSystem:
-    def __init__(self, no_neural=False):
+    def __init__(self, dataset_dir, no_neural=False):
         from analyzer import HybridAnalyzer
-        self.a = HybridAnalyzer()
+        self.a = HybridAnalyzer(dataset_dir=dataset_dir)   # its dictionary comes from the same checkout
         if no_neural:
             self.a.checkpoint_dir = None
 
@@ -240,12 +240,14 @@ def main():
                     help="Write one line per scored pair (gold, prediction, correct fields) to this JSONL file, "
                          "e.g. gold_eval_byt5_predictions.jsonl")
     args = ap.parse_args()
+    args.dataset_dir = os.path.abspath(args.dataset_dir)
 
+    # The system first: the hybrid analyzer stops with a clear error when the dataset has no dictionary.
+    system = ByT5System(args.model_dir) if args.system == "byt5" else HybridSystem(args.dataset_dir, args.no_neural)
     for split in args.split:
         path = gold_filters.gold_file_path(args.dataset_dir, split)
         if not os.path.exists(path):
             sys.exit(f"[!] Gold file not found: {path}")
-    system = ByT5System(args.model_dir) if args.system == "byt5" else HybridSystem(args.no_neural)
     name = args.system + (" (no neural)" if args.no_neural else "")
     cols = ["root", "type", "stem", "tense", "person", "gender", "number", "object", "exact"]
     results, predictions = {}, ([] if args.predictions_out else None)
