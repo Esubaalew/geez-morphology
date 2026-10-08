@@ -278,8 +278,7 @@ def kw_middle_guttural_pattern(dataset_dir: str) -> set:
     """3-radical roots with a guttural middle radical whose accepted Kidane Wold triples (class "unclear", the
     classifier has no class for them) all write the imperfect and subjunctive of the ፍሬ ግእዝ middle-guttural rule:
     radicals 1 and 2 in the 6th order in the imperfect, 6th and 1st in the subjunctive (ሰሐለ ፡ ይስሕል ፡ ይስሐል).
-    Such roots get the middle-guttural rule, like the collapsed triples of kw_collapsed_subjunctive (the corrected
-    Kidane Wold text no longer has the OCR collapse for most of those roots)."""
+    Such roots get the middle-guttural rule, like the collapsed triples of kw_collapsed_subjunctive."""
     path = os.path.join(dataset_dir, TRIPLES_FILE)
     seen, bad = set(), set()
     if not os.path.exists(path):
@@ -390,11 +389,11 @@ def _tags_and_sources(dataset_dir: str, exclude=()):
             overrides += 1
         tags[cons] = cls
         source[cons] = "kidane_wold triple"
-    for cons, cls in RULED_CLASS_TAGS.items():
+    for cons, cls in CLASS_TAG_EXCEPTIONS.items():
         if cons in tags and tags[cons] != cls:
             overrides += 1
         tags[cons] = cls
-        source[cons] = "triple check decision"
+        source[cons] = "triple check exception"
     held = 0
     for c in exclude:
         if tags.pop(tuple(c), None):
@@ -408,12 +407,12 @@ def _tags_and_sources(dataset_dir: str, exclude=()):
     return tags, source, counts
 
 
-# Decisions from the Kidane Wold triple check (data/triple_check_exceptions.tsv).
+# Exceptions from the Kidane Wold triple check (data/triple_check_exceptions.tsv).
 # tagged_type_b: the book present is Type B (ይጤይር-type), so these roots are tagged type_b; their subjunctive follows the type_b
 # rule with no contraction (T-y-r, r-y-S2), and w-S2-f takes the type_b subjunctive (the book's 6th-order one is the minority shape).
 # data/class_changes.tsv, restored: for d-r-g, n-z-z and q-r-h2 the Merho gold class (Type C) outranks the
 # rebuilt Kidane Wold triple, which belongs to a different verb on the same root code (one class per root).
-RULED_CLASS_TAGS = {("T", "y", "r"): "type_b", ("r", "y", "S2"): "type_b", ("w", "S2", "f"): "type_b",
+CLASS_TAG_EXCEPTIONS = {("T", "y", "r"): "type_b", ("r", "y", "S2"): "type_b", ("w", "S2", "f"): "type_b",
                     ("d", "r", "g"): "type_c", ("n", "z", "z"): "type_c", ("q", "r", "h2"): "type_c"}
 # -y past stem (data/final_y_past_stem_roots.tsv): regular -y roots (final_y) write the 3rd-person perfect with
 # radical 2 in the 1st order. Confirmed roots only; the roots not yet confirmed are in Y_PAST_C2_FIRST_PENDING (moving

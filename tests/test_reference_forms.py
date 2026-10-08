@@ -3,8 +3,8 @@
 The forms follow standard classical grammar (Lambdin, Dillmann). Roots are written with the
 Latin consonant symbols of engine.py. The generation cases are looked up in the synthetic data of
 the dataset checkout (training file and held-out file), 3ms basic stem, no object, not negative.
-h1-l-w is a gold test root, so its forms are looked up in the held-out file only. Known gaps are
-marked xfail with the reason.
+h1-l-w is a gold test root, so its forms are looked up in the held-out file only; the generator drops
+the roots in data/heldout_test_roots.txt, so those cases are xfail. Known gaps are marked xfail with the reason.
 """
 import json
 import os
@@ -20,7 +20,7 @@ from conftest import DATASET_DIR  # noqa: E402
 TRAIN_FILE = os.path.join(DATASET_DIR, "data", "paradigms", "synthetic_morphology_train.jsonl")
 HELD_OUT_FILE = os.path.join(DATASET_DIR, "data", "synthetic", "synthetic_forms_for_val_test_roots.jsonl")
 SYNTHETIC_FILES = [TRAIN_FILE, HELD_OUT_FILE]
-# Gold test roots: all their lines are in the held-out file.
+# Gold test roots: looked up in the held-out file, never in the training file.
 HELD_OUT_ONLY = {("h1", "l", "w")}
 
 # (root, tense, expected 3ms surface form)
@@ -39,8 +39,8 @@ GENERATION = [
     (('q', 'w', 'm'), 'past', 'ቆመ'),
     (('q', 'w', 'm'), 'present', 'ይቀውም'),
     (('q', 'w', 'm'), 'subjunctive', 'ይቁም'),
-    pytest.param(('m', 'w', 't'), 'past', 'ሞተ', marks=pytest.mark.xfail(reason='m-w-t is added to the allow-list in the next data batch')),
-    pytest.param(('m', 'w', 't'), 'subjunctive', 'ይሙት', marks=pytest.mark.xfail(reason='m-w-t is added to the allow-list in the next data batch')),
+    pytest.param(('m', 'w', 't'), 'past', 'ሞተ', marks=pytest.mark.xfail(reason='m-w-t has no dictionary entry, so no synthetic forms are generated')),
+    pytest.param(('m', 'w', 't'), 'subjunctive', 'ይሙት', marks=pytest.mark.xfail(reason='m-w-t has no dictionary entry, so no synthetic forms are generated')),
     # hollow y
     (('s2', 'y', 'm'), 'past', 'ሤመ'),
     (('s2', 'y', 'm'), 'subjunctive', 'ይሢም'),
@@ -48,8 +48,8 @@ GENERATION = [
     (('f', 'w', 's'), 'past', 'ፈወሰ'),
     # final weak: must not contract in the perfect
     (('t', 'l', 'w'), 'past', 'ተለወ'),
-    pytest.param(('h1', 'l', 'w'), 'past', 'ሀለወ', marks=pytest.mark.xfail(reason='h1-l-w is added in the next data batch, with every line held out')),
-    pytest.param(('h1', 'l', 'w'), 'present', 'ይሄሉ', marks=pytest.mark.xfail(reason='h1-l-w is added in the next data batch, with every line held out')),
+    pytest.param(('h1', 'l', 'w'), 'past', 'ሀለወ', marks=pytest.mark.xfail(reason='h1-l-w is a held-out test root and is not generated')),
+    pytest.param(('h1', 'l', 'w'), 'present', 'ይሄሉ', marks=pytest.mark.xfail(reason='h1-l-w is a held-out test root and is not generated')),
     (('s', 't', 'y'), 'past', 'ሰተየ'),
 ]
 

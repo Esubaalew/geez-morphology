@@ -1,7 +1,7 @@
 """kidane_wold_triples.build() keeps the decisions recorded in the previous root fixes file.
 
 A row of the previous fixes file with new_root null means "root unknown, don't guess" (entry 7546). A rebuild
-writes that entry's row with new_root null and the decision's root_notes; if the rebuild finds no row for the
+writes that entry's row with new_root null and that row's root_notes; if the rebuild finds no row for the
 entry, the previous row is kept as it is. root_notes of a previous row are kept on the rebuilt row.
 Headwords are built from root symbols with geez_script, never typed.
 """

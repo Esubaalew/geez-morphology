@@ -52,7 +52,7 @@ def test_aste_past(root, pgn, expected):
     assert forms(root, "aste", "past", pgn) == {expected}
 
 
-def test_no_amharic_as_prefix_or_old_stem_name():
+def test_no_amharic_prefix_or_stem_name():
     for p in patterns():
         assert not p["pattern_spec"].startswith("[አስ]-"), p["pattern_spec"]
         assert p["features"].get("stem") != "causative_intensive"
@@ -176,7 +176,7 @@ def test_analyzer_prefix_type_d_and_aste(analyzer, word, expected):
 
 def test_template_matcher_guttural(analyzer):
     """Template route alone: የ- copy for guttural first radicals only; the ይ-present
-    template no longer takes a guttural first radical (ይኀፍር is subjunctive)."""
+    template does not take a guttural first radical (ይኀፍር is subjunctive)."""
     pats = analyzer.compiled_patterns
     got = {(r.root_string, r.stem, r.tense) for r in analyzer._pattern_analyze("የሐምስ", pats, False)}
     assert ("h2-m-s", "basic", "present") in got

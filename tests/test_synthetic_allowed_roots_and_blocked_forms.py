@@ -67,8 +67,6 @@ def test_allow_list_has_1271_roots():
               "S-w-a2", "a2-s2-r", "kh-d-r", "h2-q-f", "s-m-k", "a-s-r", "m-h2-S"]:
         assert tuple(r.split("-")) in roots, r
     assert os.path.basename(gen.ALLOWED_ROOTS_FILE) == "synthetic_roots_allowed_v4.txt"
-    for old in ("synthetic_roots_allowed_6183c24.txt", "synthetic_roots_allowed_6183c24_v2.txt", "synthetic_roots_allowed_6183c24_v3.txt"):
-        assert not os.path.exists(os.path.join(ROOT, "data", old))   # only one list
     assert [f for f in os.listdir(os.path.join(ROOT, "data")) if f.startswith("synthetic_roots_allowed")] == \
         ["synthetic_roots_allowed_v4.txt"]
     assert all(len(r) in (3, 4) for r in roots)

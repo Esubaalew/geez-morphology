@@ -22,9 +22,9 @@ Failing triples are logged in kidane_wold_verb_triples_rejected.jsonl.
 Anything else is "unclear" and gets no class. Nothing is guessed from the
 perfect's spelling; the perfect is only used to confirm the radicals.
 
-Root fixes carry the earlier decisions over from the previous fixes file:
+Root fixes carry the decisions recorded in the previous fixes file over:
 a row there with new_root null means "root unknown, don't guess" (e.g. 7546).
-The rebuild writes that entry's row with new_root null and the decision's
+The rebuild writes that entry's row with new_root null and that row's
 root_notes; if the rebuild finds no row for the entry, the previous row is
 kept as it is, at the entry's place in dictionary order. A previous row's
 root_notes are kept on the rebuilt row for the same entry.
@@ -254,7 +254,7 @@ def read_fix_decisions(path):
     return out
 
 
-def apply_decision(row, decisions):
+def apply_fix_decision(row, decisions):
     """The rebuilt fix row with a previous decision for the same entry applied."""
     prev = decisions.get(row["id"])
     if prev is None:
@@ -305,8 +305,8 @@ def build(dictionary_path, triples_path, fixes_path, previous_fixes_path=None):
                 row = dict(decisions[rec["id"]])      # "root unknown" decision, no rebuilt row: keep the previous row
             if row is not None and row["id"] not in seen_ids:
                 seen_ids.add(row["id"])
-                fixes.append(apply_decision(row, decisions))
-    # decisions for ids that are not in the dictionary any more: kept at the end, in their previous order
+                fixes.append(apply_fix_decision(row, decisions))
+    # decisions for ids that are not in the dictionary: kept at the end, in their previous order
     for i, prev in decisions.items():
         if i not in seen_ids and prev.get("new_root") is None:
             seen_ids.add(i)

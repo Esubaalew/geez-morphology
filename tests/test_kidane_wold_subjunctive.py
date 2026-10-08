@@ -4,7 +4,7 @@
    guttural middle radical (ጸሕፈ ፡ ይጽሕፍ ፡ ይጽሕፍ) is an OCR collapse: the subjunctive is
    ይጽሐፍ and the imperative ጽሐፍ; the present is the triple's ይጽሕፍ. type_d roots follow
    their own rule (tests/test_type_d_subjunctive.py).
-   In the corrected Kidane Wold transcription (dataset 47a773a) most of these triples are no longer
+   In the corrected Kidane Wold transcription (dataset 47a773a) most of these triples are not
    collapsed: S-h2-f is ጸሐፈ ፡ ይጽሕፍ ፡ ይጽሐፍ, s-a-l and qh-h2-m are regular middle-guttural verbs, d-kh-l
    is off the allow-list. A triple that writes the middle-guttural forms gets the middle-guttural rule;
    test_patch_roots_follow_own_triple checks the 26 roots that changes.
@@ -67,7 +67,7 @@ def test_collapsed_triples_found():
         pytest.skip("no geez-dataset checkout")
     found = verb_classes.kw_collapsed_subjunctive(DATASET)
     names = {"-".join(r) for r in found}
-    # corrected Kidane Wold text: S-h2-f, d-kh-l, qh-h2-m, s-a-l and s-a-n are no longer collapsed
+    # corrected Kidane Wold text: S-h2-f, d-kh-l, qh-h2-m, s-a-l and s-a-n are not collapsed
     assert names == {"T-a2-y", "d-kh-n", "d-kh-r", "f-kh-r", "n-kh-r", "z-kh-n", "z-kh-r"}
     assert not {"S-h2-f", "d-kh-l", "qh-h2-m", "s-a-l", "s-a-n"} & names
     assert found[("d", "kh", "n")]["imperfect"] == ("I", "I")
@@ -115,7 +115,7 @@ def _w(*units):
 
 @pytest.mark.parametrize("root", ["s-a-l"])   # qh-h2-m is off the allow-list (phantom root)
 def test_regular_middle_guttural(synth, root):
-    """Not type_d any more (s-a-l: perfect ሰአለ in the corrected text: a regular
+    """Not type_d (s-a-l: perfect ሰአለ in the corrected text: a regular
     middle-guttural verb, ይስእል / ይስአል; qh-h2-m has no triple and stays Type A, its old one was an OCR misread,
     data/phantom_root_qh_h2_m.tsv): the middle-guttural forms in the basic stem."""
     need_allowed(root)
@@ -167,7 +167,7 @@ def test_patch_roots_found(triples):
 
 # data/triple_check_exceptions.tsv, generator_kept: the book's m-a2-z
 # subjunctive ends in the 1st order, a misprint for the 6th-order form the generator gives.
-RULED_SUBJUNCTIVE = {"m-a2-z": _w(("y", "I"), ("m", "I"), ("a2", "a"), ("z", "I"))}
+MISPRINT_SUBJUNCTIVE = {"m-a2-z": _w(("y", "I"), ("m", "I"), ("a2", "a"), ("z", "I"))}
 
 
 @pytest.mark.parametrize("root", PATCH_ROOTS)
@@ -175,7 +175,7 @@ def test_patch_roots_follow_own_triple(synth_all, triples, root):
     need_allowed(root)
     xs = triples[root]
     assert form(synth_all, root, "present", "3ms") in {x["triple"][1] for x in xs}
-    want = {RULED_SUBJUNCTIVE[root]} if root in RULED_SUBJUNCTIVE else {x["triple"][2] for x in xs}
+    want = {MISPRINT_SUBJUNCTIVE[root]} if root in MISPRINT_SUBJUNCTIVE else {x["triple"][2] for x in xs}
     assert form(synth_all, root, "subjunctive", "3ms") in want
 
 
