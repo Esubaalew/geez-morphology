@@ -18,7 +18,7 @@ geez-morphology/
 ├── analyzer.py                   HybridAnalyzer: fast path -> pattern matcher -> ByT5 fallback
 ├── cli.py                        analyze / lemmatize / generate / lookup
 ├── generate_synthetic_fixed.py   writes the synthetic training data
-├── gold_filters.py               reads the gold files of a geez-dataset checkout (trainer and evaluation)
+├── dataset_loader.py             reads the gold files of a geez-dataset checkout (trainer and evaluation)
 ├── synthetic_heldout.py          moves synthetic lines with a gold val/test root out of the training file
 ├── train_byt5_morphology.py      ByT5 fine-tuning (resumable)
 ├── evaluate_gold.py              scores a system on the Merho Ges gold val and test splits
@@ -80,7 +80,7 @@ python evaluate_gold.py --dataset_dir ../geez-dataset --system byt5 \
 What the trainer reads, as written (nothing is corrected at load time):
 
 - `data/paradigms/synthetic_morphology_train.jsonl`, all lines. 10% of them (seed 42) are the eval split for the loss; gold rows never go there.
-- `data/paradigms/merho_ges_gold_train.jsonl`, through `gold_filters.load_gold_split`: one pair per form of each table row. Rows listed in `data/paradigms/merho_ges_gold_flagged_rows.tsv` and rows with no root do not load. A malformed root or a form that is not one Ge'ez word stops the run; `check_dataset.py` would report it too. On dataset commit 6d856e6 this gives 8,187 train pairs (val 1,165, test 1,553).
+- `data/paradigms/merho_ges_gold_train.jsonl`, through `dataset_loader.load_gold_split`: one pair per form of each table row. Rows listed in `data/paradigms/merho_ges_gold_flagged_rows.tsv` and rows with no root do not load. A malformed root or a form that is not one Ge'ez word stops the run; `check_dataset.py` would report it too. On dataset commit 6d856e6 this gives 8,187 train pairs (val 1,165, test 1,553).
 - The files under `data/synthetic/` are never read.
 
 Training: ByT5-small, fp32, lr 3e-4, 3% warmup, 3 epochs, batch 16. Device: cuda, then mps, then cpu. Everything goes to `--output_dir` (default `byt5_morphology_model/`):

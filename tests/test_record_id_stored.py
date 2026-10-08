@@ -1,6 +1,6 @@
-"""gold_filters.record_id: the id stored in a corrected gold record wins, and is never recomputed
+"""dataset_loader.record_id: the id stored in a corrected gold record wins, and is never recomputed
 ."""
-import gold_filters as G
+import dataset_loader as G
 
 
 def _rec(**kw):

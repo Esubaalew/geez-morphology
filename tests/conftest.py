@@ -11,7 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import gold_filters  # noqa: E402
+import dataset_loader  # noqa: E402
 
 DATASET_DIR = None   # set in pytest_configure, before the test files are imported
 
@@ -24,4 +24,4 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     global DATASET_DIR
-    DATASET_DIR = os.path.abspath(config.getoption("dataset_dir") or gold_filters.default_dataset_dir())
+    DATASET_DIR = os.path.abspath(config.getoption("dataset_dir") or dataset_loader.default_dataset_dir())

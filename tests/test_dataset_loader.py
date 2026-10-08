@@ -1,4 +1,4 @@
-"""gold_filters: the gold files are read as written; flagged rows and rows with no root do not load."""
+"""dataset_loader: the gold files are read as written; flagged rows and rows with no root do not load."""
 import collections
 import json
 import os
@@ -10,7 +10,7 @@ import pytest
 HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, HERE)
 
-import gold_filters as G  # noqa: E402
+import dataset_loader as G  # noqa: E402
 
 
 

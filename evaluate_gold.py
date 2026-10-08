@@ -9,7 +9,7 @@ Systems:
                    (add --no_neural to switch the ByT5 fallback off)
 
 What is scored:
-  - Every pair gold_filters.load_gold_split gives for the split: the gold file as written, without
+  - Every pair dataset_loader.load_gold_split gives for the split: the gold file as written, without
     the rows in merho_ges_gold_flagged_rows.tsv and rows with no root (the same reader the trainer
     uses for the train split). On geez-dataset 6d856e6: val 1165 pairs, test 1553.
   - Root accuracy: the predicted root must equal the gold root exactly. The prediction is first
@@ -36,7 +36,7 @@ if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 import geez_config
-import gold_filters  # reads the gold files; shared with train_byt5_morphology.py
+import dataset_loader  # reads the gold files; shared with train_byt5_morphology.py
 from train_byt5_morphology import DEFAULT_OUTPUT_DIR as DEFAULT_MODEL_DIR
 
 FIELDS = ["root", "type", "stem", "tense", "person", "gender", "number", "object"]
@@ -117,9 +117,9 @@ def verb_class(rec):
 
 
 def load_gold_pairs(dataset_dir, split, stats=None):
-    """The scored pairs of one split (gold_filters.load_gold_split), with normalized labels."""
+    """The scored pairs of one split (dataset_loader.load_gold_split), with normalized labels."""
     pairs = []
-    for p in gold_filters.load_gold_split(dataset_dir, split, stats):
+    for p in dataset_loader.load_gold_split(dataset_dir, split, stats):
         pairs.append({
             "split": split,
             "surface": p["form"],
@@ -228,7 +228,7 @@ def main():
     ap.add_argument("--no_neural", action="store_true", help="hybrid only: no ByT5 fallback")
     ap.add_argument("--model_dir", default=DEFAULT_MODEL_DIR,
                     help="The trainer's --output_dir (default: byt5_morphology_model/), or one checkpoint-<step> folder")
-    ap.add_argument("--dataset_dir", default=gold_filters.default_dataset_dir(),
+    ap.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
                     help="Checkout of the geez-dataset repo the model was trained on "
                          "(default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
     ap.add_argument("--split", nargs="+", choices=["val", "test"], default=["val", "test"],
@@ -245,7 +245,7 @@ def main():
     # The system first: the hybrid analyzer stops with a clear error when the dataset has no dictionary.
     system = ByT5System(args.model_dir) if args.system == "byt5" else HybridSystem(args.dataset_dir, args.no_neural)
     for split in args.split:
-        path = gold_filters.gold_file_path(args.dataset_dir, split)
+        path = dataset_loader.gold_file_path(args.dataset_dir, split)
         if not os.path.exists(path):
             sys.exit(f"[!] Gold file not found: {path}")
     name = args.system + (" (no neural)" if args.no_neural else "")
@@ -255,7 +255,7 @@ def main():
     for split in args.split:
         stats = defaultdict(int)
         pairs = load_gold_pairs(args.dataset_dir, split, stats)
-        print(f"\n{split}: {gold_filters.gold_file_path(args.dataset_dir, split)}: {len(pairs)} pairs "
+        print(f"\n{split}: {dataset_loader.gold_file_path(args.dataset_dir, split)}: {len(pairs)} pairs "
               f"({', '.join(f'{k} {v}' for k, v in sorted(stats.items()))})")
         if args.limit and args.limit < len(pairs):
             import random
@@ -278,7 +278,7 @@ def main():
                     print(f"   {c:7s} {pct(*t[c])}")
 
         show(["ALL"])
-        show(["type:" + t for t in gold_filters.TYPES])
+        show(["type:" + t for t in dataset_loader.TYPES])
         show(["class:" + c for c in CLASS_ORDER])
         show(sorted(g for g in totals if g.startswith("tense:")))
         show(sorted(g for g in totals if g.startswith("tier:")))

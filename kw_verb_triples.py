@@ -265,8 +265,8 @@ def build(dictionary_path, triples_path, fixes_path):
 
 if __name__ == "__main__":
     import os
-    import gold_filters
-    ds = sys.argv[1] if len(sys.argv) > 1 else gold_filters.default_dataset_dir()
+    import dataset_loader
+    ds = sys.argv[1] if len(sys.argv) > 1 else dataset_loader.default_dataset_dir()
     lex = os.path.join(ds, "data", "lexicon")
     n_verbs, n_trip, fixes = build(os.path.join(lex, "classical_dictionary_kidane_wold.jsonl"),
                                    os.path.join(lex, "kidane_wold_verb_triples.jsonl"),

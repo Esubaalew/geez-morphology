@@ -16,7 +16,7 @@ import pytest
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
-import gold_filters as G  # noqa: E402
+import dataset_loader as G  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 import synthetic_heldout as H  # noqa: E402
 

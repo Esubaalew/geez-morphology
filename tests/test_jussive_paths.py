@@ -5,7 +5,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-import gold_filters as G  # noqa: E402
+import dataset_loader as G  # noqa: E402
 
 
 def _rec(tense):

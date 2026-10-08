@@ -8,7 +8,7 @@ Data (read from --dataset_dir, the geez-dataset checkout), as written:
   data/paradigms/synthetic_morphology_train.jsonl        synthetic pairs
       (only this file: the lines held out for the gold val/test roots, data/synthetic/, are never read)
   data/paradigms/merho_ges_gold_train.jsonl              Merho Ges gold-train paradigms
-The gold pairs are read by gold_filters.load_gold_split: the rows listed in
+The gold pairs are read by dataset_loader.load_gold_split: the rows listed in
 data/paradigms/merho_ges_gold_flagged_rows.tsv and rows with no root do not load. Nothing is
 corrected at load time. All gold-train pairs go to training. The eval split is 10% of the synthetic pairs
 (seed 42), so eval loss never includes gold rows. The held-out gold test file is
@@ -52,13 +52,13 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 
 from geez_config import to_ethiopic_root  # one shared definition
-import gold_filters  # reads the gold files; shared with evaluate_gold.py
+import dataset_loader  # reads the gold files; shared with evaluate_gold.py
 
 MODEL_NAME = "google/byt5-small"
 SEED = 42
 EVAL_FRACTION = 0.1
 SYNTHETIC_FILE = os.path.join("data", "paradigms", "synthetic_morphology_train.jsonl")
-GOLD_TRAIN_FILE = os.path.join("data", "paradigms", gold_filters.gold_file_name("train"))
+GOLD_TRAIN_FILE = os.path.join("data", "paradigms", dataset_loader.gold_file_name("train"))
 CHECKPOINT_RE = re.compile(r"^checkpoint-(\d+)$")
 DEFAULT_OUTPUT_DIR = os.path.join(SCRIPT_DIR, "byt5_morphology_model")
 EXPORT_FILES = {"train": "train_pairs.jsonl", "eval": "eval_pairs_synthetic.jsonl"}
@@ -114,13 +114,13 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None) ->
                   f"gender: {feat.get('gender', '')} | number: {feat.get('number', '')} | stem: {feat.get('stem', '')}")
         samples.append({"input_text": f"analyze: {surface}", "target_text": target, "is_gold": False})
 
-    # Merho Ges gold-train pairs as written (gold_filters.load_gold_split); targets in
-    # gold_filters.target_text (verbs and nominals).
+    # Merho Ges gold-train pairs as written (dataset_loader.load_gold_split); targets in
+    # dataset_loader.target_text (verbs and nominals).
     gold_file = gold_train_file(dataset_dir)
     if gold_file:
-        pairs = gold_filters.load_gold_split(dataset_dir, "train", stats)
+        pairs = dataset_loader.load_gold_split(dataset_dir, "train", stats)
         for p in pairs:
-            samples.append({"input_text": f"analyze: {p['form']}", "target_text": gold_filters.target_text(p),
+            samples.append({"input_text": f"analyze: {p['form']}", "target_text": dataset_loader.target_text(p),
                             "is_gold": True})
         gold_count = len(pairs)
         print(f"Read {gold_count} Merho Ges gold-train pairs from {gold_file}")
@@ -234,7 +234,7 @@ def install_signal_handlers() -> None:
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Fine-tune ByT5-small on Ge'ez verb morphology (resumable).")
-    p.add_argument("--dataset_dir", default=gold_filters.default_dataset_dir(),
+    p.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
                    help="Checkout of the geez-dataset repo (default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
     p.add_argument("--output_dir", default=DEFAULT_OUTPUT_DIR,
                    help="Where the checkpoints, run_info.json and the final model go (default: byt5_morphology_model/)")
@@ -340,7 +340,7 @@ def main(argv=None) -> int:
     print(f"Optimizer steps: {total_steps}. Warmup: {warmup_steps}. Save every {args.save_steps}.")
 
     os.makedirs(args.output_dir, exist_ok=True)
-    flagged = os.path.join(args.dataset_dir, gold_filters.PARADIGMS_DIR, gold_filters.FLAGGED_ROWS_FILE)
+    flagged = os.path.join(args.dataset_dir, dataset_loader.PARADIGMS_DIR, dataset_loader.FLAGGED_ROWS_FILE)
     data_files = {"synthetic": os.path.join(args.dataset_dir, SYNTHETIC_FILE),
                   "gold_train": gold_train_file(args.dataset_dir),
                   "gold_flagged_rows": flagged if os.path.exists(flagged) else None}

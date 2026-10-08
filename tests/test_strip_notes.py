@@ -1,4 +1,4 @@
-"""The trainer and evaluate_gold.py read gold geez_form cells the same way (gold_filters.clean_variants):
+"""The trainer and evaluate_gold.py read gold geez_form cells the same way (dataset_loader.clean_variants):
 "(...)" notes dropped, split on "/", edge punctuation stripped."""
 import json
 import os
@@ -10,7 +10,7 @@ import pytest
 HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, HERE)
 
-import gold_filters as G  # noqa: E402
+import dataset_loader as G  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
 DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)

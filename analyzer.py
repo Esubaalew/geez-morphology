@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple, Any, Set
 
 import geez_config
-import gold_filters  # default_dataset_dir(): --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset
+import dataset_loader  # default_dataset_dir(): --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset
 try:
     from .engine import InterdigitationEngine, slots_from_spec, Pattern
 except ImportError:
@@ -143,7 +143,7 @@ class GeezMorphologicalAnalyzer:
         without it the analyzer would run with no lexicon and give much worse answers, so a
         missing dictionary is an error, not a silent fallback."""
         base_dir = _project_dir()
-        self.dataset_dir = os.path.abspath(dataset_dir or gold_filters.default_dataset_dir())
+        self.dataset_dir = os.path.abspath(dataset_dir or dataset_loader.default_dataset_dir())
         if dictionary_path is None:
             dictionary_path = os.path.join(self.dataset_dir, DICTIONARY_FILE)
         if not os.path.exists(dictionary_path):
@@ -899,7 +899,7 @@ NO_VALUE = ("", "none", "null")
 
 def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
     """Strict parse of a ByT5 prediction in one of the two training target shapes
-    (gold_filters.target_text):
+    (dataset_loader.target_text):
 
       verb     "root: ቀ-ተ-ለ | tense: present | person: 3 | gender: m | number: s | stem: basic"
                with an optional " | object: 3ms" at the end;

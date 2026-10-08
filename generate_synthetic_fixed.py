@@ -48,7 +48,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 import geez_config
-import gold_filters  # default_dataset_dir()
+import dataset_loader  # default_dataset_dir()
 import verb_class_paradigms as vcp
 import verb_classes
 from engine import InterdigitationEngine, slots_from_spec
@@ -254,7 +254,7 @@ def generate_extended_dataset(
     split_heldout: bool = False,
 ):
     if dataset_dir is None:
-        dataset_dir = gold_filters.default_dataset_dir()
+        dataset_dir = dataset_loader.default_dataset_dir()
     if output_dir is None:
         output_dir = os.path.join(dataset_dir, "output")
     os.makedirs(output_dir, exist_ok=True)
@@ -722,7 +722,7 @@ def generate_extended_dataset(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate extended synthetic morphology data for Classical Ge'ez")
-    parser.add_argument("--dataset_dir", default=gold_filters.default_dataset_dir(),
+    parser.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
                         help="Checkout of the geez-dataset repo (default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
     parser.add_argument("--output_dir", default=None, help="Output directory")
     parser.add_argument("--no_objects", action="store_true", help="Exclude object pronominal suffixes")

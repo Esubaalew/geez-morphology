@@ -1,5 +1,5 @@
 """Target shapes for nouns, adjectives and object suffixes: what the trainer writes
-(gold_filters.target_text), what the analyzer parses back (analyzer.parse_neural_output) and how
+(dataset_loader.target_text), what the analyzer parses back (analyzer.parse_neural_output) and how
 evaluate_gold scores them."""
 import os
 import sys

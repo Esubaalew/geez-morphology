@@ -11,7 +11,7 @@ import json
 from analyzer import GeezMorphologicalAnalyzer
 from engine import InterdigitationEngine, slots_from_spec
 import geez_config
-import gold_filters
+import dataset_loader
 
 
 def cmd_analyze(args):
@@ -130,7 +130,7 @@ def cmd_lookup(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Classical Ge'ez Computational Morphology Toolkit")
-    parser.add_argument("--dataset_dir", default=gold_filters.default_dataset_dir(),
+    parser.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
                         help="Checkout of the geez-dataset repo, for the dictionary "
                              "(default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
     subparsers = parser.add_subparsers(dest="command", required=True)
