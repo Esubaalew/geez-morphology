@@ -36,10 +36,10 @@ reproducing the files needs no git history of the dataset:
 
 Two more committed files in data/ limit the output; the
 generator stops if either is missing:
-  data/synthetic_roots_allowed_6183c24_v3.txt  the only roots it conjugates: roots with a dictionary verb
-      entry, a gold root or a Kidane Wold verb triple, or restored by the maintainers (all roots of the
-      6d5297a output minus the ones the root list rules DROP or EXCLUDE_NO_VERB;
-      its RESTORE rows stay).
+  data/synthetic_roots_allowed_v4.txt  the only roots it conjugates: roots with a dictionary verb
+      entry, a gold root or a Kidane Wold verb triple, or restored by the maintainers (the roots of this
+      generator's output on geez-dataset 3da9041 with the list switched off that have such evidence, minus the ones
+      the exception table rules DROP or EXCLUDE_NO_VERB; its RESTORE rows stay).
   data/heldout_gold_forms_6183c24.tsv       every gold val/test form of dataset commit 6183c24; a line
       whose surface form is one of them is not written. The rest of that root's lines are made as if
       the line were there, so no other line changes.
@@ -228,9 +228,9 @@ def read_held_out_roots_file(path: str = HELD_OUT_ROOTS_FILE) -> set:
 
 
 # Roots the generator may conjugate, one per line as the "root" feature writes them ("h2-s-t"); "#" lines are
-# notes. Made from the root list (see the file's header). Checked in
+# notes. Made with the exception table (see the file's header). Checked in
 # tests/test_synthetic_allowed_roots_and_blocked_forms.py.
-ALLOWED_ROOTS_FILE = os.path.join(BASE_DIR, "data", "synthetic_roots_allowed_6183c24_v3.txt")
+ALLOWED_ROOTS_FILE = os.path.join(BASE_DIR, "data", "synthetic_roots_allowed_v4.txt")
 # Every gold val/test form of dataset commit 6183c24 (column geez_form; "#" lines are notes).
 BLOCKED_FORMS_FILE = os.path.join(BASE_DIR, "data", "heldout_gold_forms_6183c24.tsv")
 
@@ -436,6 +436,16 @@ def generate_extended_dataset(
                   ("a", "a"): "ይሐበር-shape"}
     subj_used = {"no triple: current ይቅትል shape kept": 0}
     d_orders = verb_classes.type_d_orders(dataset_dir)
+    # rule (triple_check_exceptions.tsv)
+    b_subj = verb_classes.type_b_subjunctive_orders(dataset_dir)          # S-a2-l: guttural middle, subjunctive from the triple
+    kw_final_gutt_A = verb_classes.kw_final_guttural_subjunctive(dataset_dir)
+    kw_w_drop_A = verb_classes.kw_w_drop_final_guttural(dataset_dir)
+    kw_w_keep = verb_classes.kw_initial_w_keep_doubled(dataset_dir)
+    engine_module.HOLLOW_SUBJ_4TH.update(verb_classes.kw_hollow_final_guttural_subjunctive(dataset_dir))
+    engine_module.NON_HOLLOW.update(verb_classes.kw_quad_uncontracted(dataset_dir))
+    rule_roots = {"type_b_subjunctive_from_triple": set(b_subj), "final_guttural_subjunctive": set(), "w_drop_final_guttural": set(),
+                  "w_keep_subjunctive": set(), "hollow_subjunctive_4th": set(engine_module.HOLLOW_SUBJ_4TH),
+                  "quad_uncontracted": {r for r in engine_module.NON_HOLLOW if len(r) == 4}}
     print(f"type_d roots with orders from their own triple: {sorted('-'.join(r) for r in d_orders)}")
     gutt_present = 0
     # Middle-w/y roots whose triple says type_a keep the glide (ኀየረ ፡ የኀይር ፡ ይኀይር):
@@ -458,6 +468,9 @@ def generate_extended_dataset(
     final_gutt_forms = {}
     # Kidane Wold subjunctive = imperfect with a 6th-order guttural middle (OCR collapse).
     kw_collapsed = verb_classes.kw_collapsed_subjunctive(dataset_dir)
+    # Kidane Wold triple that writes the middle-guttural forms (ሰሐለ ፡ ይስሕል ፡ ይስሐል, class unclear): middle-guttural rule.
+    kw_frye = verb_classes.kw_middle_guttural_pattern(dataset_dir)
+    kw_frye_changed = set()
     kw_collapse_changed = set()
     print(f"Type A subjunctive shapes from triples: {len(subj_shape)} roots, {subj_conflicts} conflicting")
     print(f"Middle-w/y roots kept uncontracted (triple says type_a): {sorted('-'.join(r) for r in keep_glide)}")
@@ -512,12 +525,15 @@ def generate_extended_dataset(
 
         print("Generating Phase 1: Base Triliteral Paradigms...")
         base_forms_for_augmentation = []
+        obj_base = {}   # (root, form) -> form the object suffix is attached to, where it differs (final guttural rule)
 
-        def write_class_rows(cons, cls):
+        def write_class_rows(cons, cls, orders=None):
             """Checked paradigm of one class. Not used for object/negative
             augmentation: suffixes on these classes are not checked yet."""
             nonlocal total_base, unassigned_forms
-            for feat, form in verb_classes.paradigm_rows(cons, cls, d_orders.get(cons)):
+            if orders is None:
+                orders = b_subj.get(cons) if cls == "type_b" else d_orders.get(cons)
+            for feat, form in verb_classes.paradigm_rows(cons, cls, orders):
                 if has_unassigned_char(form):
                     unassigned_forms += 1
                     continue
@@ -550,6 +566,11 @@ def generate_extended_dataset(
                 continue
             if rtype == "weak_initial" and verb_classes.takes_w_drop(cons, class_of):
                 write_class_rows(cons, "initial_w_drop")   # ይለድ, ለድ
+            elif rtype == "weak_initial" and cons in kw_w_drop_A:
+                write_class_rows(cons, "initial_w_drop", 4)   # final guttural: radical 2 in the 4th order (w-S2-a, w-k-a2, w-q-a2)
+                rule_roots["w_drop_final_guttural"].add(cons)
+            if rtype == "weak_initial" and cons in kw_w_keep:
+                rule_roots["w_keep_subjunctive"].add(cons)   # subjunctive/imperative keep the w (w-k-k), Type A templates
             mid_gutt = False
             if rtype == "strong_A" and cons[1] in GUTTURAL_FIRST:
                 why = ("own Kidane Wold triple" if cons in kw_triple_roots or cons in subj_shape else
@@ -560,11 +581,22 @@ def generate_extended_dataset(
                         and kw_collapsed[cons]["imperfect"] == ("I", "I")):
                     mid_gutt = True                  # present = the triple's ይጽሕፍ; ይጽሐፍ, ጽሐፍ
                     kw_collapse_changed.add(cons)
+                elif (why == "own Kidane Wold triple" and cons in kw_frye and cls is None
+                        and cons[0] not in GUTTURAL_FIRST and cons not in subj_shape):
+                    mid_gutt = True                  # the triple writes ይስሕል ፡ ይስሐል
+                    kw_frye_changed.add(cons)
                 elif why:
                     mid_gutt_excluded.setdefault(why, []).append("-".join(cons))
                 else:
                     mid_gutt = True
                     mid_gutt_changed.add(cons)
+            # Final guttural: basic subjunctive/jussive/imperative put radical 2 in the
+            # 4th order (ይስማዕ pattern). Default Type A roots; radicals 1 and 2 not gutturals; a root's own triple wins.
+            final_gutt_subj = (rtype == "strong_A" and cons[2] in GUTTURAL_FIRST and cons[0] not in GUTTURAL_FIRST
+                               and cons[1] not in GUTTURAL_FIRST and cons not in subj_shape
+                               and (cons not in kw_triple_roots or cons in kw_final_gutt_A))
+            if final_gutt_subj:
+                rule_roots["final_guttural_subjunctive"].add(cons)
             if rtype == "strong_A":
                 shape = subj_shape.get(cons)
                 key = (SHAPE_NAME.get(shape, str(shape)) + " (from triple)") if shape else \
@@ -586,7 +618,8 @@ def generate_extended_dataset(
                     # shapes under 3fs labels (ወለዳ, ይወልዳ) and are not used.
                     if ptype != "strong_A" or p["features"].get("stem") != "basic":
                         continue
-                    if rtype == "weak_initial" and p["features"].get("tense") not in ("past", "present"):
+                    if (rtype == "weak_initial" and p["features"].get("tense") not in ("past", "present")
+                            and cons not in kw_w_keep):
                         # Subjunctive drops the first radical (ይለድ): not modeled yet.
                         skipped_templates += 1
                         continue
@@ -597,6 +630,7 @@ def generate_extended_dataset(
                     continue
                 try:
                     spec = p["pattern_spec"]
+                    aug_spec = None
                     basic = p["features"].get("stem") == "basic"
                     shape = subj_shape.get(cons) if rtype == "strong_A" else None
                     if shape and basic and p["features"].get("tense") in ("subjunctive", "jussive", "imperative"):
@@ -610,6 +644,12 @@ def generate_extended_dataset(
                         elif tns in ("subjunctive", "jussive", "imperative"):
                             spec = spec.replace("C1I", "C1a", 1)            # ይምሐል, ምሐል
                             mid_gutt_forms["imperative" if tns == "imperative" else "subjunctive"] += 1
+                    if (final_gutt_subj and basic and p["features"].get("tense") in ("subjunctive", "jussive", "imperative")
+                            and spec.endswith("C2I")):
+                        # only where the guttural ends the word (the exception table 2347efd6): before any vowel
+                        # suffix, -ā included, radical 2 stays 6th (as gold train writes ይምስሑ, ይንቅሁ, ንሥኡ, ንሥኢ)
+                        aug_spec = spec   # an object suffix gives radical 3 a vowel, so radical 2 stays 6th (gold ምርሐኒ)
+                        spec = spec.replace("C1I", "C1A", 1)
                     if basic and p["features"].get("tense") == "present" and cons[0] in GUTTURAL_FIRST:
                         spec = guttural_prefix(spec)   # የኀፍር, not ይኀፍር
                         gutt_present += 1
@@ -641,6 +681,8 @@ def generate_extended_dataset(
                     root_pairs += 1
 
                     if (root_pairs + aug_offset) % AUGMENT_EVERY_BASE == 0:
+                        if aug_spec:
+                            obj_base[(cons, form)] = engine.generate(cons, slots_from_spec(aug_spec), stem=p["features"].get("stem", "basic"))
                         base_forms_for_augmentation.append((form, feat, cons))
 
                 except Exception:
@@ -725,7 +767,7 @@ def generate_extended_dataset(
                         continue
 
                     unsettled = feat.get("tense") == "past" and (feat.get("person"), feat.get("number")) in (("1", "p"), ("2", "p"))
-                    obj_form = None if unsettled else attach_object_pronoun(form, obj["suffix"])
+                    obj_form = None if unsettled else attach_object_pronoun(obj_base.get((cons, form), form), obj["suffix"])
                     if obj_form is None:
                         skipped_objects += 1
                         continue
@@ -806,6 +848,8 @@ def generate_extended_dataset(
     print("KW_COLLAPSE_JSON " + json.dumps({
         "found": {"-".join(r): v for r, v in kw_collapsed.items()},
         "changed": sorted("-".join(r) for r in kw_collapse_changed)}, ensure_ascii=False))
+    print("RULES_JSON " + json.dumps({k: sorted("-".join(r) for r in v) for k, v in rule_roots.items()}))
+    print("KW_MID_GUTT_TRIPLE_JSON " + json.dumps({"found": sorted("-".join(r) for r in kw_frye), "changed": sorted("-".join(r) for r in kw_frye_changed)}))
     print("MID_GUTT_JSON " + json.dumps({"changed": sorted("-".join(r) for r in mid_gutt_changed),
                                                 "excluded": mid_gutt_excluded}, ensure_ascii=False))
     print("DROPS_JSON " + json.dumps({

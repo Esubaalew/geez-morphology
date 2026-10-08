@@ -1,0 +1,60 @@
+root	decision	reason
+T-g-a2	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+T-q-a2	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+b-kh2-h2	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+f-S-h2	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+f-r-h1	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+g-n-h2	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+gw-s2-a2	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+q-S-a2	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+q-l-a2	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+q-n-a	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+q-r-a2	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+s-t-a2	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+t-g-h1	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+z-b-h2	triple_followed	Type A with a final guttural: the subjunctive puts C2 in the 4th order (ይስማዕ pattern), and the imperative likewise. Fix the generator rule; g-n-h2 must also generate its missing forms
+a-b-y	triple_followed	initial guttural with final w/y: the present prefix is የ- (የአቢ yaʾabbi); the book has 101 triples with this shape. Fix the generator rule
+a-d-w	triple_followed	initial guttural with final w/y: the present prefix is የ- (የአቢ yaʾabbi); the book has 101 triples with this shape. Fix the generator rule
+a-f-w	triple_followed	initial guttural with final w/y: the present prefix is የ- (የአቢ yaʾabbi); the book has 101 triples with this shape. Fix the generator rule
+a2-S-w	triple_followed	initial guttural with final w/y: the present prefix is የ- (የአቢ yaʾabbi); the book has 101 triples with this shape. Fix the generator rule
+h2-m-w	triple_followed	initial guttural with final w/y: the present prefix is የ- (የአቢ yaʾabbi); the book has 101 triples with this shape. Fix the generator rule
+h2-r-w	triple_followed	initial guttural with final w/y: the present prefix is የ- (የአቢ yaʾabbi); the book has 101 triples with this shape. Fix the generator rule
+d-w-r-h1	triple_followed	four-radical present ይደወርህ (yədäwärrəh); the w does not contract to ዶ
+q-w-a2	triple_followed	hollow root with a final guttural: subjunctive ይቃዕ (like ቦአ ይበውእ ይባእ)
+w-S2-a	triple_followed	initial w dropped with a final guttural: subjunctive ይፃእ / ይካዕ / ይቃዕ
+w-k-a2	triple_followed	initial w dropped with a final guttural: subjunctive ይፃእ / ይካዕ / ይቃዕ
+w-q-a2	triple_followed	initial w dropped with a final guttural: subjunctive ይፃእ / ይካዕ / ይቃዕ
+w-k-k	triple_followed	doubled-final root keeps the w in the subjunctive: ይውክክ
+q-n-S	triple_followed	regular Type A; present ይቀንጽ is missing from the generator output; generate it
+T-y-r	tagged_type_b	the book present ይጤይር / ይሬይፅ is Type B, so tag type_b. Subjunctive ይጠይር / ይረይፅ (no contraction)
+r-y-S2	tagged_type_b	the book present ይጤይር / ይሬይፅ is Type B, so tag type_b. Subjunctive ይጠይር / ይረይፅ (no contraction)
+w-S2-f	tagged_type_b	the book present ይዌፅፍ is Type B, so tag type_b. Subjunctive by the type_b rule ይወፅፍ; the book ይውፅፍ is the minority shape (see n-z-r)
+S-a2-l	subjunctive_override	apply the draft override: a guttural middle cannot double, so the type_b subjunctive is ይጽዐል, as in the book (cf. በዐለ ይብዐል, መሀረ ይምሀር). Restrict the switch to type_b roots with a guttural middle. Replaces the earlier CHECK
+n-z-r	generator_kept	Type B subjunctive has C1 in the 1st order (ይቀድስ). 72 book type_b triples show that shape; the 6th-order ones are a minority, likely print/OCR. Do NOT extend the S-a2-l override to these
+s-b-h2	generator_kept	Type B subjunctive has C1 in the 1st order (ይቀድስ). 72 book type_b triples show that shape; the 6th-order ones are a minority, likely print/OCR. Do NOT extend the S-a2-l override to these
+s-d-s	generator_kept	Type B subjunctive has C1 in the 1st order (ይቀድስ). 72 book type_b triples show that shape; the 6th-order ones are a minority, likely print/OCR. Do NOT extend the S-a2-l override to these
+f-S2-m	generator_kept	Type B subjunctive has C1 in the 1st order (ይቀድስ). 72 book type_b triples show that shape; the 6th-order ones are a minority, likely print/OCR. Do NOT extend the S-a2-l override to these
+g-r-m	generator_kept	Type B subjunctive has C1 in the 1st order (ይቀድስ). 72 book type_b triples show that shape; the 6th-order ones are a minority, likely print/OCR. Do NOT extend the S-a2-l override to these
+n-S2-r	generator_kept	Type B subjunctive has C1 in the 1st order (ይቀድስ). 72 book type_b triples show that shape; the 6th-order ones are a minority, likely print/OCR. Do NOT extend the S-a2-l override to these
+d-g-n	generator_kept	triple subjunctive copies the present and the perfect ዴግነ is garbled; type_b subjunctive ይደግን stands
+d-l-l	generator_kept	triple subjunctive copies the present; Type A doubled-final subjunctive ይድልል stands
+a-l-d	generator_kept	initial guttural Type A subjunctive is ይእ- / ይዕ- / ይሕ- in the 6th order (ይእበይ, ~101 book triples); the ይኤ- shape is a misread
+a-l-l	generator_kept	initial guttural Type A subjunctive is ይእ- / ይዕ- / ይሕ- in the 6th order (ይእበይ, ~101 book triples); the ይኤ- shape is a misread
+a-m-t	generator_kept	initial guttural Type A subjunctive is ይእ- / ይዕ- / ይሕ- in the 6th order (ይእበይ, ~101 book triples); the ይኤ- shape is a misread
+a2-q-m	generator_kept	initial guttural Type A subjunctive is ይእ- / ይዕ- / ይሕ- in the 6th order (ይእበይ, ~101 book triples); the ይኤ- shape is a misread
+a2-s2-r	generator_kept	initial guttural Type A subjunctive is ይእ- / ይዕ- / ይሕ- in the 6th order (ይእበይ, ~101 book triples); the ይኤ- shape is a misread
+h2-m-s	generator_kept	initial guttural Type A subjunctive is ይእ- / ይዕ- / ይሕ- in the 6th order (ይእበይ, ~101 book triples); the ይኤ- shape is a misread
+kh-S-d	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
+kh-S-r	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
+kh-T-T	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
+kh-l-q	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
+kh-n-q	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
+kh-s-r	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
+kh-w-s2	generator_kept	the perfect and present need ኀ (1st order: ኀጸደ, የኀጽድ). The ኅ in the corrected headword is a ኀ/ኅ misread (the old text had ኀ). Separate dictionary fix later, checked against the scan
+w-s-d	generator_kept	the present of an initial-w Type A verb is ይወስድ / ይወቅር; the book ይውስድ / ይውቅር is a subjunctive-shaped misread
+w-q-r	generator_kept	the present of an initial-w Type A verb is ይወስድ / ይወቅር; the book ይውስድ / ይውቅር is a subjunctive-shaped misread
+m-a2-z	generator_kept	the book ይምዐዘ ends in the 1st order, so it is a misprint for ይምዐዝ, which is what the generator gives. Fix the test expectation
+w-kh-T	off_allow_list	ይውኅጥ / የኅጥ is unclear (could be የኀጥ like ወሀበ የሀብ). Take it off the allow-list until it is read against the scan
+n-kh-r	covered_by_rule	covered by the collapsed-subjunctive rule already in force
+z-kh-n	covered_by_rule	covered by the collapsed-subjunctive rule already in force
+z-kh-r	covered_by_rule	covered by the collapsed-subjunctive rule already in force

@@ -74,9 +74,13 @@ def imperative(r, v1, v2):
     return out
 
 
-def type_b(r):  # ቀደሰ qaddasa / ይቄድስ yəqeddəs / ይቀድስ yəqaddəs / ቀድስ
+def type_b(r, subj=None):  # ቀደሰ qaddasa / ይቄድስ yəqeddəs / ይቀድስ yəqaddəs / ቀድስ
+    """subj: (order of radical 1, order of radical 2) of the subjunctive and imperative, from the root's own Kidane Wold
+    triple; only for type_b roots with a guttural middle radical (a guttural cannot double; S-a2-l, the maintainers
+    2026-10-08, triple_check_exceptions.tsv). Default 1, 6."""
+    v1, v2 = subj or (1, 6)
     return {"perfect": strong_perfect(r, 1), "imperfect": prefixed(r, 5, 6),
-            "subjunctive": prefixed(r, 1, 6), "imperative": imperative(r, 1, 6)}
+            "subjunctive": prefixed(r, v1, v2), "imperative": imperative(r, v1, v2)}
 
 
 def type_c(r):  # ባረከ bāraka / ይባርክ / ይባርክ / ባርክ  (imperfect == subjunctive)
@@ -150,13 +154,17 @@ def type_d(r, orders):
             "subjunctive": pre_table(so, False), "imperative": imper}
 
 
-def final_y(r):
+def final_y(r, past_c2_first=False):
     """III-y, a-type like ሰትየ satya: perfect satya/satayka, imperf yəsatti,
-    subj yəstay, impv stay. r[2] must be የ."""
+    subj yəstay, impv stay. r[2] must be የ.
+    past_c2_first: the 3rd-person perfect (vowel endings) has radical 2 in the 1st order, as the book writes it
+    (satäya); the 1st/2nd person before consonant endings is unchanged (the maintainers 2026-10-08,
+    final_y_past_stem_roots.tsv; only the roots in verb_classes.Y_PAST_C2_FIRST)."""
     c1, c2 = r[0], r[1]
+    o2 = 1 if past_c2_first else 6
     perf = {
-        "3ms": syl(c1, 1) + syl(c2, 6) + "የ", "3fs": syl(c1, 1) + syl(c2, 6) + "የት",
-        "3mp": syl(c1, 1) + syl(c2, 6) + "ዩ", "3fp": syl(c1, 1) + syl(c2, 6) + "ያ",
+        "3ms": syl(c1, 1) + syl(c2, o2) + "የ", "3fs": syl(c1, 1) + syl(c2, o2) + "የት",
+        "3mp": syl(c1, 1) + syl(c2, o2) + "ዩ", "3fp": syl(c1, 1) + syl(c2, o2) + "ያ",
     }
     for p, s in PERF_CLOSED.items():
         perf[p] = syl(c1, 1) + syl(c2, 1) + "ይ" + s
@@ -202,19 +210,21 @@ def final_w(r):
     return {"perfect": perf, "imperfect": imperf, "subjunctive": subj, "imperative": impv}
 
 
-def initial_w_drop(r):
+def initial_w_drop(r, v2=1):
     """Subjunctive/imperative of the I-w verbs that DROP w: ወለደ -> ይለድ, ለድ.
-    Closed lexical list only (see W_DROP). Perfect and imperfect are Type A."""
-    return {"subjunctive": prefixed_two(r[1], r[2]),
-            "imperative": {p: syl(r[1], 1) + (syl(r[2], END_ORDER[e]) if e else syl(r[2], 6))
+    Closed lexical list only (see W_DROP). Perfect and imperfect are Type A.
+    v2: order of radical 2; 4 for a final guttural whose Kidane Wold triple writes it so (w-S2-a, w-k-a2, w-q-a2;
+    the maintainers 2026-10-08, triple_check_exceptions.tsv)."""
+    return {"subjunctive": prefixed_two(r[1], r[2], v2),
+            "imperative": {p: syl(r[1], v2) + (syl(r[2], END_ORDER[e]) if e else syl(r[2], 6))
                            for p, e in IMP_END.items()}}
 
 
-def prefixed_two(c2, c3):
+def prefixed_two(c2, c3, v2=1):
     out = {}
     for p, (pre, end) in PREFIX.items():
         last = syl(c3, END_ORDER[end]) if end else syl(c3, 6)
-        out[p] = pre + syl(c2, 1) + last
+        out[p] = pre + syl(c2, v2) + last
     return out
 
 

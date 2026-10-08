@@ -276,6 +276,32 @@ def kw_collapsed_subjunctive(dataset_dir: str) -> Dict[Tuple[str, ...], dict]:
     return {r: v for r, v in seen.items() if r not in bad}
 
 
+def kw_middle_guttural_pattern(dataset_dir: str) -> set:
+    """3-radical roots with a guttural middle radical whose accepted Kidane Wold triples (class "unclear", the
+    classifier has no class for them) all write the imperfect and subjunctive of the ፍሬ ግእዝ middle-guttural rule:
+    radicals 1 and 2 in the 6th order in the imperfect, 6th and 1st in the subjunctive (ሰሐለ ፡ ይስሕል ፡ ይስሐል).
+    Such roots get the middle-guttural rule like the collapsed-subjunctive collapsed triples (the maintainers, 2026-10-08; the corrected Kidane Wold text
+    no longer has the OCR collapse for most of the collapsed-subjunctive roots)."""
+    path = os.path.join(dataset_dir, TRIPLES_FILE)
+    seen, bad = set(), set()
+    if not os.path.exists(path):
+        return set()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            x = json.loads(line)
+            if not x.get("root"):
+                continue
+            root = tuple(x["root"].split("-"))
+            if len(root) != 3 or root[1] not in GUTTURALS:
+                continue
+            I, S = _stem(x["triple"][1]), _stem(x["triple"][2])
+            ok = (x.get("verb_class") == "unclear" and I and S and len(I) == 3 and len(S) == 3
+                  and [c for c, _ in I] == list(root) == [c for c, _ in S]
+                  and (I[0][1], I[1][1]) == ("I", "I") and (S[0][1], S[1][1]) == ("I", "a"))
+            (seen if ok else bad).add(root)
+    return seen - bad
+
+
 def type_d_orders(dataset_dir: str) -> Dict[Tuple[str, ...], dict]:
     """{root: {"perfect"|"imperfect"|"subjunctive": (order of radical 1, order of
     radical 2)}} from the type_d triples. Roots whose triples disagree are left out."""
@@ -374,6 +400,11 @@ def _tags_and_sources(dataset_dir: str, exclude=()):
             overrides += 1
         tags[cons] = cls
         source[cons] = "kidane_wold triple"
+    for cons, cls in RULED_CLASS_TAGS.items():
+        if cons in tags and tags[cons] != cls:
+            overrides += 1
+        tags[cons] = cls
+        source[cons] = "rule"
     held = 0
     for c in exclude:
         if tags.pop(tuple(c), None):
@@ -387,6 +418,120 @@ def _tags_and_sources(dataset_dir: str, exclude=()):
     return tags, source, counts
 
 
+# Exceptions to the triple check (triple_check_exceptions.tsv).
+# tagged_type_b: the book present is Type B (ይጤይር-type), so these roots are tagged type_b; their subjunctive follows the type_b
+# rule with no contraction (T-y-r, r-y-S2), and w-S2-f takes the type_b subjunctive (the book's 6th-order one is the minority shape).
+# class_changes.tsv restored: for d-r-g, n-z-z and q-r-h2 the Merho gold class (Type C) outranks the
+# rebuilt Kidane Wold triple, which belongs to a different verb on the same root code (one class per root).
+RULED_CLASS_TAGS = {("T", "y", "r"): "type_b", ("r", "y", "S2"): "type_b", ("w", "S2", "f"): "type_b",
+                    ("d", "r", "g"): "type_c", ("n", "z", "z"): "type_c", ("q", "r", "h2"): "type_c"}
+# -y past stem: regular -y roots (final_y) write the
+# 3rd-person perfect with radical 2 in the 1st order. Confirmed roots only; the pending ones wait for the sample decision
+# (moving a root from Y_PAST_C2_FIRST_PENDING to Y_PAST_C2_FIRST is the whole change). a-b-y added by
+# the exception table (2347efd6): the book's perfect follows this stem; g-l-y keeps the book's 6th order.
+Y_PAST_C2_FIRST = {("l", "f", "y"), ("l", "q", "y"), ("m", "l", "y"), ("s", "t", "y"), ("a", "b", "y")}
+Y_PAST_C2_FIRST_PENDING = {("m", "s", "y"), ("s", "b", "y")}
+_GUTT_PREFIX = {geezconfig_c: geezconfig_v for geezconfig_c, geezconfig_v in
+                ((geez_config.render_unit(c, "I"), geez_config.render_unit(c, "a")) for c in ("y", "t", "a", "n"))}
+
+
+def _triples(dataset_dir: str):
+    path = os.path.join(dataset_dir, TRIPLES_FILE)
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        return [x for x in map(json.loads, f) if x.get("root")]
+
+
+def _all_agree(pairs):
+    """{root: value} for roots whose triples all give the same value (value None = no usable shape)."""
+    seen: Dict[Tuple[str, ...], set] = {}
+    for root, v in pairs:
+        seen.setdefault(root, set()).add(v)
+    return {r: next(iter(v)) for r, v in seen.items() if len(v) == 1 and None not in v}
+
+
+def type_b_subjunctive_orders(dataset_dir: str) -> Dict[Tuple[str, ...], Tuple[int, int]]:
+    """{root: (order of radical 1, order of radical 2)} of the written subjunctive of the root's type_b triples, for type_b
+    roots with a guttural middle radical only (S-a2-l, subjunctive_override in triple_check_exceptions.tsv). Not used for
+    any other type_b root (n-z-r, s-b-h2, ... keep the ይቀድስ rule, generator_kept)."""
+    pairs = []
+    for x in _triples(dataset_dir):
+        root = tuple(x["root"].split("-"))
+        if x.get("verb_class") != "type_b" or len(root) != 3 or root[1] not in GUTTURALS:
+            continue
+        S = _stem(x["triple"][2])
+        ok = S and len(S) == 3 and [c for c, _ in S] == list(root)
+        pairs.append((root, (VOWEL_ORDER[S[0][1]], VOWEL_ORDER[S[1][1]]) if ok else None))
+    return _all_agree(pairs)
+
+
+def kw_final_guttural_subjunctive(dataset_dir: str) -> set:
+    """3-radical roots with a final guttural whose accepted triples all write the subjunctive with radical 2 in the 4th order
+    (ይስማዕ pattern). The final-guttural rule (triple_followed) applies to these and to roots with no triple; a root whose own
+    triple writes another shape keeps the generator's form (its triple wins)."""
+    pairs = []
+    for x in _triples(dataset_dir):
+        root = tuple(x["root"].split("-"))
+        if len(root) != 3 or root[2] not in GUTTURALS:
+            continue
+        S = _stem(x["triple"][2])
+        pairs.append((root, True if (S and len(S) == 3 and [c for c, _ in S] == list(root) and S[1][1] == "A") else None))
+    return set(_all_agree(pairs))
+
+
+def kw_hollow_final_guttural_subjunctive(dataset_dir: str) -> set:
+    """Middle-w roots with a final guttural whose accepted triples all write the subjunctive as radical 1 in the 4th order +
+    radical 3 (ይቃዕ; q-w-a2, triple_followed). Other middle-w roots keep the 2nd order (the book has ይጡዕ, ይሩሕ)."""
+    pairs = []
+    for x in _triples(dataset_dir):
+        root = tuple(x["root"].split("-"))
+        if len(root) != 3 or root[1] != "w" or root[2] not in GUTTURALS:
+            continue
+        S = _stem(x["triple"][2])
+        pairs.append((root, True if (S and len(S) == 2 and [c for c, _ in S] == [root[0], root[2]] and S[0][1] == "A") else None))
+    return set(_all_agree(pairs))
+
+
+def kw_w_drop_final_guttural(dataset_dir: str) -> set:
+    """Initial-w roots with a final guttural whose accepted triples (initial_w_drop_other) all write the subjunctive without w
+    and radical 2 in the 4th order (ይፃእ; w-S2-a, w-k-a2, w-q-a2, triple_followed)."""
+    pairs = []
+    for x in _triples(dataset_dir):
+        root = tuple(x["root"].split("-"))
+        if len(root) != 3 or root[0] != "w" or root[2] not in GUTTURALS:
+            continue
+        S = _stem(x["triple"][2])
+        pairs.append((root, True if (x.get("verb_class") == "initial_w_drop_other" and S and len(S) == 2
+                                     and [c for c, _ in S] == [root[1], root[2]] and S[0][1] == "A") else None))
+    return set(_all_agree(pairs))
+
+
+def kw_initial_w_keep_doubled(dataset_dir: str) -> set:
+    """Initial-w roots with a doubled final (radical 2 = radical 3) whose accepted triples are all initial_w_keep: the subjunctive
+    keeps the w (ይውክክ; w-k-k, triple_followed)."""
+    pairs = []
+    for x in _triples(dataset_dir):
+        root = tuple(x["root"].split("-"))
+        if len(root) != 3 or root[0] != "w" or root[1] != root[2]:
+            continue
+        pairs.append((root, True if x.get("verb_class") == "initial_w_keep" else None))
+    return set(_all_agree(pairs))
+
+
+def kw_quad_uncontracted(dataset_dir: str) -> set:
+    """4-radical roots with w/y as radical 2 whose accepted triples all write that letter in the imperfect (ይደወርህ): no hollow
+    contraction (d-w-r-h1, triple_followed)."""
+    pairs = []
+    for x in _triples(dataset_dir):
+        root = tuple(x["root"].split("-"))
+        if len(root) != 4 or root[1] not in ("w", "y"):
+            continue
+        I = _stem(x["triple"][1])
+        pairs.append((root, True if (I and [c for c, _ in I] == list(root)) else None))
+    return set(_all_agree(pairs))
+
+
 def paradigm_rows(cons: Tuple[str, ...], cls: str, orders: dict = None) -> List[Tuple[dict, str]]:
     """Every form verb_class_paradigms builds for this root, with features.
 
@@ -394,7 +539,20 @@ def paradigm_rows(cons: Tuple[str, ...], cls: str, orders: dict = None) -> List[
     are kept, so that surface carries both labels.
     """
     letters = [geez_config.render_unit(c, "a") for c in cons]
-    tables = vcp.type_d(letters, orders) if cls == "type_d" else vcp.CLASSES[cls](letters)
+    if cls == "type_d":
+        tables = vcp.type_d(letters, orders)
+    elif cls == "type_b" and orders:
+        tables = vcp.type_b(letters, orders)            # guttural middle, subjunctive from the triple
+    elif cls == "initial_w_drop" and orders:
+        tables = vcp.initial_w_drop(letters, orders)    # radical 2 order (4: final guttural)
+    elif cls == "final_y":
+        tables = vcp.final_y(letters, past_c2_first=tuple(cons) in Y_PAST_C2_FIRST)
+    else:
+        tables = vcp.CLASSES[cls](letters)
+    if cls in ("final_y", "final_w") and cons[0] in GUTTURALS:
+        # initial guttural with final w/y: present prefix የ- (የአቢ), like the Type A guttural present (triple_followed)
+        tables = dict(tables)
+        tables["imperfect"] = {p: _GUTT_PREFIX.get(f[0], f[0]) + f[1:] for p, f in tables["imperfect"].items()}
     rows = []
     for tname, table in tables.items():
         for pkey, form in table.items():

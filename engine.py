@@ -45,6 +45,10 @@ HOLLOW_CONTRACTION = {
 }
 # Roots with middle w/y that keep it (ፈወሰ, ሐወጸ). Extend from the lexicon.
 NON_HOLLOW = {("f", "w", "s"), ("h2", "w", "S")}
+# Middle-w roots with a final guttural whose jussive/imperative contracts to the 4th order (yəqāʿ, like ቦአ ፡ ይበውእ ፡ ይባእ)
+# instead of the 2nd; filled by the generator from the roots whose own Kidane Wold triple writes it so (the maintainers,
+# 2026-10-08, triple_check_exceptions.tsv, q-w-a2).
+HOLLOW_SUBJ_4TH = set()
 
 # A slot is either a root slot or fixed material.
 #   ("R", index, vowel)  -- index into the root, vowel is an abstract label
@@ -157,6 +161,8 @@ class InterdigitationEngine:
             if (nxt is not None and slot[0] == "R" and slot[1] == 0
                     and nxt[0] == "R" and nxt[1] == 1):
                 merged = HOLLOW_CONTRACTION.get((slot[2], nxt[2], root[1]))
+                if merged == "u" and tuple(root) in HOLLOW_SUBJ_4TH:
+                    merged = "A"
                 if merged:
                     out.append(("R", 0, merged))
                     i += 2

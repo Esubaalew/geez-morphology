@@ -51,27 +51,82 @@ Scope:
 - A word-final 4th-order guttural can also be a real ending: ሰምዓ is the 3fp perfect as well as a
   spelling of ሰምዐ. The analyzer returns both readings.
 
-## 4. type_d roots and Kidane Wold subjunctives copied from the imperfect
+## 4. Kidane Wold triples, type_d roots and the decisions
 
 - ፍሬ ግእዝ p. 63, rule ፲፪.፫: the perfect of these verbs may take a 6th-order first radical. So
-  Kidane Wold's ስእለ is a real variant of ሰአለ. Its subjunctive is still ይስአል.
+  Type D (ንእደ) verbs have that perfect: n-a-d, Kidane Wold 8035, ንእደ ፡ ይንእድ ፡ ይንአድ. s-a-l is Type A (ሰአለ ፡ ይስእል ፡ ይስአል).
 - Some Kidane Wold triples write the subjunctive exactly like the imperfect, with a 6th-order
   middle guttural (ድኅነ ፡ ይድኅን ፡ ይድኅን). This is an OCR merge of the 1st and 6th orders, not a
   real form. For every such root:
   - the subjunctive, jussive and imperative get the middle guttural in the 1st order;
   - the Kidane Wold perfect and present are kept.
 
+On the corrected Kidane Wold transcription these are the roots with such a triple (7):
+
 | root | perfect | present | subjunctive | imperative |
 |---|---|---|---|---|
-| s-a-l | ስእለ | ይስእል | ይስአል | ስአል |
-| s-a-n | ስእነ | ይስእን | ይስአን | ስአን |
+| T-a2-y | ጣዕየ | ይጣዕይ | (off the allow-list) | (off the allow-list) |
 | d-kh-n | ድኅነ | ይድኅን | ይድኀን | ድኀን |
-| d-kh-l | ድኅለ | ይድኅል | ይድኀል | ድኀል |
 | d-kh-r | ድኅረ | ይድኅር | ይድኀር | ድኀር |
-| qh-h2-m | ቍሕመ | ይቍሕም | ይቍሐም | ቍሐም |
-| S-h2-f | ጸሐፈ | ይጽሕፍ | ይጽሐፍ | ጽሐፍ |
+| f-kh-r | ፈኅረ | ይፍኅር | ይፍኀር | ፍኀር |
+| n-kh-r | ንኅረ | ይንኅር | ይንኀር | ንኀር |
+| z-kh-n | ዝኅነ | ይዝኅን | ይዝኀን | ዝኀን |
+| z-kh-r | ዘኀረ | ይዝኅር | ይዝኀር | ዝኀር |
 
-For ጸ-ሐ-ፈ, the generated perfect ጸሐፈ is kept. The triple writes ጸሕፈ.
+S-h2-f and s-a-l are no longer in that list: their corrected triples write the section 2 forms, and
+the maintainers confirmed s-a-l as a regular middle-guttural verb (2026-10-08). d-kh-l left the allow-list.
+qh-h2-m has no triple any more: its old one was an OCR misread (section 4.3).
+A root whose triple is not classified (class "unclear") but writes the section 2 shape (ሰአለ ፡ ይስእል ፡ ይስአል) gets the
+section 2 rule.
+
+### 4.1 Exceptions to the triple check
+
+The table is `data/triple_check_exceptions.tsv`. A root's own triple still wins over the
+default rules below.
+
+- **Final guttural (Type A).** When the third radical is a guttural and the first two are not, the
+  subjunctive, jussive and imperative put the second radical in the 4th order only where the guttural ends the
+  word (ይስማዕ, ስማዕ). Before any vowel suffix, -ā included, the second radical stays 6th
+  (ይስምዑ, ይስምዒ, ይስምዓ, ስምዓ), and so it does before an object suffix (gold train ምርሐኒ). The rule covers roots
+  with no triple and roots whose triple has this shape (`verb_classes.kw_final_guttural_subjunctive`); 14 roots were
+  ruled by name. n-s2-a's imperative ንሣእ follows the rule; gold train spells that cell in the 6th order.
+- **Initial guttural with final w/y:** the present takes የ- as in section 1 (የአቢ).
+- **Initial w with a final guttural:** w-S2-a, w-k-a2 and w-q-a2 drop the w and put the second radical in the
+  4th order (ይፃእ / ይካዕ / ይቃዕ); other roots whose triple has that shape get the same table
+  (`verb_classes.kw_w_drop_final_guttural`). w-k-k (doubled final) keeps the w: ይውክክ.
+- **Hollow with a final guttural:** q-w-a2 has the subjunctive ይቃዕ
+  (`verb_classes.kw_hollow_final_guttural_subjunctive`).
+- **Four radicals:** d-w-r-h1 is ይደወርህ; the w does not contract to ዶ
+  (`verb_classes.kw_quad_uncontracted`).
+- **type_b tags:** T-y-r, r-y-S2 and w-S2-f (`verb_classes.RULED_CLASS_TAGS`). w-S2-f takes its present from
+  the book; its subjunctive follows the type_b rule.
+- **S-a2-l:** a guttural middle radical cannot double, so the type_b subjunctive is ይጽዐል, as in the
+  book. The override (`verb_classes.type_b_subjunctive_orders`) is limited to type_b roots with a guttural
+  middle radical; n-z-r, s-b-h2, s-d-s, f-S2-m, g-r-m and n-S2-r keep the type_b subjunctive ይቀድስ.
+- **The generator stands** for 24 roots whose book form is a misprint or misread
+  (a-l-d, a-l-l, a-m-t, a2-q-m, a2-s2-r, d-g-n, d-l-l, f-S2-m, g-r-m, h2-m-s, kh-S-d, kh-S-r, kh-T-T, kh-l-q, kh-n-q, kh-s-r, kh-w-s2, m-a2-z, n-S2-r, n-z-r, s-b-h2, s-d-s, w-q-r, w-s-d), and for S-b-r (Type B, subjunctive ይጸብር), kh-r-s (የኀርስ / ይኅርስ; the
+  triple's letter is a misread) and m-l-a (present ይመልእ; m is not a guttural). The tests treat them as ruled
+  exceptions.
+- **q-n-S and g-n-h2:** the generator makes the ruled forms (q-n-S present ይቀንጽ), but a line whose
+  form is a gold val or test form is left out, so those lines are not in the synthetic data.
+- **w-kh-T** is off the allow-list until its triple is read against the scan.
+
+### 4.2 Final-y past stem
+
+For l-f-y, l-q-y, m-l-y, s-t-y and a-b-y the 3rd-person forms of the basic perfect put the second radical in the
+1st order, the way the book writes them: ሰተየ, not ሰትየ, and አበየ. Forms before a consonant ending are
+unchanged (ሰተይኩ). g-l-y stays ገልየ, as the book writes it. m-s-y and s-b-y wait for the sample decision and are listed in
+`verb_classes.Y_PAST_C2_FIRST_PENDING`; moving a root to `Y_PAST_C2_FIRST` is the whole change.
+The decision is recorded in `data/final_y_past_stem_roots.tsv`.
+
+### 4.3 Class changes
+
+Every root whose class changes with the rebuilt triples has a row in `data/class_changes.tsv`:
+27 roots become Type B and 4 Type D because their triples say so; kh-y-r is hollow; a-l-l and s-a-l were ruled earlier.
+q-l-s stays Type A. qh-h2-m stays Type A (ruled): its Type D triple came from an OCR misread; entry 360 is
+ቅሒም / ቀሐመ ፡ ይቅሕም ፡ ይቅሐም. For d-r-g, n-z-z and q-r-h2 the Merho Ges class (Type C) outranks the new triple, which belongs
+to another verb on the same root code, so they keep Type C (`verb_classes.RULED_CLASS_TAGS`).
+Passive, causative and aste forms are generated only for Type A and quadriliteral roots; all other classes have none yet.
 
 ## 5. aste is አስተ-
 
@@ -86,12 +141,14 @@ stem label is `aste`.
   ሀለወ (ይሄሉ) is Type B with a final w, not ተለወ type.
 - **Final-y (ሰትየ type):** generated only for a tagged root (ይሰቲ / ይስተይ). The በከየ type (subjunctive
   ይብኪ) is different and has no checked paradigm.
+  Four roots take the ruled perfect stem of section 4.2.
 - Final-weak roots without a tag are skipped.
 - The checked paradigm tables are in `verb_class_paradigms.py`, and
   `tests/test_verb_class_paradigms.py` checks them.
 - **Initial-w:** these get the Type A perfect and present only. The subjunctive and imperative are
   generated only for the ወለደ type (ይለድ, ለድ): roots on the W_DROP list or with a ይለድ-shaped
   triple.
+  Section 4.1 adds the initial-w roots with a final guttural and w-k-k.
 
 ## 7. Roots that are not generated
 

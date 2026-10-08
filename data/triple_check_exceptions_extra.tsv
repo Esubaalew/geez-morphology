@@ -1,0 +1,8 @@
+item	decision	reason
+S-b-r	generator_kept	Type B. The subjunctive has C1 in the 1st order (ይጸብር), like the other type_b roots where the generator stands (n-z-r, s-b-h2, s-d-s). The triple's ይጽብር is the book's minority 6th-order spelling.
+kh-r-s	generator_kept	የኀርስ / ይኅርስ is the regular initial-guttural Type A (present የ-, subjunctive with C1 in the 6th order; Dillmann ሐረሰ የሐርስ ይሕርስ). The ኅ in the triple's perfect and present is the ኀ/ኅ misread. Its ይኄርስ is a Type B present shape, not this verb's subjunctive.
+m-l-a	generator_kept	m is not a guttural, so the present takes ይ- (ይመልእ; Dillmann መልአ ይመልእ ይምላእ). The triple's የመልእ is a misread of ይ. The subjunctive ይምላእ already matches.
+final_guttural_scope	rule_changed	The 4th order on C2 applies only when the guttural ends the word (ይስማዕ, ስማዕ). Before any vowel suffix, -ā included, C2 stays in the 6th order: ይስምዑ, ይስምዒ, ይስምዓ, ስምዓ. Change the -ā case to ይስምዓ.
+g-n-h2 q-n-S	confirmed	Leave their gold val/test forms dropped by the leak gate.
+-y reach	root_added	The book's አበየ follows the ሰተየ perfect (1st order on C2), so add a-b-y. g-l-y stays ገልየ, as the book writes it. m-s-y and s-b-y are unchanged.
+n-s2-a	generator_kept_gold_variant	The imperative 2ms is ንሣእ (the final-guttural rule; Mark 2:9 ንሣእ ዐራተከ; Dillmann). Gold's ንሥእ is a variant spelling: mark it CHECK and leave it unchanged. Count it as a ruled mismatch.

@@ -21,7 +21,9 @@ def test_generator_rows_cover_expected_tables(cls, lemma):
     """paradigm_rows() (what the generator writes) gives every EXPECTED form."""
     cons = verb_classes.root_of_lemma(lemma)
     surfaces = {s for _, s in verb_classes.paradigm_rows(cons, cls)}
-    for forms in vcp.EXPECTED[(cls, lemma)].values():
+    for tense, forms in vcp.EXPECTED[(cls, lemma)].items():
+        if tense == "perfect" and cons in verb_classes.Y_PAST_C2_FIRST:
+            continue   # -y past-stem decision (2026-10-08): ruled forms in tests/test_triple_agreement.py
         for form in forms.split():
             assert form in surfaces, (cls, lemma, form)
 

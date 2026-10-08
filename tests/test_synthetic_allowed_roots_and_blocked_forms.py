@@ -1,8 +1,9 @@
 """The two files that limit the synthetic data.
 
-- data/synthetic_roots_allowed_6183c24_v3.txt: the only roots the generator conjugates (roots with a dictionary
-  verb entry, a gold root or a Kidane Wold verb triple, plus the 2 roots the maintainers restored by decision in
-  the root list: m-h2-l, m-s-l; m-kh-l is DROP there). The generator stops if the file is missing.
+- data/synthetic_roots_allowed_v4.txt: the only roots the generator conjugates (roots with a dictionary
+  verb entry, a gold root or a Kidane Wold verb triple, plus the 8 roots the maintainers restored by decision in
+  the exception table: m-h2-l, m-s-l, S-w-t, b-y-S, f-r-S, h2-r-g, m-s-k, w-k-a2; m-kh-l is DROP there). The
+  generator stops if the file is missing.
 - data/heldout_gold_forms_6183c24.tsv: every gold val/test form of dataset commit 6183c24. A synthetic line
   with one of these forms is not written; the root's other lines do not change. Missing file: the generator stops.
 - synthetic_heldout.py --check fails when a dataset synthetic line has a gold val/test form.
@@ -29,7 +30,7 @@ import geez_config  # noqa: E402
 import synthetic_heldout as H  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
-ALLOWED_SHA256 = "48af7ce6f787e6b1b96efcfdec305696df47e820078fe7b673268670950a07c8"
+ALLOWED_SHA256 = "f3dd0459308fbb536208f3e2346ce203c856638ecb79e95f8dad09955702739c"
 BLOCKED_SHA256 = "5c046ce68762d3e18d3510377b3a5bcb45ddded6fdd3c9c24df17dea1b594f4e"
 TRILITERAL = ["q-t-l", "g-b-r", "n-g-r", "s-b-r", "k-t-b", "d-m-r", "f-t-l", "m-s-l"]
 QUADRILITERAL = ["d-n-g-s", "s-n-b-t", "t-r-g-m", "m-s-k-r", "q-n-d-l", "b-r-b-r"]
@@ -51,17 +52,26 @@ def test_files_are_unchanged():
     assert _sha(gen.BLOCKED_FORMS_FILE) == BLOCKED_SHA256
 
 
-def test_allow_list_has_1130_roots():
+def test_allow_list_has_1272_roots():
     roots = gen.read_allowed_roots_file()
-    assert len(roots) == 1130
-    # RESTORE rows of the v3 decisions: kept on the decision
-    assert {("m", "h2", "l"), ("m", "s", "l")} <= roots
-    assert ("m", "kh", "l") not in roots        # DROP in the v3 decisions (RESTORE in v2)
-    assert os.path.basename(gen.ALLOWED_ROOTS_FILE) == "synthetic_roots_allowed_6183c24_v3.txt"
-    for old in ("synthetic_roots_allowed_6183c24.txt", "synthetic_roots_allowed_6183c24_v2.txt"):
+    assert len(roots) == 1272
+    # RESTORE rows of the v4 decisions: kept on the decision (m-h2-l, m-s-l from v3; six more after the kw rebuild)
+    restored = ["m-h2-l", "m-s-l", "S-w-t", "b-y-S", "f-r-S", "h2-r-g", "m-s-k", "w-k-a2"]
+    assert {tuple(r.split("-")) for r in restored} <= roots
+    assert ("m", "kh", "l") not in roots        # DROP in the v3/v4 decisions (RESTORE in v2)
+    # kw rebuild decisions: out by EXCLUDE_NO_VERB, the two gold-only roots go, spelling-twin drops
+    for r in ["s-T-n", "s-h2-g", "m-S2-a", "w-l-a2", "s2-w-a2", "w-a2-f", "S-w-a", "a2-s-r", "h2-d-r", "kh-q-f", "s2-m-k",
+              "a-s2-r", "b-w-kh", "d-kh-l", "n-s2-q", "n-z-a"]:
+        assert tuple(r.split("-")) not in roots, r
+    # the 11 roots the inferred_root decisions add, and the held-out spellings the twins move to
+    for r in ["a2-g-l", "a2-g-t", "a2-m-S2", "a2-z-r", "b-S2-a2", "g-f-a2", "gw-d-a2", "m-a2-a2", "r-s-a2", "s2-a2-l", "s2-r-a2",
+              "S-w-a2", "a2-s2-r", "kh-d-r", "h2-q-f", "s-m-k", "a-s-r", "m-h2-S"]:
+        assert tuple(r.split("-")) in roots, r
+    assert os.path.basename(gen.ALLOWED_ROOTS_FILE) == "synthetic_roots_allowed_v4.txt"
+    for old in ("synthetic_roots_allowed_6183c24.txt", "synthetic_roots_allowed_6183c24_v2.txt", "synthetic_roots_allowed_6183c24_v3.txt"):
         assert not os.path.exists(os.path.join(ROOT, "data", old))   # only one list
     assert [f for f in os.listdir(os.path.join(ROOT, "data")) if f.startswith("synthetic_roots_allowed")] == \
-        ["synthetic_roots_allowed_6183c24_v3.txt"]
+        ["synthetic_roots_allowed_v4.txt"]
     assert all(len(r) in (3, 4) for r in roots)
 
 
