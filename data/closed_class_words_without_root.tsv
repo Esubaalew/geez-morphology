@@ -1,0 +1,58 @@
+word	label	kind	note
+ወ	none	conjunction	proclitic "and"
+ዘ	none	relative	proclitic relative/genitive
+ለ	none	preposition	proclitic "to, for"
+በ	none	preposition	proclitic "in, by"
+እምነ	none	preposition	"from"
+ከመ	none	conjunction	"like, that"
+እስመ	none	conjunction	"because"
+አላ	none	conjunction	"but"
+ሶበ	none	conjunction	"when"
+እንዘ	none	conjunction	"while"
+እስከ	none	preposition	"until"
+እመ	none	conjunction	"if"
+ኢ	none	negation	proclitic negative
+አኮ	none	negation	"it is not"
+ኦ	none	interjection	vocative "O"
+አሌ	none	interjection	"woe"
+ሚ	none	interrogative	"what"
+ምንት	none	interrogative	"what"
+መኑ	none	interrogative	"who"
+አይ	none	interrogative	"which"
+አይቴ	none	interrogative	"where"
+ማእዜ	none	interrogative	"when"
+አነ	none	pronoun	1cs
+አንተ	none	pronoun	2ms
+አንቲ	none	pronoun	2fs
+ውእቱ	none	pronoun	3ms
+ይእቲ	none	pronoun	3fs
+ንሕነ	none	pronoun	1cp
+አንትሙ	none	pronoun	2mp
+አንትን	none	pronoun	2fp
+ውእቶሙ	none	pronoun	3mp
+ውእቶን	none	pronoun	3fp
+ዝ	none	demonstrative	"this" m
+ዝንቱ	none	demonstrative	"this" m
+ዛቲ	none	demonstrative	"this" f
+እሉ	none	demonstrative	"these"
+እሎንቱ	none	demonstrative	"these"
+ዝኩ	none	demonstrative	"that" m
+እልክቱ	none	demonstrative	"those"
+ኢየሱስ	none	name	foreign name
+ክርስቶስ	none	name	Greek loan
+ማርያም	none	name	foreign name
+ዮሐንስ	none	name	foreign name
+እስራኤል	none	name	foreign name
+ኢየሩሳሌም	none	name	foreign name
+ግብጽ	none	name	place name
+ኢትዮጵያ	none	name	Greek loan
+ኦሪት	none	loan	Aramaic loan "Law"
+ወንጌል	none	loan	Greek loan; ወ is not a radical here
+ታቦት	none	loan	Aramaic/Hebrew loan
+ፋሲካ	none	loan	Greek/Aramaic loan
+ሲኦል	none	loan	Hebrew loan
+ሰይጣን	none	loan	Hebrew/Aramaic loan
+ዲያብሎስ	none	loan	Greek loan
+ዲያቆን	none	loan	Greek loan
+ሲኖዶስ	none	loan	Greek loan
+ሱራፌል	none	loan	Hebrew loan

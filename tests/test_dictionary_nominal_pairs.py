@@ -80,7 +80,7 @@ def _dataset(tmp):
         entry(5, A, pos="particle", vowels="oee"),
         entry(6, A, pos=None, vowels="eeo"),
         entry(7, A, pos="?", vowels="eoo"),
-        entry(8, A, vowels="eoe", headword_type="phrase", headword_geez=_word(A, "eoe") + " ፡ " + _word(B, "eoe")),
+        entry(8, A, vowels="eoe", headword_type="phrase", headword_geez=_word(A, "eoe") + " \u1361 " + _word(B, "eoe")),
         entry(9, A, headword_geez=_word(A, "eoe") + " " + _word(B, "eoe")),
         entry(10, A, headword_geez="abc"),
         entry(11, X, inferred_root=None),
@@ -102,6 +102,11 @@ def _dataset(tmp):
         entry(28, FIX[:2], vowels="oo", headword_geez=_word(FIX, "ooo")),         # root fixes file gives FIX
         entry(29, X, vowels="ooo", inferred_root=_root(B)),                       # root fixes file gives null
         entry(30, C, vowels="ooo", inferred_root=_root(X)),                       # root letters not in the headword
+        entry(31, C, vowels="oee", headword_geez=sorted(D.read_words_without_root())[0]),   # a word without root
+        entry(3524, C, vowels="eeo"),                                             # id on the unverifiable list
+        entry(32, C, vowels="eoo", amharic_definition=f"({D.GREEK_SOURCE_MARKER} x) y"),    # Greek source
+        entry(33, B, vowels="ooe", amharic_definition="(x) y"),                   # another parenthesis: kept
+        entry(34, C, vowels="aaa"),                                               # the 3ms perfect
     ]
     with open(os.path.join(lex, "classical_dictionary_kidane_wold.jsonl"), "w", encoding="utf-8") as f:
         for e in entries:
@@ -136,18 +141,18 @@ def test_kept_pairs_and_labels():
         e = d["entries"]
         assert [(p["record_id"], p["form"]) for p in pairs] == [
             ("1", e[1]["headword_geez"]), ("2", e[2]["headword_geez"]), ("3", e[3]["headword_geez"]),
-            ("26", e[26]["headword_geez"]), ("28", e[28]["headword_geez"])]
+            ("26", e[26]["headword_geez"]), ("28", e[28]["headword_geez"]), ("33", e[33]["headword_geez"])]
         eth = {k: "-".join(geez_script.render_unit(c, "a") for c in d[k]) for k in ("A", "B", "C", "FIX")}
         assert all(p["task"] == D.ROOT_ONLY_TASK for p in pairs)
         targets = [D.target_text(p) for p in pairs]
-        assert targets[:3] + targets[4:] == [f"root: {eth[k]}" for k in ("A", "B", "C", "FIX")]
+        assert targets[:3] + targets[4:] == [f"root: {eth[k]}" for k in ("A", "B", "C", "FIX", "B")]
         labels = [(p["type"], p["gender"], p["number"]) for p in pairs]
         assert labels == [("noun", "", "s"), ("adjective", "f", "s"), ("adjective", "", "p"), ("noun", "", "s"),
-                          ("noun", "", "s")]
+                          ("noun", "", "s"), ("noun", "", "s")]
         full = dict(pairs[1], task=None)
         assert D.target_text(full) == f"root: {eth['B']} | type: adjective | gender: f | number: s"
         assert pairs[3]["record_ids"] == ["26", "27"]
-        assert stats["loaded"] == 5 and stats["headwords with conflicting roots"] == 1
+        assert stats["loaded"] == 6 and stats["headwords with conflicting roots"] == 1
 
 
 def test_left_out_kinds():
@@ -159,6 +164,8 @@ def test_left_out_kinds():
             "not loaded: headword_type phrase": 1, "not loaded: headword is not one Ge'ez word": 2,
             "not loaded: no root": 4, "not loaded: root marked unclear": 2,
             "not loaded: headword does not hold the root's radicals": 1,
+            "not loaded: headword is a word without root": 1, "not loaded: entry cannot be checked": 1,
+            "not loaded: definition names a Greek source": 1, "not loaded: headword is the root's 3ms perfect": 1,
             "not loaded: root has 2 radicals": 1, "not loaded: root has 5 radicals": 1,
             "not loaded: root not on the synthetic allow-list": 2,
             "not loaded: root is a gold val/test root": 2, "not loaded: form is a gold val/test form": 1,
@@ -209,7 +216,7 @@ def test_trainer_flag_and_eval_slice():
     with tempfile.TemporaryDirectory() as tmp:
         _dataset(tmp)
         train, evals = T.load_dictionary_samples(tmp)
-        assert len(train) + len(evals) == 5 and all(s["source"] == "dictionary" for s in train + evals)
+        assert len(train) + len(evals) == 6 and all(s["source"] == "dictionary" for s in train + evals)
         assert all(s["task"] == D.ROOT_ONLY_TASK and s["target_text"].count("|") == 0 for s in train + evals)
         assert T.parse_args(["--no_dictionary_pairs"]).no_dictionary_pairs and not T.parse_args([]).no_dictionary_pairs
     with tempfile.TemporaryDirectory() as tmp:
@@ -288,3 +295,14 @@ def test_examples_left_out_in_the_checkout():
     assert entries[i]["headword_geez"] == form and val[val_id]["root"] == root
     assert not {str(IN_GOLD_TRAIN[0]), str(a), str(b), str(GOLD_VAL_ROOT[0])} & ids
     assert stats["headwords with conflicting roots"] > 0
+
+
+def test_entries_left_out_by_word_lists_and_shape():
+    """The loanword entry 3900 (no-root word list and Greek source), the 3ms perfect 9199 and the unverifiable 3524
+    are left out; 10783, whose definition names an Arabic cognate, stays."""
+    _need_dataset()
+    ids = {i for p in D.load_dictionary_pairs(DATASET_DIR) for i in p["record_ids"]}
+    entries = {e["id"]: e for e in D.read_dictionary_entries(DATASET_DIR)}
+    assert entries[3900]["headword_geez"] in D.read_words_without_root() and D.names_greek_source(entries[3900])
+    assert not D.names_greek_source(entries[10783]) and "(" in entries[10783]["amharic_definition"]
+    assert not {"3900", "9199", "3524"} & ids and "10783" in ids

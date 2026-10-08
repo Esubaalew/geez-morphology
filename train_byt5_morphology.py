@@ -7,7 +7,7 @@ Target text: "root: <ሀ-ለ-መ> | tense: <t> | person: <p> | gender: <g> | num
              (gold verbs with an object add " | object: <o>"), and
              "root: <ሀ-ለ-መ> | type: <noun|adjective> | gender: <g> | number: <n>" for a noun or adjective
              (gender only where the gold row has one); see dataset_loader.target_text.
-             A dictionary pair (task root_only) has the root alone: "root: <ሀ-ለ-መ>".
+             A dictionary pair (task root_only) has the root alone: "root: <root>".
 
 Data (read from --dataset_dir, the geez-dataset checkout), as written:
   data/paradigms/synthetic_morphology_train.jsonl        synthetic pairs

@@ -169,7 +169,7 @@ def target_text(pair):
     """Training target. Verbs: 'root | tense | person | gender | number | stem' plus ' | object: X'
     when the form carries an object suffix. Nouns: 'root | type: noun | number'. Adjectives:
     'root | type: adjective | gender | number' (gender left out when the book gives none).
-    A pair whose task is ROOT_ONLY_TASK (the dictionary pairs) has the root alone: 'root: ሰ-በ-ረ'."""
+    A pair whose task is ROOT_ONLY_TASK (the dictionary pairs) has the root alone: 'root: <root>'."""
     if pair.get("task") == ROOT_ONLY_TASK:
         return f"root: {pair['root']}"
     if pair["type"] in NOMINAL_TYPES:
@@ -196,6 +196,14 @@ ROOT_RADICALS_KEPT = (3, 4)
 CITATION_NUMBER = "s"
 DICTIONARY_EVAL_FRACTION = 0.1
 DICTIONARY_SPLIT_SEED = 42
+# Words with no root (particles, pronouns, names, loanwords), one per line in column "word"; label "none".
+WORDS_WITHOUT_ROOT_FILE = os.path.join(SCRIPT_DIR, "data", "closed_class_words_without_root.tsv")
+# The dictionary's abbreviation for a Greek source, followed by the word separator, as it is written inside the
+# parenthesis that opens a definition. A word taken from Greek has no Ge'ez root. Other source abbreviations
+# (e.g. the one for an Arabic cognate) do not mark a loanword and are not checked.
+GREEK_SOURCE_MARKER = 'ጽር ፡'
+# Entries whose definition text is too garbled to check the headword and the root against it.
+UNVERIFIABLE_ENTRY_IDS = frozenset({3524})
 
 
 def is_geez_word(s):
@@ -225,9 +233,9 @@ WEAK_RADICALS = ("w", "y")
 
 
 def carries_root(form, root):
-    """True when the letters of `form` hold the radicals of `root` (1st-order Ethiopic, "ቀ-ተ-ለ") in order, each
-    as written. A w or y radical may be missing (ቆመ from ቀ-ወ-መ), and so may a radical that repeats the one
-    before it, since a doubled letter is written once (ነደ from ነ-ደ-ደ)."""
+    """True when the letters of `form` hold the radicals of `root` (1st-order Ethiopic letters joined by "-") in
+    order, each as written. A w or y radical may be missing (a hollow q-w-m form without its w), and so may a
+    radical that repeats the one before it, since a doubled letter is written once (n-d-d with one d)."""
     letters = [geez_script.decompose_char(c)[0] for c in form]
     at, previous = 0, None
     for r in geez_script.root_symbols(root):
@@ -237,6 +245,28 @@ def carries_root(form, root):
             return False
         previous = r
     return True
+
+
+def read_words_without_root(path=WORDS_WITHOUT_ROOT_FILE):
+    """{word: label} of the words-without-root file (tab-separated, header line: word, label, kind, note)."""
+    with open(path, encoding="utf-8", newline="") as f:
+        return {r["word"]: r["label"] for r in csv.DictReader(f, delimiter="\t", quoting=csv.QUOTE_NONE)}
+
+
+def names_greek_source(entry):
+    """True when the parenthesis that opens the entry's definition holds GREEK_SOURCE_MARKER as a word."""
+    m = re.search(r"\(([^()]*)\)", entry.get("amharic_definition") or "")
+    if not m:
+        return False
+    group = " " + m.group(1)
+    starts = (k.start() for k in re.finditer(re.escape(GREEK_SOURCE_MARKER), group))
+    return any(group[i - 1] in " \u1361(" for i in starts)
+
+
+def is_root_perfect(headword, root):
+    """True when the headword is the root's letters, each in the 1st order (q-t-l written as qatala): the
+    verb's 3ms perfect, not a noun or adjective of that root."""
+    return headword == root.replace("-", "")
 
 
 def read_dictionary_entries(dataset_dir):
@@ -253,13 +283,16 @@ def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_
 
     An entry gives a pair when, in this order:
       1. its pos is noun or adjective (not a verb, name, particle, other word class or no pos);
-      2. its headword is one dictionary word (headword_type not in NOT_A_WORD_ENTRY) of Ge'ez letters only;
+      2. its headword is one dictionary word (headword_type not in NOT_A_WORD_ENTRY) of Ge'ez letters only, is
+         not in the words-without-root file (WORDS_WITHOUT_ROOT_FILE), its id is not in UNVERIFIABLE_ENTRY_IDS,
+         and its definition does not name a Greek source (names_greek_source);
       3. it has a root (dictionary_entry_root);
       4. the root is not marked unclear (root_marked_unclear);
-      5. the root passes the gold check (root_problem) once written in Ge'ez letters, and the headword holds
-         its radicals in order (carries_root): a root whose letters are not in the headword was misread;
+      5. the root passes the gold check (root_problem) once written in Ge'ez letters, the headword holds
+         its radicals in order (carries_root): a root whose letters are not in the headword was misread, and
+         the headword is not the root's 3ms perfect (is_root_perfect);
       6. with allowed_roots_only: the root has 3 or 4 radicals and is on the synthetic generator's allow-list
-         (generate_synthetic_data.ALLOWED_ROOTS_FILE), so a verb backs every root; a prefix (መ-, ም-, ተ-, አ-)
+         (generate_synthetic_data.ALLOWED_ROOTS_FILE), so a verb backs every root; a noun prefix (m-, t- or a-)
          read as a radical gives a root that fails here;
       7. the root is not a gold val/test root (split_heldout_synthetic.gold_eval_roots) and not in the
          generator's held-out roots file (generate_synthetic_data.HELD_OUT_ROOTS_FILE), and the form is not a
@@ -280,6 +313,7 @@ def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_
 
     stats = stats if stats is not None else collections.Counter()
     fixes = verb_classes.root_fixes(dataset_dir)
+    without_root = read_words_without_root()
     allowed = generate_synthetic_data.read_allowed_roots_file()
     held_out = generate_synthetic_data.read_held_out_roots_file()
     eval_roots = split_heldout_synthetic.gold_eval_roots(dataset_dir)
@@ -300,6 +334,15 @@ def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_
         if not is_geez_word(headword):
             stats["not loaded: headword is not one Ge'ez word"] += 1
             continue
+        if headword in without_root:
+            stats["not loaded: headword is a word without root"] += 1
+            continue
+        if entry.get("id") in UNVERIFIABLE_ENTRY_IDS:
+            stats["not loaded: entry cannot be checked"] += 1
+            continue
+        if names_greek_source(entry):
+            stats["not loaded: definition names a Greek source"] += 1
+            continue
         value = dictionary_entry_root(entry, fixes)
         if not value:
             stats["not loaded: no root"] += 1
@@ -314,6 +357,9 @@ def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_
             continue
         if not carries_root(headword, root):
             stats["not loaded: headword does not hold the root's radicals"] += 1
+            continue
+        if is_root_perfect(headword, root):
+            stats["not loaded: headword is the root's 3ms perfect"] += 1
             continue
         candidates.append((headword, root, entry, False))
         if include_forms:
