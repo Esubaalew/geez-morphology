@@ -45,11 +45,17 @@ def _root(symbols):
     return "-".join(symbols)
 
 
+def _fold(symbols):
+    return H.fold_root(geez_script.to_ethiopic_root("-".join(symbols)))
+
+
 def _roots():
-    """Allowed 3-radical roots, a 3-radical root of the held-out roots file that is not on the allow-list, and a
-    3-radical root of known letters that is in neither file."""
-    allowed = sorted(r for r in gen.read_allowed_roots_file() if len(r) == 3)
+    """Allowed 3-radical roots (each the only allowed or held-out root of its spelling fold), a 3-radical root of
+    the held-out roots file that is not on the allow-list, and a 3-radical root of known letters that is in
+    neither file."""
     held_out = sorted(gen.read_held_out_roots_file())
+    folds = collections.Counter(_fold(r) for r in gen.read_allowed_roots_file() | set(held_out))
+    allowed = sorted(r for r in gen.read_allowed_roots_file() if len(r) == 3 and folds[_fold(r)] == 1)
     off_list = next(r for r in held_out if len(r) == 3 and r not in gen.read_allowed_roots_file())
     plain = [c for c in geez_script.CONSONANTS if c not in ("qh", "kh2", "gw", "khw")]
     not_allowed = next((a, b, c) for a in plain for b in plain for c in plain
@@ -61,6 +67,10 @@ def _dataset(tmp):
     allowed, held_out_root, not_allowed = _roots()
     A, B, C, VAL, TEST, F, G, X, Y, Z, FIX = allowed[:11]
     P, Q = next((p, q) for p in allowed[11:] for q in allowed[11:] if p < q and p[:2] == q[:2])   # one form holds both
+    twin = {kept: t for t, kept in geez_script.TWIN_ROWS.items()}
+    FOLD = next(r for r in allowed[11:] if r not in (P, Q) and r[0] in twin)
+    FOLD_TEST = (twin[FOLD[0]],) + FOLD[1:]                       # a gold test root, the same as FOLD up to spelling
+    HELD = next(r for r in allowed[11:] if r not in (P, Q, FOLD))  # a root of the held-out synthetic lines
     lex, para = os.path.join(tmp, "data", "lexicon"), os.path.join(tmp, "data", "paradigms")
     os.makedirs(lex)
     os.makedirs(para)
@@ -107,6 +117,8 @@ def _dataset(tmp):
         entry(32, C, vowels="eoo", amharic_definition=f"({D.GREEK_SOURCE_MARKER} x) y"),    # Greek source
         entry(33, B, vowels="ooe", amharic_definition="(x) y"),                   # another parenthesis: kept
         entry(34, C, vowels="aaa"),                                               # the 3ms perfect
+        entry(35, FOLD),                                                          # gold test root up to spelling
+        entry(36, HELD),                                                          # held-out synthetic root
     ]
     with open(os.path.join(lex, "classical_dictionary_kidane_wold.jsonl"), "w", encoding="utf-8") as f:
         for e in entries:
@@ -115,14 +127,19 @@ def _dataset(tmp):
         for i, new in ((28, _root(FIX)), (29, None)):
             f.write(json.dumps({"id": i, "new_root": new}) + "\n")
 
-    def gold(name, symbols, form):
-        rec = {"record_id": name, "root": "-".join(geez_script.render_unit(c, "a") for c in symbols),
-               "table_data": [{"geez_form": form, "type": "noun", "number": "s"}]}
+    def gold(name, *rows):
         with open(os.path.join(para, D.gold_file_name(name)), "w", encoding="utf-8") as f:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    gold("val", VAL, val_form)
-    gold("test", TEST, _word(TEST, "ooo"))
-    gold("train", A, train_form)
+            for symbols, form in rows:
+                rec = {"record_id": name, "root": "-".join(geez_script.render_unit(c, "a") for c in symbols),
+                       "table_data": [{"geez_form": form, "type": "noun", "number": "s"}]}
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    gold("val", (VAL, val_form))
+    gold("test", (TEST, _word(TEST, "ooo")), (FOLD_TEST, _word(FOLD_TEST, "eee")))
+    gold("train", (A, train_form))
+    held_file = H.targets(tmp)[2]
+    os.makedirs(os.path.dirname(held_file))
+    with open(held_file, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"surface_form": _word(HELD, "aaa"), "features": {"root": "-".join(HELD)}}) + "\n")
     blocked = gen.read_blocked_forms_file()
     assert not {e["headword_geez"] for e in entries} & blocked
     assert not D.carries_root(entries[29]["headword_geez"], "-".join(geez_script.render_unit(c, "a") for c in X))
@@ -169,6 +186,8 @@ def test_left_out_kinds():
             "not loaded: root has 2 radicals": 1, "not loaded: root has 5 radicals": 1,
             "not loaded: root not on the synthetic allow-list": 2,
             "not loaded: root is a gold val/test root": 2, "not loaded: form is a gold val/test form": 1,
+            "not loaded: root is a gold val/test or held-out root up to spelling": 1,
+            "not loaded: root is a root of the held-out synthetic lines": 1,
             "not loaded: form is in the gold train file": 1, "not loaded: headword has conflicting roots": 2,
             "not loaded: duplicate (form, target)": 1}
         assert {k: v for k, v in stats.items() if k.startswith("not loaded")} == expected
@@ -246,6 +265,9 @@ def test_no_dictionary_train_pair_has_a_gold_val_or_test_root():
     assert [p for p in pairs if geez_script.first_order_root(p["root"]) in eval_roots] == []
     assert [p for p in pairs if geez_script.root_symbols(p["root"]) in held_out] == []
     assert [p for p in pairs if p["form"] in eval_forms] == []
+    held_synthetic = D.held_out_synthetic_roots(DATASET_DIR)
+    folded = {H.fold_root(r) for r in set(eval_roots) | held_synthetic} | {_fold(r) for r in held_out}
+    assert [p for p in pairs if H.fold_root(geez_script.first_order_root(p["root"])) in folded] == []
 
 
 def test_checkout_roots_are_allowed_and_split_by_root():

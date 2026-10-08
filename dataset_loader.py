@@ -315,6 +315,18 @@ def is_root_perfect(headword, root):
     return headword == root.replace("-", "")
 
 
+def held_out_synthetic_roots(dataset_dir):
+    """The roots (1st-order Ethiopic) of the dataset's held-out synthetic lines, data/synthetic/ (the lines the split
+    moved out of training for a gold val/test root, or the same root up to spelling); empty when the file is missing."""
+    import split_heldout_synthetic
+
+    path = split_heldout_synthetic.targets(dataset_dir)[2]
+    if not os.path.exists(path):
+        return set()
+    with open(path, encoding="utf-8") as f:
+        return {split_heldout_synthetic.line_root(json.loads(line)) for line in f if line.strip()}
+
+
 def read_dictionary_entries(dataset_dir):
     path = os.path.join(dataset_dir, KIDANE_WOLD_FILE)
     with open(path, encoding="utf-8") as f:
@@ -340,9 +352,11 @@ def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_
       6. with allowed_roots_only: the root has 3 or 4 radicals and is on the synthetic generator's allow-list
          (generate_synthetic_data.ALLOWED_ROOTS_FILE), so a verb backs every root; a noun prefix (m-, t- or a-)
          read as a radical gives a root that fails here;
-      7. the root is not a gold val/test root (split_heldout_synthetic.gold_eval_roots) and not in the
-         generator's held-out roots file (generate_synthetic_data.HELD_OUT_ROOTS_FILE), and the form is not a
-         gold val/test form (split_heldout_synthetic.gold_eval_forms, generate_synthetic_data.BLOCKED_FORMS_FILE);
+      7. the root is not a gold val/test root (split_heldout_synthetic.gold_eval_roots), not in the
+         generator's held-out roots file (generate_synthetic_data.HELD_OUT_ROOTS_FILE), not a root of the
+         dataset's held-out synthetic lines (held_out_synthetic_roots), nor any of these up to spelling (the
+         roots folded with split_heldout_synthetic.fold_root: labiovelar letters plain, twin letters merged), and
+         the form is not a gold val/test form (split_heldout_synthetic.gold_eval_forms, generate_synthetic_data.BLOCKED_FORMS_FILE);
       8. the form is not a form of the gold train file: the gold pair already trains it, with the book's labels;
       9. no other pair that passes steps 1-5 gives the same form another root;
      10. no earlier pair has the same form and target (the first entry's record_id is kept).
@@ -364,6 +378,9 @@ def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_
     held_out = generate_synthetic_data.read_held_out_roots_file()
     eval_roots = split_heldout_synthetic.gold_eval_roots(dataset_dir)
     eval_forms = split_heldout_synthetic.gold_eval_forms(dataset_dir) | generate_synthetic_data.read_blocked_forms_file()
+    synthetic_held_out = held_out_synthetic_roots(dataset_dir)
+    folded_held_out = {split_heldout_synthetic.fold_root(r) for r in
+                       set(eval_roots) | synthetic_held_out | {geez_script.to_ethiopic_root("-".join(s)) for s in held_out}}
     gold_train = gold_file_path(dataset_dir, "train")
     gold_train_forms = {p["form"] for p in load_gold_split(dataset_dir, "train")} if os.path.exists(gold_train) else set()
 
@@ -438,6 +455,12 @@ def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_
             continue
         if symbols in held_out:
             stats[f"{prefix}root is in the held-out roots file"] += 1
+            continue
+        if geez_script.first_order_root(root) in synthetic_held_out:
+            stats[f"{prefix}root is a root of the held-out synthetic lines"] += 1
+            continue
+        if split_heldout_synthetic.fold_root(geez_script.first_order_root(root)) in folded_held_out:
+            stats[f"{prefix}root is a gold val/test or held-out root up to spelling"] += 1
             continue
         if form in eval_forms:
             stats[f"{prefix}form is a gold val/test form"] += 1
