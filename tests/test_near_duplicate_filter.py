@@ -108,8 +108,9 @@ def test_split_drops_near_duplicates_from_training_pair_only():
     with tempfile.TemporaryDirectory() as tmp:
         os.makedirs(os.path.join(tmp, "ds", "data", "paradigms"))
         os.makedirs(os.path.join(tmp, "full"))
-        val = {"record_id": "v1", "root": geez_script.to_ethiopic_root("qh-S-l"), "table_data": [{"geez_form": gold_val}]}
-        test = {"record_id": "t1", "root": geez_script.to_ethiopic_root("n-s-k"), "table_data": [{"geez_form": gold_test}]}
+        # the gold records carry roots of their own, so the root gate does not move the training lines below
+        val = {"record_id": "v1", "root": geez_script.to_ethiopic_root("m-r-t"), "table_data": [{"geez_form": gold_val}]}
+        test = {"record_id": "t1", "root": geez_script.to_ethiopic_root("b-r-k"), "table_data": [{"geez_form": gold_test}]}
         for name, rec in ((GOLD_FILES["val"], val), (GOLD_FILES["test"], test)):
             with open(os.path.join(tmp, "ds", "data", "paradigms", name), "w", encoding="utf-8") as f:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -118,7 +119,7 @@ def test_split_drops_near_duplicates_from_training_pair_only():
             _line("q-S-l", _word(("q", "I"), ("S", "u"), ("l", "I"))),             # plain letter of gold_val: dropped
             _line("n-s2-k", _word(("n", "a"), ("s2", "a"), ("k", "a"))),           # twin of gold_test: dropped
             _line("q-S-l", _word(("q", "a"), ("S", "u"), ("l", "I"))),             # other vowel order: kept
-            _line("n-s-k", _word(("n", "a"), ("s2", "a"), ("k", "a"))),            # gold test root: held out, not filtered
+            _line("b-r-k", _word(("n", "a"), ("s2", "a"), ("k", "a"))),            # gold test root: held out, not filtered
             _line("n-g-r", _word(("n", "a"), ("g", "a"), ("r", "a"))),             # kept
         ]
         with open(os.path.join(tmp, "full", H.TRAIN), "w", encoding="utf-8") as ft, \

@@ -24,8 +24,8 @@ data/heldout_test_roots.txt (see below); --test_file takes them from a
 gold test file instead. By default the generator writes into the dataset folder: output goes to
 <dataset>/output and is copied to <dataset>/data/paradigms (what train_byt5_morphology.py reads).
 After the copy, split_heldout_synthetic.py moves every line whose root is a root of the
-current gold val or test file into <dataset>/data/synthetic/ (held out, not read by
-the trainer), and drops from the training pair every line whose surface form equals a gold val/test
+current gold val or test file, or the same root up to spelling (labiovelar and twin letters folded),
+into <dataset>/data/synthetic/ (held out, not read by the trainer), and drops from the training pair every line whose surface form equals a gold val/test
 form up to spelling (geez_script.fold_spelling: labiovelar letters made plain, twin letters merged);
 --near_duplicate_report writes those dropped lines to a file. --no_heldout_split skips that step. --no_mirror skips the copy and the split, and
 --output_dir sends the output somewhere other than <dataset>/output.
@@ -903,6 +903,10 @@ def generate_extended_dataset(
                 output_dir, dataset_dir, near_duplicate_report=near_duplicate_report)
             print(f"Held out (split_heldout_synthetic.py): {sum(moved.values()):,} lines whose root is a gold val/test root "
                   f"-> {os.path.join(dataset_dir, split_heldout_synthetic.HELDOUT_DIR)}")
+            exact = split_heldout_synthetic.gold_eval_roots(dataset_dir)
+            by_fold = {k: n for k, n in moved.items() if k[1] not in exact}
+            print(f"  of these, the same root as a gold val/test root up to spelling: {sum(by_fold.values()):,} lines, "
+                  f"{len(by_fold)} roots")
             dropped_roots = {split_heldout_synthetic.line_root(json.loads(x)) for x in dropped}
             print(f"Near-duplicates of gold val/test forms dropped from the training pair: {len(dropped):,} lines, "
                   f"{len(dropped_roots)} roots" + (f"; report: {near_duplicate_report}" if near_duplicate_report else ""))

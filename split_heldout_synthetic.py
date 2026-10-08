@@ -14,7 +14,10 @@ generator's order. The paired analyze file is split on the same lines.
 Gold val/test roots: for every row of merho_ges_gold_val.jsonl and merho_ges_gold_test.jsonl, the row's
 root and the record's root, each "/" alternative, in the 1st order (geez_script.first_order_root); only
 roots of Ethiopic letters. A synthetic line is held out when its root, written in Ethiopic letters of
-the 1st order, is one of them.
+the 1st order, is one of them, or when it is the same root up to spelling: the root folded with
+geez_script.fold_spelling (labiovelar letters made plain: qh, kh2, gw, khw -> q, k, g, kh; twin letters
+merged: s2 -> s, S2 -> S, h2 and kh -> h1, a2 -> a) equals a folded gold val/test root. Such a line moves to
+the held-out files like any other line of a gold val/test root; the root itself is not renamed.
 
 Near-duplicates of gold val/test forms: a line that would stay in the training file is dropped (with its
 analyze line) when its surface form, folded with geez_script.fold_spelling (labiovelar letters made plain,
@@ -28,8 +31,8 @@ Usage:
     --write   write the four files into the dataset repo
     --check   compare what the split gives with the four files in the dataset repo, count the lines of the
               four files whose surface form is a gold val or test form, and count the lines of the training
-              pair whose folded surface form is a folded gold val/test form (exit 1 if the files differ or
-              either count is not 0)
+              pair whose folded surface form is a folded gold val/test form or whose folded root is a folded
+              gold val/test root (exit 1 if the files differ or any of these counts is not 0)
     --near_duplicate_report <path>   write the dropped near-duplicate lines to this JSONL file
 
 Gold val/test forms: every form of every row of merho_ges_gold_val.jsonl and merho_ges_gold_test.jsonl, rows
@@ -69,6 +72,36 @@ def gold_eval_roots(dataset_dir):
                             continue
                         roots[geez_script.first_order_root(alt)].add(split)
     return dict(roots)
+
+
+def fold_root(root):
+    """A 1st-order Ethiopic root folded for comparison: labiovelar letters plain, twin letters merged."""
+    return geez_script.fold_spelling(root)
+
+
+def gold_eval_roots_folded(dataset_dir):
+    """{folded root: {gold val/test roots that fold to it}} from gold_eval_roots."""
+    folded = collections.defaultdict(set)
+    for root in gold_eval_roots(dataset_dir):
+        folded[fold_root(root)].add(root)
+    return dict(folded)
+
+
+def folded_root_lines(dataset_dir):
+    """{dataset training file: [(line number, root)]} for lines of the training pair whose root, folded, is a folded gold
+    val/test root (an exact gold val/test root included)."""
+    folded = gold_eval_roots_folded(dataset_dir)
+    found = {}
+    for p in targets(dataset_dir)[:2]:
+        if not os.path.exists(p):
+            continue
+        with open(p, encoding="utf-8") as f:
+            for n, line in enumerate(f, 1):
+                d = json.loads(line)
+                if fold_root(line_root(d)) in folded:
+                    feats = d.get("features") or d.get("analysis") or {}
+                    found.setdefault(os.path.relpath(p, dataset_dir), []).append((n, feats.get("root")))
+    return found
 
 
 def form_variants(cell):
@@ -178,6 +211,7 @@ def split(full_dir, dataset_dir):
     """-> (train lines, analyze lines, held-out train lines, held-out analyze lines, Counter((split, root)),
     dropped near-duplicate train lines). Near-duplicates are dropped from the training pair only."""
     roots = gold_eval_roots(dataset_dir)
+    folded_roots = gold_eval_roots_folded(dataset_dir)
     tr, an, htr, han = [], [], [], []
     moved = collections.Counter()
     with open(os.path.join(full_dir, TRAIN), encoding="utf-8") as ft, open(os.path.join(full_dir, ANALYZE), encoding="utf-8") as fa:
@@ -189,6 +223,10 @@ def split(full_dir, dataset_dir):
             if r in roots:
                 htr.append(lt); han.append(la)
                 moved[("+".join(sorted(roots[r])), r)] += 1
+            elif fold_root(r) in folded_roots:
+                splits = set().union(*(roots[g] for g in folded_roots[fold_root(r)]))
+                htr.append(lt); han.append(la)
+                moved[("+".join(sorted(splits)), r)] += 1
             else:
                 tr.append(lt); an.append(la)
     folded_gold = gold_eval_forms_folded(dataset_dir)
@@ -240,6 +278,9 @@ def main():
     for (s, r), n in moved.items():
         per_split[s] += n
     print(f"held out: {sum(moved.values())} lines, {len(moved)} roots; per split {dict(sorted(per_split.items()))}")
+    exact = gold_eval_roots(args.dataset_dir)
+    by_fold = {k: n for k, n in moved.items() if k[1] not in exact}
+    print(f"of these, held out as the same root up to spelling: {sum(by_fold.values())} lines, {len(by_fold)} roots")
     print(f"near-duplicates of gold val/test forms dropped from the training pair: {len(dropped)} lines, "
           f"{len({line_root(json.loads(x)) for x in dropped})} roots")
     if args.report:
@@ -255,9 +296,13 @@ def main():
     n_near = sum(len(v) for v in near.values())
     print(f"training lines whose folded surface form is a folded gold val/test form: {n_near}"
           + "".join(f"\n[!] {p}: {len(v)} lines, e.g. line {v[0][0]} root {v[0][1]}" for p, v in sorted(near.items())))
+    twin = folded_root_lines(args.dataset_dir)
+    n_twin = sum(len(v) for v in twin.values())
+    print(f"training lines whose folded root is a folded gold val/test root: {n_twin}"
+          + "".join(f"\n[!] {p}: {len(v)} lines, e.g. line {v[0][0]} root {v[0][1]}" for p, v in sorted(twin.items())))
     if args.check:
         print("split == dataset files" if not differ else f"[!] differ: {differ}")
-        sys.exit(1 if differ or n_found or n_near else 0)
+        sys.exit(1 if differ or n_found or n_near or n_twin else 0)
 
 
 if __name__ == "__main__":
