@@ -90,6 +90,8 @@ Two more files in `data/` limit the output, and the generator stops if either is
 
 `python split_heldout_synthetic.py --full_dir <generator output> --dataset_dir <dataset> --check` compares the split with the dataset files and fails when any synthetic line in the dataset has a gold val or test form, computed from the current gold files.
 
+The split also drops from the training pair every line whose form equals a gold val or test form up to spelling (`geez_script.fold_spelling`: labiovelar letters made plain, twin letters merged, vowel order kept); roots are not changed and the held-out files are not filtered. The log gives the count, and `--near_duplicate_report <path>` (generator or split) writes the dropped lines; `--check` fails if such a line is in the training pair.
+
 ## Test
 
 ```bash

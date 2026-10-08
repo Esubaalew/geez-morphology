@@ -8,12 +8,15 @@ Contents:
      vowel-order arithmetic (code point = base + order).
   4. Decomposer: character -> (consonant, vowel), inverse of renderer.
   5. Guttural spelling variants and root helpers.
+  6. Spelling fold: labiovelar letters made plain and twin letters merged, for matching forms.
 
 Prose in this repository names the vowel orders 1st to 7th (ግዕዝ ... ሳብዕ). The code uses
 indices 0-6: index 0 = 1st order ... index 5 = 6th order (ሳድስ), index 6 = 7th order.
   0: a (ሀ)   1: u (ሁ)   2: i (ሂ)   3: A (ሃ)
   4: e (ሄ)   5: I (ህ)   6: o (ሆ)
 """
+
+import unicodedata
 
 # Abstract vowel labels -> vowel order index (0 = 1st order ... 6 = 7th order)
 VOWEL_ORDERS = {
@@ -121,6 +124,64 @@ def normalize_guttural_4th(s: str) -> str:
 
 def gutturals_equal(a: str, b: str) -> bool:
     return normalize_guttural_4th(a) == normalize_guttural_4th(b)
+
+
+# Spelling fold. Two forms that differ only by a labiovelar letter against its plain letter, or by one twin
+# letter against the other, are the same word for leak checks. The fold keeps the vowel order of every letter.
+# It is for comparing forms only: roots and stored forms are never changed.
+TWIN_ROWS = {"s2": "s", "S2": "S", "h2": "h1", "kh": "h1", "a2": "a"}
+LABIOVELAR_VOWELS = ("WAA", "WEE", "WA", "WI", "WE")
+
+
+def _ethiopic_syllables_by_name() -> dict:
+    """{Unicode name without "ETHIOPIC SYLLABLE ": letter} over the Ethiopic block."""
+    prefix = "ETHIOPIC SYLLABLE "
+    out = {}
+    for cp in range(0x1200, 0x1380):
+        name = unicodedata.name(chr(cp), "")
+        if name.startswith(prefix):
+            out[name[len(prefix):]] = chr(cp)
+    return out
+
+
+def _labiovelar_to_plain() -> dict:
+    """{labiovelar letter: plain letter of the same vowel order}, from the Unicode names.
+
+    A labiovelar row is a consonant name C with its own CWI and CWE syllables (QWA QWI QWAA QWEE QWE);
+    its plain letter is C plus the vowel (QA QI QAA QEE QE). Letters named C + WA alone (the
+    8th letter of a row, e.g. LWA) are not labiovelar rows and are left out.
+    """
+    by_name = _ethiopic_syllables_by_name()
+    table = {}
+    for syllable, letter in by_name.items():
+        for vowel in LABIOVELAR_VOWELS:
+            if syllable.endswith(vowel):
+                cons = syllable[: -len(vowel)]
+                plain = cons + vowel[1:]
+                if cons and cons + "WI" in by_name and cons + "WE" in by_name and plain in by_name:
+                    table[letter] = by_name[plain]
+                break
+    return table
+
+
+def _twin_to_one_row() -> dict:
+    """{twin letter: letter of the kept row, same vowel order} for the 7 vowel orders of TWIN_ROWS."""
+    return {chr(CONSONANTS[twin] + order): chr(CONSONANTS[kept] + order)
+            for twin, kept in TWIN_ROWS.items() for order in range(7)}
+
+
+LABIOVELAR_TO_PLAIN = _labiovelar_to_plain()
+TWIN_TO_ONE_ROW = _twin_to_one_row()
+SPELLING_FOLD = {ord(a): TWIN_TO_ONE_ROW.get(b, b) for a, b in LABIOVELAR_TO_PLAIN.items()}
+SPELLING_FOLD.update({ord(a): b for a, b in TWIN_TO_ONE_ROW.items()})
+
+
+def fold_spelling(s: str) -> str:
+    """s with every labiovelar letter made plain and every twin letter in its kept row, vowel orders kept.
+
+    Labiovelar letters fold first, so a labiovelar letter of a twin row lands in the kept row.
+    """
+    return s.translate(SPELLING_FOLD) if s else s
 
 
 def decompose_string(s: str):

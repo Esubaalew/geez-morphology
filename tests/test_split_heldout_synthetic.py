@@ -34,12 +34,12 @@ def test_split_moves_val_test_root_lines_in_order():
     with tempfile.TemporaryDirectory() as tmp:
         lines = _setup(tmp)
         ds = os.path.join(tmp, "ds")
-        moved, _ = H.split_into_dataset(os.path.join(tmp, "full"), ds)
+        moved, _, _ = H.split_into_dataset(os.path.join(tmp, "full"), ds)
         tr, an, htr, han = [open(p, encoding="utf-8").read() for p in H.targets(ds)]
         assert tr == lines[0][0] + lines[4][0] and an == lines[0][1] + lines[4][1]
         assert htr == lines[1][0] + lines[2][0] + lines[3][0] and han == lines[1][1] + lines[2][1] + lines[3][1]
         assert sum(moved.values()) == 3 and moved[("val", "ሰ-መ-ዐ")] == 1
-        _, differ = H.split_into_dataset(os.path.join(tmp, "full"), ds, write=False)
+        _, differ, _ = H.split_into_dataset(os.path.join(tmp, "full"), ds, write=False)
         assert differ == []                                      # reproducible
 
 

@@ -25,7 +25,9 @@ gold test file instead. By default the generator writes into the dataset folder:
 <dataset>/output and is copied to <dataset>/data/paradigms (what train_byt5_morphology.py reads).
 After the copy, split_heldout_synthetic.py moves every line whose root is a root of the
 current gold val or test file into <dataset>/data/synthetic/ (held out, not read by
-the trainer); --no_heldout_split skips that step. --no_mirror skips the copy and the split, and
+the trainer), and drops from the training pair every line whose surface form equals a gold val/test
+form up to spelling (geez_script.fold_spelling: labiovelar letters made plain, twin letters merged);
+--near_duplicate_report writes those dropped lines to a file. --no_heldout_split skips that step. --no_mirror skips the copy and the split, and
 --output_dir sends the output somewhere other than <dataset>/output.
 Random draws are per root: which base pairs of a root get object and
 negative forms, which object suffixes, which augmentation forms get the negative, and whether a
@@ -341,6 +343,7 @@ def generate_extended_dataset(
     split_heldout: bool = False,
     allowed_roots_file: str = ALLOWED_ROOTS_FILE,
     blocked_forms_file: str = BLOCKED_FORMS_FILE,
+    near_duplicate_report: Optional[str] = None,
 ):
     # Both files are read first: a missing file stops the run before anything is written.
     allowed_roots = read_allowed_roots_file(allowed_roots_file)
@@ -896,9 +899,13 @@ def generate_extended_dataset(
         print(f"Copied to:  {mirror_dir} (train_byt5_morphology.py reads this copy)")
         if split_heldout:
             import split_heldout_synthetic
-            moved, _ = split_heldout_synthetic.split_into_dataset(output_dir, dataset_dir)
+            moved, _, dropped = split_heldout_synthetic.split_into_dataset(
+                output_dir, dataset_dir, near_duplicate_report=near_duplicate_report)
             print(f"Held out (split_heldout_synthetic.py): {sum(moved.values()):,} lines whose root is a gold val/test root "
                   f"-> {os.path.join(dataset_dir, split_heldout_synthetic.HELDOUT_DIR)}")
+            dropped_roots = {split_heldout_synthetic.line_root(json.loads(x)) for x in dropped}
+            print(f"Near-duplicates of gold val/test forms dropped from the training pair: {len(dropped):,} lines, "
+                  f"{len(dropped_roots)} roots" + (f"; report: {near_duplicate_report}" if near_duplicate_report else ""))
     print("============================================================")
 
 
@@ -921,6 +928,8 @@ if __name__ == "__main__":
                              "data/heldout_test_roots.txt (the default)")
     parser.add_argument("--no_heldout_split", action="store_true",
                         help="Do not move the lines with a gold val/test root to <dataset>/data/synthetic/ after the copy")
+    parser.add_argument("--near_duplicate_report", default=None,
+                        help="Write the training lines dropped as near-duplicates of gold val/test forms to this JSONL file")
     args = parser.parse_args()
 
     resolved_dataset_dir = os.path.abspath(args.dataset_dir)
@@ -940,4 +949,5 @@ if __name__ == "__main__":
         held_out=held_out,
         mirror_dir=None if args.no_mirror else os.path.join(resolved_dataset_dir, "data", "paradigms"),
         split_heldout=not args.no_mirror and not args.no_heldout_split,
+        near_duplicate_report=args.near_duplicate_report,
     )

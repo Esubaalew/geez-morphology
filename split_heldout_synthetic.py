@@ -16,12 +16,21 @@ root and the record's root, each "/" alternative, in the 1st order (geez_script.
 roots of Ethiopic letters. A synthetic line is held out when its root, written in Ethiopic letters of
 the 1st order, is one of them.
 
+Near-duplicates of gold val/test forms: a line that would stay in the training file is dropped (with its
+analyze line) when its surface form, folded with geez_script.fold_spelling (labiovelar letters made plain,
+twin letters merged, vowel orders kept), equals a folded gold val/test form. The fold only decides which
+lines to drop; roots are not merged or renamed, the held-out files and the gold files are not filtered.
+The other lines keep their bytes and order. The dropped lines are counted, and written on request to a
+report (--near_duplicate_report).
+
 Usage:
   python split_heldout_synthetic.py --full_dir <generator output dir> --dataset_dir <dataset repo> [--write | --check]
     --write   write the four files into the dataset repo
-    --check   compare what the split gives with the four files in the dataset repo, and count the lines of the
-              four files whose surface form is a gold val or test form (exit 1 if the files differ or any
-              such line is found)
+    --check   compare what the split gives with the four files in the dataset repo, count the lines of the
+              four files whose surface form is a gold val or test form, and count the lines of the training
+              pair whose folded surface form is a folded gold val/test form (exit 1 if the files differ or
+              either count is not 0)
+    --near_duplicate_report <path>   write the dropped near-duplicate lines to this JSONL file
 
 Gold val/test forms: every form of every row of merho_ges_gold_val.jsonl and merho_ges_gold_test.jsonl, rows
 with no root included; a cell gives its "/"-spellings with "(...)" notes dropped, as scripts/check_dataset.py
@@ -84,6 +93,65 @@ def gold_eval_forms(dataset_dir):
     return forms
 
 
+def gold_eval_forms_folded(dataset_dir):
+    """{folded form: [(gold form, split, record_id)]} over every form of the current gold val/test files."""
+    folded = collections.defaultdict(list)
+    for split_name, name in GOLD_EVAL.items():
+        with open(os.path.join(dataset_dir, "data", "paradigms", name), encoding="utf-8") as f:
+            for line in f:
+                rec = json.loads(line)
+                for row in rec.get("table_data", []):
+                    for form in form_variants(row.get("geez_form") or ""):
+                        entry = (form, split_name, rec.get("record_id"))
+                        key = geez_script.fold_spelling(form)
+                        if entry not in folded[key]:
+                            folded[key].append(entry)
+    return dict(folded)
+
+
+def drop_near_duplicates(lines, folded_gold):
+    """Split JSON lines into (kept lines, dropped lines): a line is dropped when its folded surface form is a key
+    of folded_gold. Kept lines keep their order and bytes."""
+    kept, dropped = [], []
+    for line in lines:
+        form = json.loads(line).get("surface_form") or ""
+        (dropped if geez_script.fold_spelling(form) in folded_gold else kept).append(line)
+    return kept, dropped
+
+
+def near_duplicate_lines(dataset_dir):
+    """{dataset training file: [(line number, root, surface form)]} for lines of the training pair whose folded
+    surface form is a folded gold val/test form."""
+    folded_gold = gold_eval_forms_folded(dataset_dir)
+    found = {}
+    for p in targets(dataset_dir)[:2]:
+        if not os.path.exists(p):
+            continue
+        with open(p, encoding="utf-8") as f:
+            for n, line in enumerate(f, 1):
+                d = json.loads(line)
+                if geez_script.fold_spelling(d.get("surface_form") or "") in folded_gold:
+                    feats = d.get("features") or d.get("analysis") or {}
+                    found.setdefault(os.path.relpath(p, dataset_dir), []).append((n, feats.get("root"), d["surface_form"]))
+    return found
+
+
+def write_near_duplicate_report(path, dropped, folded_gold):
+    """One JSON object per dropped training line: root, surface form, folded form, the gold val/test forms it
+    matches, and the line itself."""
+    with open(path, "w", encoding="utf-8") as f:
+        for line in dropped:
+            d = json.loads(line)
+            folded = geez_script.fold_spelling(d.get("surface_form") or "")
+            f.write(json.dumps({
+                "root": (d.get("features") or {}).get("root"),
+                "surface_form": d.get("surface_form"),
+                "folded_form": folded,
+                "gold_val_test_forms": [{"form": g, "split": s, "record_id": r} for g, s, r in folded_gold[folded]],
+                "line": d,
+            }, ensure_ascii=False) + "\n")
+
+
 def gold_form_lines(dataset_dir):
     """{dataset synthetic file: [(line number, root, surface form)]} for lines whose surface form is a gold val/test form."""
     forms = gold_eval_forms(dataset_dir)
@@ -107,7 +175,8 @@ def line_root(d):
 
 
 def split(full_dir, dataset_dir):
-    """-> (train lines, analyze lines, held-out train lines, held-out analyze lines, Counter((split, root)))."""
+    """-> (train lines, analyze lines, held-out train lines, held-out analyze lines, Counter((split, root)),
+    dropped near-duplicate train lines). Near-duplicates are dropped from the training pair only."""
     roots = gold_eval_roots(dataset_dir)
     tr, an, htr, han = [], [], [], []
     moved = collections.Counter()
@@ -122,7 +191,12 @@ def split(full_dir, dataset_dir):
                 moved[("+".join(sorted(roots[r])), r)] += 1
             else:
                 tr.append(lt); an.append(la)
-    return tr, an, htr, han, moved
+    folded_gold = gold_eval_forms_folded(dataset_dir)
+    kept_tr, dropped = drop_near_duplicates(tr, folded_gold)
+    if dropped:
+        kept_an, _ = drop_near_duplicates(an, folded_gold)
+        tr, an = kept_tr, kept_an
+    return tr, an, htr, han, moved, dropped
 
 
 def targets(dataset_dir):
@@ -130,10 +204,13 @@ def targets(dataset_dir):
             os.path.join(dataset_dir, HELDOUT_DIR, HELDOUT_TRAIN), os.path.join(dataset_dir, HELDOUT_DIR, HELDOUT_ANALYZE))
 
 
-def split_into_dataset(full_dir, dataset_dir, write=True):
+def split_into_dataset(full_dir, dataset_dir, write=True, near_duplicate_report=None):
     """Split the generator output in full_dir; write (or compare with) the four dataset files.
-    -> (Counter((split, root)), [files that differ] when write=False)."""
-    tr, an, htr, han, moved = split(full_dir, dataset_dir)
+    -> (Counter((split, root)), [files that differ] when write=False, dropped near-duplicate train lines).
+    near_duplicate_report: path of a JSONL report of the dropped lines (write_near_duplicate_report)."""
+    tr, an, htr, han, moved, dropped = split(full_dir, dataset_dir)
+    if near_duplicate_report:
+        write_near_duplicate_report(near_duplicate_report, dropped, gold_eval_forms_folded(dataset_dir))
     paths = targets(dataset_dir)
     texts = ["".join(x) for x in (tr, an, htr, han)]
     if write:
@@ -141,9 +218,9 @@ def split_into_dataset(full_dir, dataset_dir, write=True):
         for p, t in zip(paths, texts):
             with open(p, "w", encoding="utf-8") as f:
                 f.write(t)
-        return moved, []
+        return moved, [], dropped
     differ = [p for p, t in zip(paths, texts) if not os.path.exists(p) or open(p, encoding="utf-8").read() != t]
-    return moved, differ
+    return moved, differ, dropped
 
 
 def main():
@@ -154,12 +231,17 @@ def main():
     g.add_argument("--write", action="store_true")
     g.add_argument("--check", action="store_true")
     ap.add_argument("--report", default=None, help="write moved lines per split and root to this TSV")
+    ap.add_argument("--near_duplicate_report", default=None,
+                    help="write the training lines dropped as near-duplicates of gold val/test forms to this JSONL file")
     args = ap.parse_args()
-    moved, differ = split_into_dataset(args.full_dir, args.dataset_dir, write=args.write)
+    moved, differ, dropped = split_into_dataset(args.full_dir, args.dataset_dir, write=args.write,
+                                                near_duplicate_report=args.near_duplicate_report)
     per_split = collections.Counter()
     for (s, r), n in moved.items():
         per_split[s] += n
     print(f"held out: {sum(moved.values())} lines, {len(moved)} roots; per split {dict(sorted(per_split.items()))}")
+    print(f"near-duplicates of gold val/test forms dropped from the training pair: {len(dropped)} lines, "
+          f"{len({line_root(json.loads(x)) for x in dropped})} roots")
     if args.report:
         with open(args.report, "w", encoding="utf-8") as f:
             f.write("split\troot\tlines\n")
@@ -169,9 +251,13 @@ def main():
     n_found = sum(len(v) for v in found.values())
     print(f"lines whose surface form is a gold val/test form: {n_found}"
           + "".join(f"\n[!] {p}: {len(v)} lines, e.g. line {v[0][0]} root {v[0][1]}" for p, v in sorted(found.items())))
+    near = near_duplicate_lines(args.dataset_dir)
+    n_near = sum(len(v) for v in near.values())
+    print(f"training lines whose folded surface form is a folded gold val/test form: {n_near}"
+          + "".join(f"\n[!] {p}: {len(v)} lines, e.g. line {v[0][0]} root {v[0][1]}" for p, v in sorted(near.items())))
     if args.check:
         print("split == dataset files" if not differ else f"[!] differ: {differ}")
-        sys.exit(1 if differ or n_found else 0)
+        sys.exit(1 if differ or n_found or n_near else 0)
 
 
 if __name__ == "__main__":

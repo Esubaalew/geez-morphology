@@ -5,7 +5,8 @@
   f-r-S, h2-r-g, m-s-k, w-k-a2; m-kh-l is left out). The generator stops if the file is missing.
 - data/heldout_gold_forms.tsv: every gold val/test form of dataset commit 6183c24. A synthetic line
   with one of these forms is not written; the root's other lines do not change. Missing file: the generator stops.
-- split_heldout_synthetic.py --check fails when a dataset synthetic line has a gold val/test form.
+- split_heldout_synthetic.py drops a training line with a gold val/test form, and --check fails when a dataset
+  synthetic line has one.
 Any change to the two files shows in the sha256 tests.
 """
 import contextlib
@@ -188,10 +189,18 @@ def test_check_fails_on_a_gold_val_or_test_form():
     with tempfile.TemporaryDirectory() as tmp:
         rootless = _heldout_setup(tmp, [_word(("k", "a"), ("y", "a"), ("d", "a")), _word(("k", "i"), ("d", "A"))])
         assert rootless in H.gold_eval_forms(os.path.join(tmp, "ds"))
-        H.split_into_dataset(os.path.join(tmp, "full"), os.path.join(tmp, "ds"))
+        _, _, dropped = H.split_into_dataset(os.path.join(tmp, "full"), os.path.join(tmp, "ds"))
+        assert [json.loads(x)["surface_form"] for x in dropped] == [rootless]   # the split drops it from the training pair
+        assert _check(tmp).returncode == 0
+        for p in H.targets(os.path.join(tmp, "ds"))[:2]:                        # a line written past the split
+            with open(p, encoding="utf-8") as f:
+                kept = f.readlines()
+            with open(p, "a", encoding="utf-8") as f:
+                f.write(kept[0].replace(json.loads(kept[0])["surface_form"], rootless))
         bad = _check(tmp)
-        assert bad.returncode == 1 and "split == dataset files" in bad.stdout   # files match, the form fails it
+        assert bad.returncode == 1
         assert "gold val/test form: 2" in bad.stdout                            # train + analyze line
+        assert "folded gold val/test form: 2" in bad.stdout
 
 
 def test_form_variants_match_check_dataset():
