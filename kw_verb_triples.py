@@ -22,8 +22,16 @@ the same order (w/y may be missing) and the perfect ends in a 1st-order letter.
 Failing triples are logged in kidane_wold_verb_triples_rejected.jsonl.
 Anything else is "unclear" and gets no class. Nothing is guessed from the
 perfect's spelling; the perfect is only used to confirm the radicals.
+
+Root fixes carry the decisions over from the previous fixes file:
+a row there with new_root null means "root unknown, don't guess" (e.g. 7546).
+The rebuild writes that entry's row with new_root null and the decision's
+root_notes; if the rebuild finds no row for the entry, the previous row is
+kept as it is, at the entry's place in dictionary order. A previous row's
+root_notes are kept on the rebuilt row for the same entry.
 """
 import json
+import os
 import re
 import sys
 
@@ -226,11 +234,39 @@ def restore_dropped(rec):
     return None
 
 
-def build(dictionary_path, triples_path, fixes_path):
+def read_fix_decisions(path):
+    """{id: previous fix row} for the rows of a fixes file that carry a decision: new_root null
+    ("root unknown, don't guess") or root_notes."""
+    out = {}
+    if path and os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                x = json.loads(line)
+                if x.get("new_root") is None or x.get("root_notes"):
+                    out[x["id"]] = x
+    return out
+
+
+def apply_decision(row, decisions):
+    """The rebuilt fix row with a previous decision for the same entry applied."""
+    prev = decisions.get(row["id"])
+    if prev is None:
+        return row
+    if prev.get("new_root") is None:
+        row["new_root"] = None
+    if prev.get("root_notes"):
+        row["root_notes"] = prev["root_notes"]
+    return row
+
+
+def build(dictionary_path, triples_path, fixes_path, previous_fixes_path=None):
     """Write every accepted triple, log the rejected ones, and write the root
-    fixes the generator/analyzer use."""
+    fixes the generator/analyzer use. previous_fixes_path: the fixes file before
+    this rebuild, read for its decisions (see the module docstring)."""
     n_verbs = n_trip = 0
     fixes = []
+    decisions = read_fix_decisions(previous_fixes_path)
+    seen_ids = set()
     rejected_path = triples_path.replace(".jsonl", "_rejected.jsonl")
     with open(dictionary_path, encoding="utf-8") as f, \
             open(triples_path, "w", encoding="utf-8") as out, \
@@ -246,17 +282,28 @@ def build(dictionary_path, triples_path, fixes_path):
                 n_trip += 1
                 out.write(json.dumps(t, ensure_ascii=False) + "\n")
             old = rec.get("inferred_root")
+            row = None
             if t and t["root"]:
                 if t["root"] != old:
-                    fixes.append({"id": rec["id"], "headword": rec.get("headword_geez"), "pos": rec.get("pos"),
-                                  "old_root": old, "new_root": t["root"], "method": "verb_triple",
-                                  "evidence": " ፡ ".join(t["triple"])})
-                continue
-            new = restore_dropped(rec)
-            if new:
-                fixes.append({"id": rec["id"], "headword": rec.get("headword_geez"), "pos": rec.get("pos"),
-                              "old_root": old, "new_root": new, "method": "restored_dropped_letter",
-                              "evidence": "headword"})
+                    row = {"id": rec["id"], "headword": rec.get("headword_geez"), "pos": rec.get("pos"),
+                           "old_root": old, "new_root": t["root"], "method": "verb_triple",
+                           "evidence": " ፡ ".join(t["triple"])}
+            else:
+                new = restore_dropped(rec)
+                if new:
+                    row = {"id": rec["id"], "headword": rec.get("headword_geez"), "pos": rec.get("pos"),
+                           "old_root": old, "new_root": new, "method": "restored_dropped_letter",
+                           "evidence": "headword"}
+            if row is None and rec.get("id") in decisions and decisions[rec["id"]].get("new_root") is None:
+                row = dict(decisions[rec["id"]])      # "root unknown" decision, no rebuilt row: keep the previous row
+            if row is not None and row["id"] not in seen_ids:
+                seen_ids.add(row["id"])
+                fixes.append(apply_decision(row, decisions))
+    # decisions for ids that are not in the dictionary any more: kept at the end, in their previous order
+    for i, prev in decisions.items():
+        if i not in seen_ids and prev.get("new_root") is None:
+            seen_ids.add(i)
+            fixes.append(dict(prev))
     with open(fixes_path, "w", encoding="utf-8") as out:
         for x in fixes:
             out.write(json.dumps(x, ensure_ascii=False) + "\n")
@@ -264,14 +311,14 @@ def build(dictionary_path, triples_path, fixes_path):
 
 
 if __name__ == "__main__":
-    import os
     import dataset_loader
     ds = sys.argv[1] if len(sys.argv) > 1 else dataset_loader.default_dataset_dir()
     lex = os.path.join(ds, "data", "lexicon")
+    fixes_file = os.path.join(lex, "kidane_wold_root_fixes.jsonl")
+    # the decisions of the current fixes file are read before it is rewritten
     n_verbs, n_trip, fixes = build(os.path.join(lex, "classical_dictionary_kidane_wold.jsonl"),
                                    os.path.join(lex, "kidane_wold_verb_triples.jsonl"),
-                                   os.path.join(lex, "kidane_wold_root_fixes.jsonl"))
-    from collections import Counter
+                                   fixes_file, previous_fixes_path=fixes_file)
     from collections import Counter
     print(f"verb entries: {n_verbs}; accepted triples: {n_trip}")
     with open(os.path.join(lex, "kidane_wold_verb_triples_rejected.jsonl"), encoding="utf-8") as f:

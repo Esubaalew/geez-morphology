@@ -116,7 +116,8 @@ def takes_w_drop(cons: Tuple[str, ...], tags: Dict[Tuple[str, ...], str]) -> boo
 
 
 def root_fixes(dataset_dir: str) -> Dict[int, str]:
-    """{dictionary entry id: corrected root} from kw_verb_triples.py."""
+    """{dictionary entry id: corrected root} from kw_verb_triples.py. A row with new_root null stays in the
+    dict with the value None: the entry's root is unknown (see entry_root)."""
     path = os.path.join(dataset_dir, ROOT_FIXES_FILE)
     fixes = {}
     if os.path.exists(path):
@@ -139,9 +140,16 @@ def usable_root(value):
 
 
 def entry_root(entry: dict, fixes: Dict[int, str]):
-    """Root of a dictionary entry, with the triple/restoration fix applied: the fix, else inferred_root,
-    else root. A null, empty or placeholder value is skipped; None when no source gives a root."""
-    for value in (fixes.get(entry.get("id")), entry.get("inferred_root"), entry.get("root")):
+    """Root of a dictionary entry, with the triple/restoration fix applied.
+
+    An entry with a fix row takes the fix's new_root and nothing else: a fix row whose new_root is null means
+    "root unknown, don't guess", so the result is None even when inferred_root or root has a
+    value. Without a fix row: inferred_root, else root. A null, empty or placeholder value (CHECK, "null",
+    "None") is never returned."""
+    eid = entry.get("id")
+    if eid in fixes:
+        return usable_root(fixes[eid])
+    for value in (entry.get("inferred_root"), entry.get("root")):
         if usable_root(value):
             return value
     return None
