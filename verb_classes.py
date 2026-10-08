@@ -278,8 +278,8 @@ def kw_middle_guttural_pattern(dataset_dir: str) -> set:
     """3-radical roots with a guttural middle radical whose accepted Kidane Wold triples (class "unclear", the
     classifier has no class for them) all write the imperfect and subjunctive of the ፍሬ ግእዝ middle-guttural rule:
     radicals 1 and 2 in the 6th order in the imperfect, 6th and 1st in the subjunctive (ሰሐለ ፡ ይስሕል ፡ ይስሐል).
-    Such roots get the middle-guttural rule like the collapsed-subjunctive collapsed triples (the maintainers, 2026-10-08; the corrected Kidane Wold text
-    no longer has the OCR collapse for most of the collapsed-subjunctive roots)."""
+    Such roots get the middle-guttural rule, like the collapsed triples of kw_collapsed_subjunctive (the corrected
+    Kidane Wold text no longer has the OCR collapse for most of those roots)."""
     path = os.path.join(dataset_dir, TRIPLES_FILE)
     seen, bad = set(), set()
     if not os.path.exists(path):
@@ -394,7 +394,7 @@ def _tags_and_sources(dataset_dir: str, exclude=()):
         if cons in tags and tags[cons] != cls:
             overrides += 1
         tags[cons] = cls
-        source[cons] = "rule"
+        source[cons] = "triple check decision"
     held = 0
     for c in exclude:
         if tags.pop(tuple(c), None):
@@ -408,20 +408,20 @@ def _tags_and_sources(dataset_dir: str, exclude=()):
     return tags, source, counts
 
 
-# Exceptions to the triple check (triple_check_exceptions.tsv).
+# Decisions from the Kidane Wold triple check (data/triple_check_exceptions.tsv).
 # tagged_type_b: the book present is Type B (ይጤይር-type), so these roots are tagged type_b; their subjunctive follows the type_b
 # rule with no contraction (T-y-r, r-y-S2), and w-S2-f takes the type_b subjunctive (the book's 6th-order one is the minority shape).
-# class_changes.tsv restored: for d-r-g, n-z-z and q-r-h2 the Merho gold class (Type C) outranks the
+# data/class_changes.tsv, restored: for d-r-g, n-z-z and q-r-h2 the Merho gold class (Type C) outranks the
 # rebuilt Kidane Wold triple, which belongs to a different verb on the same root code (one class per root).
 RULED_CLASS_TAGS = {("T", "y", "r"): "type_b", ("r", "y", "S2"): "type_b", ("w", "S2", "f"): "type_b",
                     ("d", "r", "g"): "type_c", ("n", "z", "z"): "type_c", ("q", "r", "h2"): "type_c"}
-# -y past stem: regular -y roots (final_y) write the
-# 3rd-person perfect with radical 2 in the 1st order. Confirmed roots only; the pending ones wait for the sample decision
-# (moving a root from Y_PAST_C2_FIRST_PENDING to Y_PAST_C2_FIRST is the whole change). a-b-y added by
-# the exception table (2347efd6): the book's perfect follows this stem; g-l-y keeps the book's 6th order.
+# -y past stem (data/final_y_past_stem_roots.tsv): regular -y roots (final_y) write the 3rd-person perfect with
+# radical 2 in the 1st order. Confirmed roots only; the roots not yet confirmed are in Y_PAST_C2_FIRST_PENDING (moving
+# a root from there to Y_PAST_C2_FIRST is the whole change). For a-b-y the book's perfect follows this stem
+# (data/triple_check_exceptions_extra.tsv); g-l-y keeps the book's 6th order.
 Y_PAST_C2_FIRST = {("l", "f", "y"), ("l", "q", "y"), ("m", "l", "y"), ("s", "t", "y"), ("a", "b", "y")}
 Y_PAST_C2_FIRST_PENDING = {("m", "s", "y"), ("s", "b", "y")}
-_GUTT_PREFIX = {geezconfig_c: geezconfig_v for geezconfig_c, geezconfig_v in
+_GUTT_PREFIX = {sixth: first for sixth, first in
                 ((geez_script.render_unit(c, "I"), geez_script.render_unit(c, "a")) for c in ("y", "t", "a", "n"))}
 
 
@@ -443,7 +443,7 @@ def _all_agree(pairs):
 
 def type_b_subjunctive_orders(dataset_dir: str) -> Dict[Tuple[str, ...], Tuple[int, int]]:
     """{root: (order of radical 1, order of radical 2)} of the written subjunctive of the root's type_b triples, for type_b
-    roots with a guttural middle radical only (S-a2-l, subjunctive_override in triple_check_exceptions.tsv). Not used for
+    roots with a guttural middle radical only (S-a2-l, subjunctive_override in data/triple_check_exceptions.tsv). Not used for
     any other type_b root (n-z-r, s-b-h2, ... keep the ይቀድስ rule, generator_kept)."""
     pairs = []
     for x in _triples(dataset_dir):

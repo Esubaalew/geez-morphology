@@ -36,12 +36,10 @@ current test file's. They are frozen in data/heldout_test_roots.txt (in this rep
 reproducing the files needs no git history of the dataset:
   python generate_synthetic_data.py --dataset_dir <dataset>
 
-Two more committed files in data/ limit the output; the
-generator stops if either is missing:
+Two more committed files in data/ limit the output; the generator stops if either is missing:
   data/synthetic_roots_allowed_v4.txt  the only roots it conjugates: roots with a dictionary verb
-      entry, a gold root or a Kidane Wold verb triple, or restored by the maintainers (the roots of this
-      generator's output on geez-dataset 3da9041 with the list switched off that have such evidence, minus the ones
-      the exception table rules DROP or EXCLUDE_NO_VERB; its RESTORE rows stay).
+      entry, a gold root or a Kidane Wold verb triple, plus a few roots checked by hand (the file
+      header records how the list was made).
   data/heldout_gold_forms.tsv       every gold val/test form of dataset commit 6183c24; a line
       whose surface form is one of them is not written. The rest of that root's lines are made as if
       the line were there, so no other line changes.
@@ -230,7 +228,7 @@ def read_held_out_roots_file(path: str = HELD_OUT_ROOTS_FILE) -> set:
 
 
 # Roots the generator may conjugate, one per line as the "root" feature writes them ("h2-s-t"); "#" lines are
-# notes. Made with the exception table (see the file's header). Checked in
+# notes; the file's header records how the list was made. Checked in
 # tests/test_synthetic_allowed_roots_and_blocked_forms.py.
 ALLOWED_ROOTS_FILE = os.path.join(BASE_DIR, "data", "synthetic_roots_allowed_v4.txt")
 # Every gold val/test form of dataset commit 6183c24 (column geez_form; "#" lines are notes).
@@ -438,7 +436,7 @@ def generate_extended_dataset(
                   ("a", "a"): "ይሐበር-shape"}
     subj_used = {"no triple: current ይቅትል shape kept": 0}
     d_orders = verb_classes.type_d_orders(dataset_dir)
-    # rule (triple_check_exceptions.tsv)
+    # Exceptions from the Kidane Wold triple check (data/triple_check_exceptions.tsv)
     b_subj = verb_classes.type_b_subjunctive_orders(dataset_dir)          # S-a2-l: guttural middle, subjunctive from the triple
     kw_final_gutt_A = verb_classes.kw_final_guttural_subjunctive(dataset_dir)
     kw_w_drop_A = verb_classes.kw_w_drop_final_guttural(dataset_dir)
@@ -592,7 +590,7 @@ def generate_extended_dataset(
                 else:
                     mid_gutt = True
                     mid_gutt_changed.add(cons)
-            # Final guttural: basic subjunctive/jussive/imperative put radical 2 in the
+            # Final guttural (triple_followed in the triple check): basic subjunctive/jussive/imperative put radical 2 in the
             # 4th order (ይስማዕ pattern). Default Type A roots; radicals 1 and 2 not gutturals; a root's own triple wins.
             final_gutt_subj = (rtype == "strong_A" and cons[2] in GUTTURAL_FIRST and cons[0] not in GUTTURAL_FIRST
                                and cons[1] not in GUTTURAL_FIRST and cons not in subj_shape
@@ -648,7 +646,7 @@ def generate_extended_dataset(
                             mid_gutt_forms["imperative" if tns == "imperative" else "subjunctive"] += 1
                     if (final_gutt_subj and basic and p["features"].get("tense") in ("subjunctive", "jussive", "imperative")
                             and spec.endswith("C2I")):
-                        # only where the guttural ends the word (the exception table 2347efd6): before any vowel
+                        # only where the guttural ends the word (data/triple_check_exceptions_extra.tsv): before any vowel
                         # suffix, -ā included, radical 2 stays 6th (as gold train writes ይምስሑ, ይንቅሁ, ንሥኡ, ንሥኢ)
                         aug_spec = spec   # an object suffix gives radical 3 a vowel, so radical 2 stays 6th (gold ምርሐኒ)
                         spec = spec.replace("C1I", "C1A", 1)
@@ -850,11 +848,11 @@ def generate_extended_dataset(
     print("KW_COLLAPSE_JSON " + json.dumps({
         "found": {"-".join(r): v for r, v in kw_collapsed.items()},
         "changed": sorted("-".join(r) for r in kw_collapse_changed)}, ensure_ascii=False))
-    print("RULES_JSON " + json.dumps({k: sorted("-".join(r) for r in v) for k, v in rule_roots.items()}))
+    print("TRIPLE_CHECK_RULES_JSON " + json.dumps({k: sorted("-".join(r) for r in v) for k, v in rule_roots.items()}))
     print("KW_MID_GUTT_TRIPLE_JSON " + json.dumps({"found": sorted("-".join(r) for r in kw_frye), "changed": sorted("-".join(r) for r in kw_frye_changed)}))
     print("MID_GUTT_JSON " + json.dumps({"changed": sorted("-".join(r) for r in mid_gutt_changed),
                                                 "excluded": mid_gutt_excluded}, ensure_ascii=False))
-    print("DROPS_JSON " + json.dumps({
+    print("DROPPED_ROOTS_JSON " + json.dumps({
         "amharic_only": amharic_dropped, "amharic_raw_letters": amharic_raw,
         "doubly_weak": doubly_weak_dropped, "quad_final_weak": quad_final_weak_dropped},
         ensure_ascii=False))

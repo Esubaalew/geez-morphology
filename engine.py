@@ -40,8 +40,7 @@ HOLLOW_CONTRACTION = {
 # Roots with middle w/y that keep it (ፈወሰ, ሐወጸ). Extend from the lexicon.
 NON_HOLLOW = {("f", "w", "s"), ("h2", "w", "S")}
 # Middle-w roots with a final guttural whose jussive/imperative contracts to the 4th order (yəqāʿ, like ቦአ ፡ ይበውእ ፡ ይባእ)
-# instead of the 2nd; filled by the generator from the roots whose own Kidane Wold triple writes it so (the maintainers,
-# 2026-10-08, triple_check_exceptions.tsv, q-w-a2).
+# instead of the 2nd; filled by the generator from the roots whose own Kidane Wold triple writes it so (q-w-a2).
 HOLLOW_SUBJ_4TH = set()
 
 # A slot is either a root slot or fixed material.

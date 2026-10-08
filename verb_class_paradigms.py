@@ -75,8 +75,8 @@ def imperative(r, v1, v2):
 
 def type_b(r, subj=None):  # ቀደሰ qaddasa / ይቄድስ yəqeddəs / ይቀድስ yəqaddəs / ቀድስ
     """subj: (order of radical 1, order of radical 2) of the subjunctive and imperative, from the root's own Kidane Wold
-    triple; only for type_b roots with a guttural middle radical (a guttural cannot double; S-a2-l, the maintainers
-    2026-10-08, triple_check_exceptions.tsv). Default 1, 6."""
+    triple; only for type_b roots with a guttural middle radical (a guttural cannot double; S-a2-l).
+    Default 1, 6."""
     v1, v2 = subj or (1, 6)
     return {"perfect": strong_perfect(r, 1), "imperfect": prefixed(r, 5, 6),
             "subjunctive": prefixed(r, v1, v2), "imperative": imperative(r, v1, v2)}
@@ -154,11 +154,11 @@ def type_d(r, orders):
 
 
 def final_y(r, past_c2_first=False):
-    """III-y, a-type like ሰትየ satya: perfect satya/satayka, imperf yəsatti,
-    subj yəstay, impv stay. r[2] must be የ.
+    """III-y, a-type like ሰተየ: imperf yəsatti, subj yəstay, impv stay. r[2] must be የ.
+    Perfect: radical 2 in the 6th order (ገልየ, satya; satayka before consonant endings).
     past_c2_first: the 3rd-person perfect (vowel endings) has radical 2 in the 1st order, as the book writes it
-    (satäya); the 1st/2nd person before consonant endings is unchanged (the maintainers 2026-10-08,
-    final_y_past_stem_roots.tsv; only the roots in verb_classes.Y_PAST_C2_FIRST)."""
+    (ሰተየ, satäya); the 1st/2nd person before consonant endings is unchanged (only the roots in
+    verb_classes.Y_PAST_C2_FIRST)."""
     c1, c2 = r[0], r[1]
     o2 = 1 if past_c2_first else 6
     perf = {
@@ -212,8 +212,7 @@ def final_w(r):
 def initial_w_drop(r, v2=1):
     """Subjunctive/imperative of the I-w verbs that DROP w: ወለደ -> ይለድ, ለድ.
     Closed lexical list only (see W_DROP). Perfect and imperfect are Type A.
-    v2: order of radical 2; 4 for a final guttural whose Kidane Wold triple writes it so (w-S2-a, w-k-a2, w-q-a2;
-    the maintainers 2026-10-08, triple_check_exceptions.tsv)."""
+    v2: order of radical 2; 4 for a final guttural whose Kidane Wold triple writes it so (w-S2-a, w-k-a2, w-q-a2)."""
     return {"subjunctive": prefixed_two(r[1], r[2], v2),
             "imperative": {p: syl(r[1], v2) + (syl(r[2], END_ORDER[e]) if e else syl(r[2], 6))
                            for p, e in IMP_END.items()}}

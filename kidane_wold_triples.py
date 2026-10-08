@@ -190,8 +190,8 @@ def parse_entry(rec):
         swapped = False
         if (gc.decompose_char(t[0][0])[0] in GUTTURALS and t[1].startswith("ይ")
                 and t[2].startswith("የ")):
-            # Guttural-initial verbs: imperfect የኀፍር, subjunctive ይኀፍር (Ge'ez
-            # grammar check). Kidane Wold sometimes lists the ይ-form first.
+            # Guttural-initial verbs: imperfect የኀፍር, subjunctive ይኀፍር.
+            # Kidane Wold sometimes lists the ይ-form first.
             t, swapped = (t[0], t[2], t[1]), True
         bad = ocr_gate(*t)
         if bad:

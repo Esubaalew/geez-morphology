@@ -55,7 +55,7 @@ Scope:
 - A word-final 4th-order guttural can also be a real ending: ሰምዓ is the 3fp perfect as well as a
   spelling of ሰምዐ. The analyzer returns both readings.
 
-## 4. Kidane Wold triples, type_d roots and the decisions
+## 4. Kidane Wold triples, type_d roots and checked exceptions
 
 - ፍሬ ግእዝ p. 63, rule ፲፪.፫: the perfect of these verbs may take a 6th-order first radical. So
   Type D (ንእደ) verbs have that perfect: n-a-d, Kidane Wold 8035, ንእደ ፡ ይንእድ ፡ ይንአድ. s-a-l is Type A (ሰአለ ፡ ይስእል ፡ ይስአል).
@@ -78,14 +78,14 @@ On the corrected Kidane Wold transcription these are the roots with such a tripl
 | z-kh-r | ዘኀረ | ይዝኅር | ይዝኀር | ዝኀር |
 
 S-h2-f and s-a-l are no longer in that list: their corrected triples write the section 2 forms, and
-the maintainers confirmed s-a-l as a regular middle-guttural verb (2026-10-08). d-kh-l left the allow-list.
+s-a-l is a regular middle-guttural verb. d-kh-l is off the allow-list.
 qh-h2-m has no triple any more: its old one was an OCR misread, and the root is off the allow-list (section 4.3).
 A root whose triple is not classified (class "unclear") but writes the section 2 shape (ሰአለ ፡ ይስእል ፡ ይስአል) gets the
-section 2 rule.
+section 2 rule (`verb_classes.kw_middle_guttural_pattern`).
 
-### 4.1 Exceptions to the triple check
+### 4.1 Decisions from the triple check
 
-The table is `data/triple_check_exceptions.tsv`. A root's own triple still wins over the
+The decisions are listed in `data/triple_check_exceptions.tsv`. A root's own triple still wins over the
 default rules below.
 
 - **Final guttural (Type A).** When the third radical is a guttural and the first two are not, the
@@ -119,9 +119,9 @@ default rules below.
 
 For l-f-y, l-q-y, m-l-y, s-t-y and a-b-y the 3rd-person forms of the basic perfect put the second radical in the
 1st order, the way the book writes them: ሰተየ, not ሰትየ, and አበየ. Forms before a consonant ending are
-unchanged (ሰተይኩ). g-l-y stays ገልየ, as the book writes it. m-s-y and s-b-y wait for the sample decision and are listed in
+unchanged (ሰተይኩ). g-l-y stays ገልየ, as the book writes it. m-s-y and s-b-y are not confirmed yet and are listed in
 `verb_classes.Y_PAST_C2_FIRST_PENDING`; moving a root to `Y_PAST_C2_FIRST` is the whole change.
-The decision is recorded in `data/final_y_past_stem_roots.tsv`.
+The list is in `data/final_y_past_stem_roots.tsv`.
 
 ### 4.3 Class changes
 
