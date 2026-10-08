@@ -1,7 +1,7 @@
-"""the update: qh-h2-m is a phantom root and is off the allow-list.
+"""qh-h2-m is a phantom root and is off the allow-list.
 
 Its only book source was a misread of Kidane Wold entry 360, which the scan shows with a plain first letter: the triple of 360
-gives q-h2-m. So the generator makes no qh-h2-m lines, and the combined file
+gives q-h2-m (data/phantom_root_qh_h2_m.tsv). So the generator makes no qh-h2-m lines, and the combined file
 verbs_rbha_anqets.jsonl no longer carries its old synthetic lines. q-h2-m stays on the list and keeps its lines.
 """
 import json

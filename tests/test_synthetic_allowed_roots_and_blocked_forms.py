@@ -1,9 +1,8 @@
 """The two files that limit the synthetic data.
 
 - data/synthetic_roots_allowed_v4.txt: the only roots the generator conjugates (roots with a dictionary
-  verb entry, a gold root or a Kidane Wold verb triple, plus the 8 roots the maintainers restored by decision in
-  the exception table: m-h2-l, m-s-l, S-w-t, b-y-S, f-r-S, h2-r-g, m-s-k, w-k-a2; m-kh-l is DROP there). The
-  generator stops if the file is missing.
+  verb entry, a gold root or a Kidane Wold verb triple, plus 8 roots kept by hand: m-h2-l, m-s-l, S-w-t, b-y-S,
+  f-r-S, h2-r-g, m-s-k, w-k-a2; m-kh-l is left out). The generator stops if the file is missing.
 - data/heldout_gold_forms.tsv: every gold val/test form of dataset commit 6183c24. A synthetic line
   with one of these forms is not written; the root's other lines do not change. Missing file: the generator stops.
 - split_heldout_synthetic.py --check fails when a dataset synthetic line has a gold val/test form.
@@ -55,15 +54,15 @@ def test_files_are_unchanged():
 def test_allow_list_has_1271_roots():
     roots = gen.read_allowed_roots_file()
     assert len(roots) == 1271
-    # RESTORE rows of the v4 decisions: kept on the decision (m-h2-l, m-s-l from v3; six more after the kw rebuild)
+    # roots kept by hand without dictionary, gold or triple evidence
     restored = ["m-h2-l", "m-s-l", "S-w-t", "b-y-S", "f-r-S", "h2-r-g", "m-s-k", "w-k-a2"]
     assert {tuple(r.split("-")) for r in restored} <= roots
-    assert ("m", "kh", "l") not in roots        # DROP in the v3/v4 decisions (RESTORE in v2)
-    # kw rebuild decisions: out by EXCLUDE_NO_VERB, the two gold-only roots go, spelling-twin drops
+    assert ("m", "kh", "l") not in roots        # left out by hand
+    # left out: no verb evidence after the Kidane Wold rebuild, two gold-only roots, spelling twins
     for r in ["s-T-n", "s-h2-g", "m-S2-a", "w-l-a2", "s2-w-a2", "w-a2-f", "S-w-a", "a2-s-r", "h2-d-r", "kh-q-f", "s2-m-k",
               "a-s2-r", "b-w-kh", "d-kh-l", "n-s2-q", "n-z-a"]:
         assert tuple(r.split("-")) not in roots, r
-    # the 11 roots the inferred_root decisions add, and the held-out spellings the twins move to
+    # 11 roots added from corrected dictionary roots, and the spellings the twins move to
     for r in ["a2-g-l", "a2-g-t", "a2-m-S2", "a2-z-r", "b-S2-a2", "g-f-a2", "gw-d-a2", "m-a2-a2", "r-s-a2", "s2-a2-l", "s2-r-a2",
               "S-w-a2", "a2-s2-r", "kh-d-r", "h2-q-f", "s-m-k", "a-s-r", "m-h2-S"]:
         assert tuple(r.split("-")) in roots, r

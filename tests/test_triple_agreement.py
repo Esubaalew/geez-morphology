@@ -1,16 +1,16 @@
-""".
+"""Generated forms against each root's own Kidane Wold triple, and the listed exceptions.
 
-data/triple_check_exceptions.tsv is a byte copy of the table (sha256 19c24527...):
-triple_followed rows fix the generator, tagged_type_b rows tag type_b, S-a2-l gets the type_b subjunctive override,
-generator_kept rows keep the generator (the book form is a misprint/misread), w-kh-T leaves the allow-list (CHECK),
-covered_by_rule rows fall under the collapsed-subjunctive rule. data/final_y_past_stem_roots.tsv records the -y past-stem decision
-.
-data/triple_check_exceptions_extra.tsv is a byte copy of the reply (the exception table:
-S-b-r, kh-r-s and m-l-a: the generator stands; the final-guttural 4th order only where the guttural ends the word; a-b-y joins the
--y rule; n-s2-a: the generator stands (ruled mismatch with a gold train cell).
-data/class_changes.tsv is a byte copy of class_changes.tsv: one row per class change.
-data/phantom_root_qh_h2_m.tsv is a byte copy of the qh-h2-m reply (the exception table:
-the restored row for qh-h2-m is withdrawn (its Type D triple was an OCR misread of entry 360), so qh-h2-m stays Type A.
+The decision files in data/ are checked by sha256:
+- triple_check_exceptions.tsv: triple_followed rows fix the generator, tagged_type_b rows tag type_b,
+  S-a2-l gets the type_b subjunctive override, generator_kept rows keep the generator (the book form is a
+  misprint or misread), w-kh-T is off the allow-list (CHECK), covered_by_rule rows fall under the collapsed-subjunctive rule.
+- final_y_past_stem_roots.tsv: the -y past stem (l-f-y, l-q-y, m-l-y, s-t-y, a-b-y; m-s-y and s-b-y not confirmed yet).
+- triple_check_exceptions_extra.tsv: S-b-r, kh-r-s and m-l-a: the generator stands; the final-guttural 4th order only
+  where the guttural ends the word; a-b-y joins the -y rule; n-s2-a: the generator stands (a known mismatch with a gold
+  train cell).
+- class_changes.tsv: one row per class change.
+- phantom_root_qh_h2_m.tsv: the restored row for qh-h2-m is withdrawn (its Type D triple was an OCR misread of
+  entry 360), so qh-h2-m stays Type A.
 Expected forms are built from root letters (geez_script.render_unit), so this file types no Ge'ez letters.
 """
 import csv
@@ -122,6 +122,8 @@ FINAL_GUTT = sorted(r for r, x in decisions().items() if x["reason"].startswith(
 
 def test_final_guttural_roots_reached():
     assert len(FINAL_GUTT) == 14
+    if not os.path.exists(os.path.join(DATASET, verb_classes.TRIPLES_FILE)):
+        pytest.skip("no geez-dataset checkout")
     found = {"-".join(r) for r in verb_classes.kw_final_guttural_subjunctive(DATASET)}
     assert set(FINAL_GUTT) <= found
 
@@ -266,7 +268,7 @@ def test_y_past_stem_confirmed(cells, root):
 
 @pytest.mark.parametrize("root", ["m-s-y", "s-b-y", "g-l-y"])
 def test_y_past_stem_waiting_unchanged(cells, root):
-    """m-s-y and s-b-y wait for checking; g-l-y stays as the book writes it (2347efd6)."""
+    """m-s-y and s-b-y are not confirmed yet; g-l-y stays as the book writes it."""
     need_allowed(root)
     c1, c2, c3 = root.split("-")
     assert one(cells, root, "past", "3ms") == _w((c1, "a"), (c2, "I"), (c3, "a"))
@@ -276,14 +278,14 @@ def test_y_past_stem_waiting_unchanged(cells, root):
 # ------------------------------------------------------------------ allow-list
 @pytest.mark.parametrize("root", ["w-kh-T", "w-s-n", "g-n-f-l", "T-b-l-l", "z-n-g-a2", "q-y-a"])
 def test_not_on_allow_list(root):
-    """w-kh-T: CHECK (19c24527). w-s-n, g-n-f-l, T-b-l-l, z-n-g-a2: the maintainers gate  (held out stays 74 roots)."""
+    """w-kh-T: CHECK in the triple check. w-s-n, g-n-f-l, T-b-l-l, z-n-g-a2, q-y-a: left out by hand."""
     assert root not in ALLOWED
 
 
 # ------------------------------------------------------------------ triple agreement
 # Roots whose 3ms basic present or subjunctive differed from their own triple at geez-dataset 0d0ceaa with the
-# generator at ab7a166, and whose synthetic lines are unchanged since (they are not part of the decisions).
-KNOWN_BEFORE = {
+# generator at ab7a166, and whose synthetic lines are unchanged since (they are not in the decision files).
+KNOWN_BEFORE_TRIPLE_CHECK = {
     "S-f-q", "S-w-a2", "S-w-n", "T-y-q", "a-b-s", "a-m-r", "a-n-r", "a-z-l", "a2-S-r", "a2-b-T", "a2-f-r", "a2-m-d",
     "a2-m-r", "a2-s-b", "d-d-q", "d-kh-n", "d-kh-r", "d-y-b", "f-g-a2", "f-kh-r", "f-w-l", "f-w-q", "f-w-s", "f-y-t",
     "g-y-r", "h2-d-m", "h2-d-s", "kh-T-a", "kh-m-s", "kh-y-T", "kh-y-s", "m-l-h2", "q-t-r", "qh-T-f", "s-b-k",
@@ -315,7 +317,7 @@ def test_triple_agreement_ruled_or_known(cells, triples):
     # w-S2-f: present from the book, subjunctive by the regular type_b rule (the book's is the minority shape)
     if dis.get("w-S2-f") == ["subjunctive"]:
         dis.pop("w-S2-f")
-    left = set(dis) - ruled - KNOWN_BEFORE
+    left = set(dis) - ruled - KNOWN_BEFORE_TRIPLE_CHECK
     assert not left, sorted(left)
     assert not {r for r, x in rul.items() if x["decision"].startswith("a_")} & set(dis) - {"w-S2-f"}
 
@@ -327,7 +329,7 @@ def test_m_a2_z_ruled_misprint(cells):
 
 
 def test_reply_generator_stands(cells):
-    """2347efd6: S-b-r is Type B (C1 1st order in the subjunctive); kh-r-s is the initial-guttural Type A (present with the
+    """S-b-r is Type B (C1 1st order in the subjunctive); kh-r-s is the initial-guttural Type A (present with the
     1st-order prefix, subjunctive C1 6th); m-l-a's present takes the 6th-order prefix (m is not a guttural)."""
     assert {r for r, x in reply().items() if x["decision"] == "generator_kept"} == {"S-b-r", "kh-r-s", "m-l-a"}
     need_allowed("S-b-r")
@@ -341,7 +343,7 @@ def test_reply_generator_stands(cells):
 
 
 def test_n_s2_a_imperative_ruled(cells):
-    """2347efd6: the imperative 2ms takes the final-guttural rule; gold train's 6th-order spelling is a ruled mismatch."""
+    """The imperative 2ms takes the final-guttural rule; gold train's 6th-order spelling is a ruled mismatch."""
     assert reply()["n-s2-a"]["decision"].startswith("generator_kept")
     need_allowed("n-s2-a")
     assert one(cells, "n-s2-a", "imperative", "2ms") == _w(("n", "I"), ("s2", "A"), ("a", "I"))
@@ -374,7 +376,7 @@ def restores_not_applied():
 
 
 def test_class_decisions_outcome(verb_type):
-    """Every class change in y has a row; RESTORE rows bring the old class back, the others give the new one."""
+    """Every class change has a row; RESTORE rows bring the old class back, the others give the new one."""
     rul = class_decisions()
     assert len(rul) == 39
     gone = restores_not_applied()

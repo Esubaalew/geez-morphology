@@ -4,7 +4,7 @@
 2. the causative-reflexive stem is አስተ- (stem "aste"): አስተቅተለ, አስተትረስኩ;
 3/4. no doubly weak roots, no quads ending in w/y, no ዉ / word-final ው ይ on a
      weak radical outside the final-weak class paradigms;
-5. type_d forms come from the root's own Kidane Wold triple (ስእለ ፡ ይስእል ፡ ይስእል);
+5. type_d forms come from the root's own Kidane Wold triple (ንእደ ፡ ይንእድ ፡ ይንአድ);
 6. analyzer: guttural-initial present prefix (የ/ተ/አ/ነ), type_d, aste.
 """
 import json
@@ -121,7 +121,7 @@ def test_aste_rows_start_with_aste(synth):
 
 def test_type_d_matches_triples(synth):
     """Each type_d root's 3ms perfect and 3ms imperfect are its own Kidane Wold triple
-    (ስእለ ፡ ይስእል is what Kidane Wold writes for ሰ-አ-ለ). The subjunctive
+    (ንእደ ፡ ይንእድ is what Kidane Wold writes for n-a-d). The subjunctive
     follows the ፍሬ ግእዝ rule instead (test_type_d_subjunctive.py)."""
     path = os.path.join(DATASET, verb_classes.TRIPLES_FILE)
     triples = {}

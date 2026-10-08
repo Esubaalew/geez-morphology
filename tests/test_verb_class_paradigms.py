@@ -22,7 +22,7 @@ def test_generator_rows_cover_expected_tables(cls, lemma):
     surfaces = {s for _, s in verb_classes.paradigm_rows(cons, cls)}
     for tense, forms in vcp.EXPECTED[(cls, lemma)].items():
         if tense == "perfect" and cons in verb_classes.Y_PAST_C2_FIRST:
-            continue   # -y past-stem decision (2026-10-08): ruled forms in tests/test_triple_agreement.py
+            continue   # -y past stem: forms checked in tests/test_triple_agreement.py
         for form in forms.split():
             assert form in surfaces, (cls, lemma, form)
 

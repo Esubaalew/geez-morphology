@@ -2,12 +2,12 @@
 
 1. A Kidane Wold triple whose subjunctive repeats the imperfect with a 6th-order
    guttural middle radical (ጸሕፈ ፡ ይጽሕፍ ፡ ይጽሕፍ) is an OCR collapse: the subjunctive is
-   ይጽሐፍ and the imperative ጽሐፍ; the present is the triple's ይጽሕፍ. type_d roots were
-   already fixed by the Type D book rule.
-   After the corrected Kidane Wold transcription (dataset 47a773a, rebuilt tables ) most of these triples
-   are no longer collapsed: S-h2-f is ጸሐፈ ፡ ይጽሕፍ ፡ ይጽሐፍ, s-a-l and qh-h2-m are regular middle-guttural verbs, d-kh-l
-   left the allow-list. A triple that writes the middle-guttural forms gets the middle-guttural rule (the maintainers,
-   2026-10-08); test_patch_roots_follow_own_triple checks the 26 roots that changes.
+   ይጽሐፍ and the imperative ጽሐፍ; the present is the triple's ይጽሕፍ. type_d roots follow
+   their own rule (tests/test_type_d_subjunctive.py).
+   In the corrected Kidane Wold transcription (dataset 47a773a) most of these triples are no longer
+   collapsed: S-h2-f is ጸሐፈ ፡ ይጽሕፍ ፡ ይጽሐፍ, s-a-l and qh-h2-m are regular middle-guttural verbs, d-kh-l
+   is off the allow-list. A triple that writes the middle-guttural forms gets the middle-guttural rule;
+   test_patch_roots_follow_own_triple checks the 26 roots that changes.
 2. Guttural first and middle radical: present keeps የ- and a 6th-order middle letter.
 3./4. Derived stems and initial-weak roots are not changed.
 """
@@ -29,8 +29,8 @@ DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-da
 SYNTH = os.path.join(DATASET, "data", "paradigms", "synthetic_morphology_train.jsonl")
 
 
-# Roots off the allow-list (data/synthetic_roots_allowed_v4.txt, v4 decisions: no dictionary verb entry, gold
-# root or Kidane Wold triple) have no synthetic lines any more; their cases are skipped.
+# Roots off the allow-list (data/synthetic_roots_allowed_v4.txt: no dictionary verb entry, gold root or Kidane Wold
+# triple, or left out by hand) have no synthetic lines; their cases are skipped.
 ALLOWED = {"-".join(r) for r in gen.read_allowed_roots_file()}
 
 
@@ -67,7 +67,7 @@ def test_collapsed_triples_found():
         pytest.skip("no geez-dataset checkout")
     found = verb_classes.kw_collapsed_subjunctive(DATASET)
     names = {"-".join(r) for r in found}
-    # corrected Kidane Wold text (the update): S-h2-f, d-kh-l, qh-h2-m, s-a-l and s-a-n are no longer collapsed
+    # corrected Kidane Wold text: S-h2-f, d-kh-l, qh-h2-m, s-a-l and s-a-n are no longer collapsed
     assert names == {"T-a2-y", "d-kh-n", "d-kh-r", "f-kh-r", "n-kh-r", "z-kh-n", "z-kh-r"}
     assert not {"S-h2-f", "d-kh-l", "qh-h2-m", "s-a-l", "s-a-n"} & names
     assert found[("d", "kh", "n")]["imperfect"] == ("I", "I")
@@ -100,7 +100,7 @@ def test_S_h2_f_all_persons(synth):
 
 @pytest.mark.parametrize("root", ["d-kh-l", "d-kh-n", "d-kh-r", "s-a-n"])
 def test_type_d_consistent(synth, root):
-    need_allowed(root)                     # d-kh-l is off the list (spelling twin rules)
+    need_allowed(root)                     # d-kh-l is off the list (spelling twin)
     r = tuple(root.split("-"))
     rows = [x["surface_form"] for x in synth if x["features"]["root"] == root
             and x["features"]["tense"] in ("subjunctive", "imperative")]
@@ -113,9 +113,9 @@ def _w(*units):
     return "".join(geez_script.render_unit(c, v) for c, v in units)
 
 
-@pytest.mark.parametrize("root", ["s-a-l"])   # qh-h2-m left the allow-list (the update, phantom root)
+@pytest.mark.parametrize("root", ["s-a-l"])   # qh-h2-m is off the allow-list (phantom root)
 def test_regular_middle_guttural(synth, root):
-    """Not type_d any more (s-a-l: perfect ሰአለ in the corrected text; the maintainers 2026-10-08: s-a-l is a regular
+    """Not type_d any more (s-a-l: perfect ሰአለ in the corrected text: a regular
     middle-guttural verb, ይስእል / ይስአል; qh-h2-m has no triple and stays Type A, its old one was an OCR misread,
     data/phantom_root_qh_h2_m.tsv): the middle-guttural forms in the basic stem."""
     need_allowed(root)
@@ -130,7 +130,7 @@ def test_regular_middle_guttural(synth, root):
     assert rows and all(middle_order(s, r) == "a" for s in rows)
 
 
-# The 26 roots the 2026-10-08 generator change moves to the middle-guttural rule: their own Kidane Wold triple writes
+# The 26 roots that get the middle-guttural rule from their own Kidane Wold triple, which writes
 # ይስሕል ፡ ይስሐል and is class "unclear" (verb_classes.kw_middle_guttural_pattern).
 PATCH_ROOTS = ["S-a2-q", "S-a2-r", "S-h2-b", "S-h2-f", "S-h2-m", "T-h2-n", "f-h1-q", "f-h2-l", "f-h2-q", "f-h2-r", "f-h2-s",
                "g-h2-f", "gw-h2-l", "l-h2-kh2", "m-a2-l", "m-a2-z", "n-a2-l", "n-h1-b", "q-h2-m", "r-h2-n", "s-a-l", "s-a2-r",
@@ -165,7 +165,7 @@ def test_patch_roots_found(triples):
     assert {tuple(r.split("-")) for r in PATCH_ROOTS} <= verb_classes.kw_middle_guttural_pattern(DATASET)
 
 
-# the maintainers, 2026-10-08 (data/triple_check_exceptions.tsv, generator_kept): the book's m-a2-z
+# data/triple_check_exceptions.tsv, generator_kept: the book's m-a2-z
 # subjunctive ends in the 1st order, a misprint for the 6th-order form the generator gives.
 RULED_SUBJUNCTIVE = {"m-a2-z": _w(("y", "I"), ("m", "I"), ("a2", "a"), ("z", "I"))}
 

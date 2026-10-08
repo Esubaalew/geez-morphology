@@ -29,8 +29,8 @@ HELD = os.path.join(DATASET, "data", "synthetic", "synthetic_forms_for_val_test_
 GUTT = {"a", "a2", "h1", "h2", "kh"}
 
 
-# Roots off the allow-list (data/synthetic_roots_allowed_v4.txt, v4 decisions: no dictionary verb entry, gold
-# root or Kidane Wold triple) have no synthetic lines any more; their cases are skipped.
+# Roots off the allow-list (data/synthetic_roots_allowed_v4.txt: no dictionary verb entry, gold root or Kidane Wold
+# triple, or left out by hand) have no synthetic lines; their cases are skipped.
 ALLOWED = {"-".join(r) for r in gen.read_allowed_roots_file()}
 
 
@@ -166,7 +166,6 @@ def test_no_doubled_guttural_present_in_changed_roots(synth):
             bad.append(r["surface_form"])
         if f["tense"] in ("subjunctive", "imperative") and dec[j][1] != "a":
             bad.append(r["surface_form"])
-    assert len(seen) == 71      # 155 before the 2026-10-08 allow-list; 85 with the v3 list; 72 after the kw rebuild; 71 without
-    #                             qh-h2-m (the update, phantom root off the list) (the update:
-    #                             roots with their own corrected triple are not counted here, see test_kidane_wold_subjunctive.py PATCH_ROOTS)
+    assert len(seen) == 71      # roots on the allow-list; roots with their own corrected triple are not counted
+    #                             here, see test_kidane_wold_subjunctive.py PATCH_ROOTS
     assert bad == []

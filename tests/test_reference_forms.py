@@ -3,7 +3,8 @@
 The forms follow standard classical grammar (Lambdin, Dillmann). Roots are written with the
 Latin consonant symbols of engine.py. The generation cases are looked up in the synthetic data of
 the dataset checkout (training file and held-out file), 3ms basic stem, no object, not negative.
-Known gaps are marked xfail with the reason.
+h1-l-w is a gold test root, so its forms are looked up in the held-out file only. Known gaps are
+marked xfail with the reason.
 """
 import json
 import os
@@ -16,10 +17,11 @@ sys.path.insert(0, HERE)
 
 from conftest import DATASET_DIR  # noqa: E402
 
-SYNTHETIC_FILES = [
-    os.path.join(DATASET_DIR, "data", "paradigms", "synthetic_morphology_train.jsonl"),
-    os.path.join(DATASET_DIR, "data", "synthetic", "synthetic_forms_for_val_test_roots.jsonl"),
-]
+TRAIN_FILE = os.path.join(DATASET_DIR, "data", "paradigms", "synthetic_morphology_train.jsonl")
+HELD_OUT_FILE = os.path.join(DATASET_DIR, "data", "synthetic", "synthetic_forms_for_val_test_roots.jsonl")
+SYNTHETIC_FILES = [TRAIN_FILE, HELD_OUT_FILE]
+# Gold test roots: all their lines are in the held-out file.
+HELD_OUT_ONLY = {("h1", "l", "w")}
 
 # (root, tense, expected 3ms surface form)
 GENERATION = [
@@ -37,8 +39,8 @@ GENERATION = [
     (('q', 'w', 'm'), 'past', 'ቆመ'),
     (('q', 'w', 'm'), 'present', 'ይቀውም'),
     (('q', 'w', 'm'), 'subjunctive', 'ይቁም'),
-    pytest.param(('m', 'w', 't'), 'past', 'ሞተ', marks=pytest.mark.xfail(reason='m-w-t is not on the allow-list, so the generator does not conjugate it')),
-    pytest.param(('m', 'w', 't'), 'subjunctive', 'ይሙት', marks=pytest.mark.xfail(reason='m-w-t is not on the allow-list, so the generator does not conjugate it')),
+    pytest.param(('m', 'w', 't'), 'past', 'ሞተ', marks=pytest.mark.xfail(reason='m-w-t is added to the allow-list in the next data batch')),
+    pytest.param(('m', 'w', 't'), 'subjunctive', 'ይሙት', marks=pytest.mark.xfail(reason='m-w-t is added to the allow-list in the next data batch')),
     # hollow y
     (('s2', 'y', 'm'), 'past', 'ሤመ'),
     (('s2', 'y', 'm'), 'subjunctive', 'ይሢም'),
@@ -46,9 +48,9 @@ GENERATION = [
     (('f', 'w', 's'), 'past', 'ፈወሰ'),
     # final weak: must not contract in the perfect
     (('t', 'l', 'w'), 'past', 'ተለወ'),
-    pytest.param(('h1', 'l', 'w'), 'past', 'ሀለወ', marks=pytest.mark.xfail(reason='h1-l-w is not on the allow-list, so the generator does not conjugate it')),
-    pytest.param(('h1', 'l', 'w'), 'present', 'ይሄሉ', marks=pytest.mark.xfail(reason='h1-l-w is not on the allow-list, so the generator does not conjugate it')),
-    pytest.param(('s', 't', 'y'), 'past', 'ሰተየ', marks=pytest.mark.xfail(reason='the final-y paradigm writes the 3ms perfect with a 6th-order 2nd radical')),
+    pytest.param(('h1', 'l', 'w'), 'past', 'ሀለወ', marks=pytest.mark.xfail(reason='h1-l-w is added in the next data batch, with every line held out')),
+    pytest.param(('h1', 'l', 'w'), 'present', 'ይሄሉ', marks=pytest.mark.xfail(reason='h1-l-w is added in the next data batch, with every line held out')),
+    (('s', 't', 'y'), 'past', 'ሰተየ'),
 ]
 
 # Wrong forms an older engine produced; none of them may appear as a synthetic surface form.
@@ -80,21 +82,25 @@ ANALYSIS = [
 
 
 @pytest.fixture(scope="module")
-def synthetic_rows():
+def rows_by_file():
     if not all(os.path.exists(p) for p in SYNTHETIC_FILES):
         pytest.skip("no synthetic data in the dataset checkout")
-    rows = []
+    out = {}
     for path in SYNTHETIC_FILES:
         with open(path, encoding="utf-8") as f:
-            rows.extend(json.loads(line) for line in f)
-    return rows
+            out[path] = [json.loads(line) for line in f]
+    return out
 
 
 @pytest.fixture(scope="module")
-def forms_3ms(synthetic_rows):
+def synthetic_rows(rows_by_file):
+    return [r for path in SYNTHETIC_FILES for r in rows_by_file[path]]
+
+
+def _forms_3ms(rows):
     """{(root, tense): set of 3ms basic forms without object or negation}"""
     out = {}
-    for r in synthetic_rows:
+    for r in rows:
         f = r["features"]
         if (f.get("person"), f.get("gender"), f.get("number")) != ("3", "m", "s"):
             continue
@@ -104,9 +110,15 @@ def forms_3ms(synthetic_rows):
     return out
 
 
+@pytest.fixture(scope="module")
+def forms_3ms(synthetic_rows, rows_by_file):
+    return {"all": _forms_3ms(synthetic_rows), "held_out": _forms_3ms(rows_by_file[HELD_OUT_FILE])}
+
+
 @pytest.mark.parametrize("root,tense,expected", GENERATION)
 def test_generation(forms_3ms, root, tense, expected):
-    assert expected in forms_3ms.get((root, tense), set())
+    forms = forms_3ms["held_out" if root in HELD_OUT_ONLY else "all"]
+    assert expected in forms.get((root, tense), set())
 
 
 def test_must_not_generate(synthetic_rows):
