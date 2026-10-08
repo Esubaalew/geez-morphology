@@ -1,4 +1,4 @@
-"""Grammar decisions of 2026-10-05.
+"""Kidane Wold subjunctives written like the imperfect (docs/grammar_rules.md section 4).
 
 1. A Kidane Wold triple whose subjunctive repeats the imperfect with a 6th-order
    guttural middle radical (ጸሕፈ ፡ ይጽሕፍ ፡ ይጽሕፍ) is an OCR collapse: the subjunctive is

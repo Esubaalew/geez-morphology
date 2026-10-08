@@ -1,5 +1,5 @@
-"""Tense jussive: the gold files carry "subjunctive", and the loader
-reads tense as written (no load-time mapping)."""
+"""Tense labels: the gold files carry "subjunctive", and the loader reads tense as written
+(no load-time mapping from "jussive")."""
 import os
 import sys
 

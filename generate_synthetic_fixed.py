@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """
-generate_synthetic_fixed.py
-Extended Synthetic Morphology Dataset Generator for Classical Ge'ez.
+Synthetic morphology data generator for Classical Ge'ez.
 
-Generates bidirectional training pairs covering:
+Writes two files with the same pairs: synthetic_morphology_train.jsonl (features -> surface form) and
+synthetic_morphology_analyze.jsonl (the same lines keyed by surface form). They cover:
 1. Base triliteral paradigms from the patterns.json templates.
-2. Object pronominal suffixes (አዕጻቅ: -ኒ, -ከ, -ኪ, -ዎ, -ሃ, -ነ, -ክሙ, -ክን, -ሆሙ, -ሆን).
+2. Object pronoun suffixes (-ኒ, -ከ, -ኪ, -ሁ/-ዎ, -ሃ, -ነ, -ክሙ, -ክን, -ሙ/-ሆሙ, -ን/-ሆን);
+   after a vowel the 3rd-person suffixes are -ዎ, -ሃ, -ሆሙ, -ሆን.
 3. Negative verbal prefix (ኢ-).
-4. Quadriliteral verb paradigms (አርባዕቱ ሆህያት: ደንገፀ, ሰንበተ, etc.).
+4. Quadriliteral (four-letter) roots: ደንገፀ, ሰንበተ.
 5. Checked class paradigms from verb_class_paradigms.py (via verb_classes.py):
-   Type B (ቀደሰ), Type C (ባረከ), final-w (ተለወ), ሰትየ-type final-y, and the
+   Type B (ቀደሰ), Type C (ባረከ), final-w (ተለወ), final-y (ሰተየ type), and the
    ወለደ/ወረደ subjunctive. New checked classes go in verb_class_paradigms.py.
    Classes come from the Kidane Wold verb triples (kw_verb_triples.py), Merho
    Ges (the corrected gold train file, verb_classes.GOLD_TRAIN_FILE) and the class lemmas; roots come from the dictionary with the
@@ -18,18 +19,19 @@ Generates bidirectional training pairs covering:
 Roots of the gold test split are left out (see --keep_test_roots), so the
 gold score measures unseen roots. By default these are the 185 roots in
 data/heldout_test_roots_c7bc587.txt (see below); --test_file takes them from a
-gold test file instead. Output goes to <dataset>/output and is
-copied to <dataset>/data/paradigms (what train_byt5_morphology.py reads).
+gold test file instead. By default the generator writes into the dataset folder: output goes to
+<dataset>/output and is copied to <dataset>/data/paradigms (what train_byt5_morphology.py reads).
 After the copy, synthetic_heldout.py moves every line whose root is a root of the
 current gold val or test file into <dataset>/data/synthetic/ (held out, not read by
-the trainer; the maintainer 2026-10-06 14:35); --no_heldout_split skips that step.
+the trainer); --no_heldout_split skips that step. --no_mirror skips the copy and the split, and
+--output_dir sends the output somewhere other than <dataset>/output.
 Random draws are per root: which base pairs of a root get object and
 negative forms, which object suffixes, which augmentation forms get the negative, and whether a
 quadriliteral root is used all come from that root's own random.Random, seeded with
 sha256("<SEED>:<purpose>:<root>") (root_rng). A change to one root (its class tag, its templates)
 changes only that root's lines; every other root's lines stay identical and in the same order.
 The synthetic files in the dataset were generated with the gold test file as extracted, dataset
-commit c7bc587 (544271a before the dataset history was rewritten). Its test roots differ from the
+commit c7bc587. Its test roots differ from the
 current test file's. They are frozen in data/heldout_test_roots_c7bc587.txt (in this repo), so
 reproducing the files needs no git history of the dataset:
   python generate_synthetic_fixed.py --dataset_dir <dataset>
@@ -80,16 +82,15 @@ OBJECT_SUFFIXES = [
 ]
 
 
-# Per-root random streams. Before, one Random(42) stream and global
-# counters ran over all roots, so a class-tag change for 3 roots moved ~26k object/negative lines
-# of 1,499 other roots. Now every draw for a root comes from root_rng(root, purpose): seeded from
+# Per-root random streams: every draw for a root comes from root_rng(root, purpose), seeded from
 # SEED, the purpose and the root string through sha256 (Python's hash() is salted per process).
-# Rates are fixed numbers, not "N of all roots", so no root's draws depend on another root.
+# Rates are fixed numbers, not "N of all roots", so no root's draws depend on another root, and a
+# change to one root (its class tag, its templates) changes only that root's lines.
 SEED = 42
-AUGMENT_EVERY_BASE = 8      # one in 8 Type A template pairs of a root -> object/negative forms (was: of all roots)
-AUGMENT_EVERY_QUAD = 6      # one in 6 quadriliteral pairs of a root (was: of all quad pairs)
-QUAD_SAMPLE_RATE = 0.28     # share of quadriliteral roots used (was a 300-of-1,064 sample, 0.282)
-NEGATIVE_RATE = 0.22        # share of augmentation forms given the ኢ- form (was 5,000 of ~22,800, 0.219)
+AUGMENT_EVERY_BASE = 8      # one in 8 Type A template pairs of a root -> object/negative forms
+AUGMENT_EVERY_QUAD = 6      # one in 6 quadriliteral pairs of a root
+QUAD_SAMPLE_RATE = 0.28     # share of quadriliteral roots used
+NEGATIVE_RATE = 0.22        # share of augmentation forms given the ኢ- form
 
 
 def root_rng(root: str, purpose: str, seed: int = SEED) -> random.Random:
@@ -181,8 +182,9 @@ def template_is_checked(pattern: Dict[str, Any], cons: Tuple[str, ...]) -> bool:
     - Hollow roots: templates that write the glide as a fixed letter ([ው] or
       [ይ]) skip the engine's contraction rule and put ይ into w-roots (ይቀይም),
       so only pure root-slot templates are used.
-    - Initial-weak roots: only the perfect and imperfect templates are right;
-      the jussive/subjunctive drop the first radical (ይለድ) and are not modeled yet.
+    - Initial-w roots: only the perfect and imperfect templates are right. The
+      subjunctive drops the first radical (ይለድ); for the ወለደ type it comes from
+      the initial_w_drop class paradigm, not from these templates.
     """
     feat = pattern["features"]
     spec = pattern["pattern_spec"]
@@ -197,7 +199,7 @@ def template_is_checked(pattern: Dict[str, Any], cons: Tuple[str, ...]) -> bool:
 
 
 # First radical አ ዐ ሀ ሐ ኀ: the imperfect person prefix takes the 1st order
-# (የኀፍር, ተኀፍር, አኀፍር, ነኀፍር); the subjunctive keeps ይ (ይኀፍር). the maintainers, 2026-10-05.
+# (የኀፍር, ተኀፍር, አኀፍር, ነኀፍር); the subjunctive keeps ይ (ይኀፍር). See docs/grammar_rules.md section 1.
 GUTTURAL_FIRST = ("a", "a2", "h1", "h2", "kh")
 GUTTURAL_PREFIX = {"[ይ]": "[የ]", "[ት]": "[ተ]", "[እ]": "[አ]", "[ን]": "[ነ]"}
 
@@ -388,7 +390,7 @@ def generate_extended_dataset(
     added_roots -= triliteral_roots
     triliteral_roots |= added_roots
 
-    # no root with an Amharic-only letter (ሸ ቸ ኘ ዠ;
+    # No root with an Amharic-only letter (ሸ ቸ ኘ ዠ;
     # ኸ ጀ ጨ never decompose and are already in skipped_roots); no doubly weak
     # triliteral root (two or more w/y: ሐይወ, የ-ወ-ሰ), which went through the hollow
     # or strong templates (ተሀይዉ, ሎየት, ይየብው, እወልይ).
@@ -406,7 +408,7 @@ def generate_extended_dataset(
                         if not verb_classes.has_amharic_letter(r) and verb_classes.weak_count(r) < 2}
     class_of = {r: c for r, c in class_of.items() if not verb_classes.has_amharic_letter(r)}
     quad_final_weak_dropped = []
-    # roots dropped by name.
+    # Roots dropped by name.
     DROP_ROOTS = {("w", "a2", "a"): "ወ-ዐ-አ: no clean Kidane Wold perfect"}
     named_dropped = sorted("-".join(r) for r in triliteral_roots if r in DROP_ROOTS)
     triliteral_roots = {r for r in triliteral_roots if r not in DROP_ROOTS}
@@ -415,7 +417,7 @@ def generate_extended_dataset(
     n_tri, n_quad = len(triliteral_roots), len(quadriliteral_roots)
     triliteral_roots = sorted(r for r in triliteral_roots if r not in held_out)
     quadriliteral_roots = sorted(r for r in quadriliteral_roots if r not in held_out)
-    # Allow-list (2026-10-08): only roots with verb evidence. Filtered after the held-out step; every draw
+    # Allow-list: only roots with verb evidence. Filtered after the held-out step; every draw
     # is per root (root_rng), so the kept roots' lines are the same as without the filter.
     n_tri_before_allow, n_quad_before_allow = len(triliteral_roots), len(quadriliteral_roots)
     allowed_not_found = allowed_roots - set(triliteral_roots) - set(quadriliteral_roots)
@@ -457,7 +459,7 @@ def generate_extended_dataset(
     mid_gutt_changed = set()
     mid_gutt_excluded = {}
     mid_gutt_forms = {"present": 0, "subjunctive": 0, "imperative": 0}
-    # Guttural-final rule:
+    # Guttural-final rule (Merho Ges ሰምዐ, ቃርሐ):
     # last radical አ ዐ ሀ ሐ ኀ, past tense ->
     #   3rd person, basic/causative/aste: middle radical 6th order (ሰምዐ ሰምዐት ሰምዑ ሰምዓ, አስምዐ, አስተስምዐ);
     #     passive 3rd person is already short in the templates (ተሰምዐ) and is left as it is;
@@ -466,7 +468,7 @@ def generate_extended_dataset(
     # Quadriliterals and hollow roots (ሞአ, ኖኀ: the engine contracts radicals 1+2) unchanged.
     final_gutt_roots = set()
     final_gutt_forms = {}
-    # Kidane Wold subjunctive = imperfect with a 6th-order guttural middle (OCR collapse).
+    # Kidane Wold subjunctive written like the imperfect, with a 6th-order guttural middle (OCR collapse).
     kw_collapsed = verb_classes.kw_collapsed_subjunctive(dataset_dir)
     # Kidane Wold triple that writes the middle-guttural forms (ሰሐለ ፡ ይስሕል ፡ ይስሐል, class unclear): middle-guttural rule.
     kw_frye = verb_classes.kw_middle_guttural_pattern(dataset_dir)
@@ -554,7 +556,7 @@ def generate_extended_dataset(
                 continue
             if rtype == "weak_final":
                 # Only with a tag: ተለወ-type needs a ይተሉ/ይትሉ imperfect (ሀለወ, ይሄሉ,
-                # is Type B with final w); ሰትየ-type needs a ይሰቲ/ይስተይ one
+                # is Type B with final w); the ሰተየ type needs a ይሰቲ/ይስተይ one
                 # (በከየ-type has subjunctive ይብኪ).
                 if cls == "final_w" and verb_classes.class_fits_root("final_w", cons):
                     write_class_rows(cons, "final_w")
@@ -688,7 +690,7 @@ def generate_extended_dataset(
                 except Exception:
                     failed_forms += 1
 
-        print(f"  [✓] Phase 1 Base Paradigms: {total_base:,} pairs")
+        print(f"  Phase 1 base paradigms: {total_base:,} pairs")
 
         if include_quads:
             print("Generating Phase 2: Quadriliteral Verbs (ደንገፀ, ሰንበተ, etc.)...")
@@ -703,7 +705,7 @@ def generate_extended_dataset(
             used_quads = drawn_quads | set(confirmed_quads)
             sampled_quads = [r for r in quadriliteral_roots if r in used_quads]
             print(f"  Confirmed quad roots added to the sample: {len(confirmed_quads)}")
-            # filtered after sampling so the rest of the sample is unchanged.
+            # Filtered after sampling so the rest of the sample is unchanged.
             # Amharic-only letter -> drop; two or more w/y -> doubly weak, drop; last
             # radical w/y -> no checked quad final-weak template (ፈቅድዉ, ንነዝፍው), drop.
             kept_quads = []
@@ -751,10 +753,10 @@ def generate_extended_dataset(
                     except Exception:
                         failed_forms += 1
 
-            print(f"  [✓] Phase 2 Quadriliteral Forms: {total_quads:,} pairs")
+            print(f"  Phase 2 quadriliteral forms: {total_quads:,} pairs")
 
         if include_objects:
-            print("Generating Phase 3: Object Pronominal Suffixes (-ኒ, -ከ, -ኪ, -ዎ, -ሃ, -ነ, -ክሙ, -ክን, -ሆሙ)...")
+            print("Generating Phase 3: Object Pronominal Suffixes (-ኒ, -ከ, -ኪ, -ዎ, -ሃ, -ነ, -ክሙ, -ክን, -ሆሙ, -ሆን)...")
             print(f"  Augmentation forms (per-root picks): {len(base_forms_for_augmentation):,}")
             obj_rngs = {}
 
@@ -785,7 +787,7 @@ def generate_extended_dataset(
                     if write_pair(obj_feat, obj_form):
                         total_objects += 1
 
-            print(f"  [✓] Phase 3 Object Pronominal Pairs: {total_objects:,} pairs")
+            print(f"  Phase 3 object suffix pairs: {total_objects:,} pairs")
 
         if include_negative:
             print("Generating Phase 4: Negative Prefix (ኢቀተለ, ኢይቀትል, ኢተቀተለ)...")
@@ -810,12 +812,12 @@ def generate_extended_dataset(
                 if write_pair(neg_feat, neg_form):
                     total_negatives += 1
 
-            print(f"  [✓] Phase 4 Negative Prefix Pairs: {total_negatives:,} pairs")
+            print(f"  Phase 4 negative prefix pairs: {total_negatives:,} pairs")
 
     total_pairs = total_base + total_quads + total_objects + total_negatives
     n_blocked = sum(sum(v.values()) for v in blocked_lines.values())
     print("\n============================================================")
-    print("EXTENDED SYNTHETIC MORPHOLOGY GENERATION COMPLETE")
+    print("Synthetic data generation finished")
     print("============================================================")
     print(f"Base Triliterals:     {total_base:8,}")
     print(f"Quadriliteral Verbs:  {total_quads:8,}")
@@ -830,15 +832,15 @@ def generate_extended_dataset(
     print(f"Unchecked weak templates skipped: {skipped_templates:,}")
     print(f"Objects skipped:      {skipped_objects:8,}  (1p, 2mp, 2fp subjects: object forms not settled yet)")
     print(f"Checked class paradigm pairs: {class_counts}")
-    print(f"Final-weak roots skipped (no ተለወ/ሰትየ tag): {final_roots_skipped}")
-    print(f" drops: Amharic-only letter: triliteral {len(amharic_dropped['triliteral'])}, "
+    print(f"Final-weak roots skipped (no ተለወ/ሰተየ tag): {final_roots_skipped}")
+    print(f"Dropped roots: Amharic-only letter: triliteral {len(amharic_dropped['triliteral'])}, "
           f"quad (in sample) {len(amharic_dropped['quadriliteral'])}, class tags {len(amharic_dropped['class_tags'])}, "
           f"undecomposable roots with ኸ/ጀ/ጨ (already skipped) {len(amharic_raw)}")
     print(f"  Doubly weak: triliteral {len(doubly_weak_dropped['triliteral'])}, "
           f"quad (in sample) {len(doubly_weak_dropped['quadriliteral'])}")
     print(f"  Quads ending in w/y (in sample): {len(quad_final_weak_dropped)}")
-    print(f"roots dropped by name: {named_dropped}")
-    print(f"middle-guttural rule applied to {len(mid_gutt_changed)} roots; "
+    print(f"Roots dropped by name: {named_dropped}")
+    print(f"Middle-guttural rule applied to {len(mid_gutt_changed)} roots; "
           f"templates rewritten (before duplicate removal): {mid_gutt_forms}")
     print(f"  Middle-guttural Type A roots left unchanged: "
           f"{ {k: len(v) for k, v in mid_gutt_excluded.items()} } {mid_gutt_excluded}")
@@ -880,17 +882,19 @@ def generate_extended_dataset(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate extended synthetic morphology data for Classical Ge'ez")
+    parser = argparse.ArgumentParser(description="Generate synthetic morphology data for Classical Ge'ez. "
+                                     "By default it writes into the dataset folder; see --no_mirror and --output_dir.")
     parser.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
                         help="Checkout of the geez-dataset repo (default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
-    parser.add_argument("--output_dir", default=None, help="Output directory")
+    parser.add_argument("--output_dir", default=None, help="Output directory (default: <dataset>/output)")
     parser.add_argument("--no_objects", action="store_true", help="Exclude object pronominal suffixes")
     parser.add_argument("--no_negative", action="store_true", help="Exclude negative prefix")
     parser.add_argument("--no_quads", action="store_true", help="Exclude quadriliterals")
     parser.add_argument("--keep_test_roots", action="store_true",
                         help="Do not remove the gold test roots (makes the gold score optimistic)")
     parser.add_argument("--no_mirror", action="store_true",
-                        help="Do not copy the output to <dataset>/data/paradigms")
+                        help="Leave the dataset's data/ folder alone: do not copy the output to "
+                             "<dataset>/data/paradigms and do not split off the held-out lines")
     parser.add_argument("--test_file", default=None,
                         help="Leave out the roots of this gold test file instead of the frozen list "
                              "data/heldout_test_roots_c7bc587.txt (the default)")

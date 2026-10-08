@@ -1,5 +1,4 @@
-"""Checks for the class paradigms from the grammar check
-(verb_class_paradigms.py) and their use in the generator and analyzer."""
+"""Checks for the class paradigms (verb_class_paradigms.py) and their use in the generator and analyzer."""
 import os
 import sys
 

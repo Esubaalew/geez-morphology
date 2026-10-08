@@ -2,33 +2,37 @@
 
 These are the language decisions the generator (`generate_synthetic_fixed.py`, `verb_classes.py`,
 `verb_class_paradigms.py`) and the analyzer (`analyzer.py`) follow. Page numbers are the
-printed pages of the grammar books they were read from. "ፍሬ ግእዝ page_014" is the
-image file name in that scan, not a file in this repository.
+printed pages of the grammar books they were read from.
 
 Root letters are written in the consonant symbols of `geez_config.py` (h1 ሀ, h2 ሐ, kh ኀ, a አ,
 a2 ዐ, s2 ሠ, S ጸ, S2 ፀ, T ጠ, qh ቈ).
 
-## 1. Guttural first radical: የ- in the present
+Tenses: perfect (past) and imperfect (present), as the data labels them, then the subjunctive
+and the imperative. Vowel orders are the 1st to 7th orders (ግዕዝ ... ሳብዕ).
 
-When the first radical is a guttural (ሀ ሐ ኀ አ ዐ), the present prefix takes the 1st order:
+## 1. Guttural first radical: የ- in the imperfect
+
+When the first radical is a guttural (ሀ ሐ ኀ አ ዐ), the imperfect prefix takes the 1st order:
 የ/ተ/አ/ነ, as in የኀፍር, ተኀፍር, ነኀፍር. The subjunctive keeps ይ: ይኀፍር.
 
-- Source: ፍሬ ግእዝ p. 18 (page_014), ሆከ ፡ የሀውክ ፡ ይሁክ.
-- Applied to the basic-stem present of Type A, hollow and quadriliteral roots.
+- Source: ፍሬ ግእዝ p. 18, ሆከ ፡ የሀውክ ፡ ይሁክ.
+- Applied to the basic-stem imperfect of Type A, hollow and quadriliteral roots.
 - In a Kidane Wold triple, the imperfect is the የ-form and the subjunctive is the ይ-form. Where
   the dictionary lists them the other way round, they are swapped.
+- Ge'ez has one form here, the subjunctive (ይቅትል). Some older templates in `patterns.json` are
+  labelled "jussive"; they are read as subjunctive.
 
 ## 2. Middle guttural: ይምሕል, ይምሐል, ምሐል
 
 In the ቀተለ class, when the second radical is a guttural (ሀ ሐ ኀ አ ዐ):
-- the present is all 6th order, with no doubling: ይምሕል, not ይመሕል (a guttural cannot be doubled);
-- the subjunctive and the jussive put the 1st order on the letter before the last: ይምሐል;
+- the imperfect is all 6th order, with no doubling: ይምሕል, not ይመሕል (a guttural cannot be doubled);
+- the subjunctive puts the 1st order on the letter before the last: ይምሐል;
 - the imperative is built on that stem: ምሐል, ምሐሉ;
 - the perfect is unchanged: መሐለ.
 
 Sources:
-- ፍሬ ግእዝ p. 63 (page_037), rules ፲፪.፪–፲፪.፫: መሐለ ፡ ይምሕል ፡ ይምሐል and ሰአለ ፡ ይስእል ፡ ይስአል.
-- ፍሬ ግእዝ p. 18 (page_014): ድሕነ ፡ ይድሕን ፡ ይድሐን and ሰዐረ ፡ ይስዕር ፡ ይስዓር.
+- ፍሬ ግእዝ p. 63, rules ፲፪.፪–፲፪.፫: መሐለ ፡ ይምሕል ፡ ይምሐል and ሰአለ ፡ ይስእል ፡ ይስአል.
+- ፍሬ ግእዝ p. 18: ድሕነ ፡ ይድሕን ፡ ይድሐን and ሰዐረ ፡ ይስዕር ፡ ይስዓር.
 - The book prints ሐ, አ and ዐ. ኀ is included because the rule names the
   ሀ letters as a set.
 
@@ -38,7 +42,7 @@ Scope:
 - It is not applied to initial-weak roots: ይወሕን stays.
 - A root's own Kidane Wold triple wins over the rule (see section 4).
 - A root whose first and second radicals are both gutturals (a-a-l, a-a-n, a-kh-s, a-kh-z,
-  h1-kh-t, h2-kh-t) keeps the የ- present, with the middle letter in the 6th order (የአኅዝ). No
+  h1-kh-t, h2-kh-t) keeps the የ- imperfect, with the middle letter in the 6th order (የአኅዝ). No
   source has been found for its subjunctive, so it is left as generated.
 
 ## 3. 1st and 4th order after a guttural are the same spelling
@@ -137,16 +141,17 @@ stem label is `aste`.
 ## 6. Hollow, final-weak and initial-w roots
 
 - **Hollow** (w/y as second radical): these use the Type A basic-stem templates, and the engine
-  contracts the glide: ቆመ, ይቀውም, ይቁም. The hand-written weak_middle templates are not used.
+  contracts the glide: ቆመ, ይቀውም, ይቁም. The generator does not use the hand-written weak_middle
+  templates; the analyzer and `cli.py` still use them to read hollow forms.
 - **Final-w (ተለወ type):** generated only for a root with a ይተሉ/ይትሉ triple or a class tag.
   ሀለወ (ይሄሉ) is Type B with a final w, not ተለወ type.
-- **Final-y (ሰትየ type):** generated only for a tagged root (ይሰቲ / ይስተይ). The በከየ type (subjunctive
+- **Final-y (ሰተየ type):** generated only for a tagged root (ይሰቲ / ይስተይ). The በከየ type (subjunctive
   ይብኪ) is different and has no checked paradigm.
   Four roots take the ruled perfect stem of section 4.2.
 - Final-weak roots without a tag are skipped.
 - The checked paradigm tables are in `verb_class_paradigms.py`, and
   `tests/test_verb_class_paradigms.py` checks them.
-- **Initial-w:** these get the Type A perfect and present only. The subjunctive and imperative are
+- **Initial-w:** these get the Type A perfect and imperfect only. The subjunctive and imperative are
   generated only for the ወለደ type (ይለድ, ለድ): roots on the W_DROP list or with a ይለድ-shaped
   triple.
   Section 4.1 adds the initial-w roots with a final guttural and w-k-k.
@@ -156,7 +161,7 @@ stem label is `aste`.
 - Roots with an Amharic-only letter: ሸ ቸ ኘ ኸ ዠ ጀ ጨ. Classical Ge'ez has none of these.
 - Doubly weak roots, with two of w/y, such as ሐይወ (ሐይወ / የሐዩ, not hollow).
 - Quadriliteral roots ending in w or y. No checked template exists for them.
-- ማህረከ (four-radical Type C). geezgram-2 page_008 prints ማህረከ ፡ ይማህርክ ፡ ይማህርክ and no
+- ማህረከ (four-radical Type C). geezgram-2 prints ማህረከ ፡ ይማህርክ ፡ ይማህርክ and no
   imperative. The root is in neither dictionary file, so it has no rows.
 - ጦመረ and ሴሰየ types (Type C with ō/ē). No conjugation table has been found, and no Kidane Wold
   triple has these shapes. Their builders exist and are tested, but they produce no rows.
@@ -166,7 +171,7 @@ stem label is `aste`.
 - A root's class comes only from lexical evidence, never from its spelling (a Type B perfect is
   spelled like Type A). The evidence is:
   - its accepted Kidane Wold triple;
-  - the Merho Ges training tables' class names (ባረከ → Type C, ቀደሰ → Type B, ሰትየ → final-y);
+  - the Merho Ges training tables' class names (ባረከ → Type C, ቀደሰ → Type B, ሰተየ → final-y);
   - the class lemmas.
 - A root with no evidence gets the default for its shape.
 - **an earlier prototype is a hint only.** Its classes come from earlier work that could not be confirmed. A

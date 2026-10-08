@@ -1,7 +1,7 @@
-"""fixes from the grammar check of the sheet (2026-10-05).
+"""Letters, stems and root shapes in the generated data and the analyzer.
 
 1. no Amharic-only letters (ሸ ቸ ኘ ኸ ዠ ጀ ጨ) in generated roots;
-2. causative-intensive is አስተ- (stem "aste"): አስተቅተለ, አስተትረስኩ;
+2. the causative-reflexive stem is አስተ- (stem "aste"): አስተቅተለ, አስተትረስኩ;
 3/4. no doubly weak roots, no quads ending in w/y, no ዉ / word-final ው ይ on a
      weak radical outside the final-weak class paradigms;
 5. type_d forms come from the root's own Kidane Wold triple (ስእለ ፡ ይስእል ፡ ይስእል);
@@ -121,7 +121,7 @@ def test_aste_rows_start_with_aste(synth):
 
 def test_type_d_matches_triples(synth):
     """Each type_d root's 3ms perfect and 3ms imperfect are its own Kidane Wold triple
-    (ስእለ ፡ ይስእል is what Kidane Wold writes for ሰ-አ-ለ). the subjunctive
+    (ስእለ ፡ ይስእል is what Kidane Wold writes for ሰ-አ-ለ). The subjunctive
     follows the ፍሬ ግእዝ rule instead (test_type_d_subjunctive.py)."""
     path = os.path.join(DATASET, verb_classes.TRIPLES_FILE)
     triples = {}
@@ -170,7 +170,7 @@ def best(a, word):
     ("ድኅንከ", ("d-kh-n", "basic", "past", "2", "s")),
     ("አስተቀተለ", ("q-t-l", "aste", "past", "3", "s")),
 ])
-def test_analyzer(analyzer, word, expected):
+def test_analyzer_prefix_type_d_and_aste(analyzer, word, expected):
     assert best(analyzer, word) == expected
 
 

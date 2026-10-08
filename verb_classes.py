@@ -1,16 +1,15 @@
 """
-verb_classes.py
-Connects the checked class paradigms in verb_class_paradigms.py (Ge'ez
-the grammar check) to the generator and the analyzer.
+Connects the checked class paradigms in verb_class_paradigms.py to the
+generator and the analyzer.
 
-  class_tags()      which roots are Type B, Type C, or ሰትየ-type final-y
+  class_tags()      which roots are Type B, Type C, or final-y (ሰተየ type)
   class_fits_root() whether a class's template can take a root at all
   paradigm_rows()   (features, surface) pairs for one root of a checked class
   class_patterns()  the same paradigms as pattern specs, for the analyzer
 
 Verb class cannot be read off the spelling: a Type B perfect (ቀደሰ) is written
 exactly like Type A (ቀተለ). So class tags come from lexical sources only:
-  1. the class lemmas themselves (ቀደሰ, ባረከ, ሰትየ, ተለወ)
+  1. the class lemmas themselves (ቀደሰ, ባረከ, ሰተየ, ተለወ)
   2. the paradigm_class field of the Merho Ges TRAIN split, which files each
      verb under its class lemma. Records that name more than one class are skipped.
   3. the verb triples Kidane Wold prints after a verb headword
@@ -44,13 +43,12 @@ VERB_TYPE_OF = {"type_b": "strong_B", "type_c": "strong_C", "final_y": "weak_fin
                 "type_d": "strong_D"}
 VOWEL_ORDER = {"a": 1, "u": 2, "i": 3, "A": 4, "e": 5, "I": 6, "o": 7}
 GUTTURALS = ("a", "a2", "h1", "h2", "kh")
-# Classes read off the written triple by shape_classes() (the grammar check of the
-# the written shape types): ጦመረ ፡ ይጦምር ፡ ይጦምር, ē kept on radical 1, ማህረከ ፡ ይማህርክ ፡ ይማህርክ.
+# Classes read off the written triple by shape_classes() (the written shape types that were
+# checked): ጦመረ ፡ ይጦምር ፡ ይጦምር, ē kept on radical 1, ማህረከ ፡ ይማህርክ ፡ ይማህርክ.
 SHAPE_CLASSES = ("type_c_o", "type_c_e", "quad_c")
 
 CLASS_LEMMAS = {"ቀደሰ": "type_b", "ባረከ": "type_c", "ሰትየ": "final_y", "ተለወ": "final_w"}
-# Merho Ges class names -> checked class. ሰተየ and ሰትየ are the same class
-# (confirmed by the grammar check, 2026-10-05).
+# Merho Ges class names -> checked class. ሰተየ and ሰትየ are the same class.
 MERHO_CLASS_NAMES = {"ቀደሰ": "type_b", "ባረከ": "type_c", "ሰትየ": "final_y", "ሰተየ": "final_y",
                      "ተለወ": "final_w"}
 # Classes a Kidane Wold triple can show. The first group selects a checked
@@ -244,7 +242,7 @@ def triple_roots(dataset_dir: str) -> set:
 def kw_collapsed_subjunctive(dataset_dir: str) -> Dict[Tuple[str, ...], dict]:
     """{root: info} for 3-radical roots whose Kidane Wold triple writes the subjunctive
     exactly like the imperfect with the guttural middle radical in the 6th order
-    (ጸሕፈ ፡ ይጽሕፍ ፡ ይጽሕፍ): an OCR collapse. info has the
+    (ጸሕፈ ፡ ይጽሕፍ ፡ ይጽሕፍ): an OCR collapse (docs/grammar_rules.md section 4). info has the
     triple ids, classes and the imperfect orders of radicals 1 and 2. A root whose
     triples disagree on the imperfect is left out."""
     path = os.path.join(dataset_dir, TRIPLES_FILE)
@@ -360,8 +358,7 @@ def _tags_and_sources(dataset_dir: str, exclude=()):
         tags[root_of_lemma(lemma)] = cls
         source[root_of_lemma(lemma)] = "class lemma"
     conflicts = set()
-    # Merho Ges class names from the gold train file as written (train records only; the maintainer 2026-10-06
-    # 15:14, ).
+    # Merho Ges class names from the gold train file as written (train records only).
     path = os.path.join(dataset_dir, GOLD_TRAIN_FILE)
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:

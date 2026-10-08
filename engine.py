@@ -1,10 +1,9 @@
 """
-General Semitic Root-and-Pattern Interdigitation Engine.
+Root-and-pattern interdigitation engine.
 
-This module implements the UNIVERSAL mechanism of Semitic morphology:
-interdigitation of root consonants into pattern templates. It is
-language-agnostic. All language-specific knowledge (script rendering,
-vowel inventory, affix inventories) lives in a configuration object.
+Puts the consonants of a root into the slots of a pattern template. The
+engine does not render a script itself: rendering, the vowel inventory and
+the affixes come from the caller (for Ge'ez, geez_config.render_unit).
 
 The core operation:
     interdigitate(root, pattern) -> abstract_form
@@ -20,14 +19,9 @@ Example (abstract):
     pattern = [("R", 0, "a"), ("R", 1, "a"), ("R", 2, "a")]
     result  = [("q","a"), ("t","a"), ("l","a")]
 
-Rendering to a specific script is delegated to the language configuration,
-which maps (consonant, vowel) pairs to characters. For Ge'ez this uses
-Unicode vowel-order arithmetic on the Ethiopic block; for Arabic it would
-map to consonant + diacritic sequences.
-
-This architecture separates the universal interdigitation mechanism
-across Semitic languages from language-specific renderers and pattern
-inventories.
+Rendering is delegated to the renderer, which maps (consonant, vowel)
+pairs to characters. For Ge'ez this uses Unicode vowel-order arithmetic on
+the Ethiopic block.
 """
 
 from dataclasses import dataclass, field

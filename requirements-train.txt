@@ -1,0 +1,6 @@
+# Training (train_byt5_morphology.py), the ByT5 fallback of the analyzer, and evaluate_gold.py --system byt5.
+# Versions are not pinned. The trainer passes processing_class and eval_strategy, which older
+# transformers releases do not accept.
+torch
+transformers
+accelerate

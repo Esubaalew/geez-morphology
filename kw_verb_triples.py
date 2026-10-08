@@ -1,5 +1,4 @@
 """
-kw_verb_triples.py
 Parse the verb triples that Kidane Wold gives in parentheses after a verb
 headword, e.g. "(ቀተለ ፡ ይቀትል ፡ ይቅትል ፡፡ ...)" = perfect, imperfect, subjunctive,
 and read the root and the verb class off the imperfect/subjunctive.
@@ -10,7 +9,7 @@ The class comes only from the written imperfect/subjunctive of the entry:
   type_c      ይባርክ           (C1 4th order, long ā kept)
   final_w     ይተሉ / ይትሉ     (ተለወ paradigm; C2 2nd order, root ends in w)
   type_b_final_w ይሄሉ         (ሀለወ: C1 5th order + final w; NOT the ተለወ paradigm)
-  final_y     ይሰቲ / ይስተይ    (ሰትየ = ሰተየ paradigm)
+  final_y     ይሰቲ / ይስተይ    (ሰተየ type)
   final_y_other ይበኪ / ይብኪ   (በከየ-type; final_y() must not be used)
   hollow      ይቀውም + ይቁም / ይሤይም + ይሢም
   initial_w_drop ይወልድ + ይለድ;  initial_w_keep ይወርስ + ይውርስ
@@ -23,17 +22,25 @@ Failing triples are logged in kidane_wold_verb_triples_rejected.jsonl.
 Anything else is "unclear" and gets no class. Nothing is guessed from the
 perfect's spelling; the perfect is only used to confirm the radicals.
 
-Root fixes carry the decisions over from the previous fixes file:
+Root fixes carry the earlier decisions over from the previous fixes file:
 a row there with new_root null means "root unknown, don't guess" (e.g. 7546).
 The rebuild writes that entry's row with new_root null and the decision's
 root_notes; if the rebuild finds no row for the entry, the previous row is
 kept as it is, at the entry's place in dictionary order. A previous row's
 root_notes are kept on the rebuilt row for the same entry.
+
+Running the script rewrites three files in <dataset>/data/lexicon/:
+  kidane_wold_verb_triples.jsonl           accepted triples
+  kidane_wold_verb_triples_rejected.jsonl  triples the OCR gate rejected, with the reason
+  kidane_wold_root_fixes.jsonl             corrected roots (read first, for its decisions)
+It reads classical_dictionary_kidane_wold.jsonl from the same folder.
+
+  python kw_verb_triples.py --dataset_dir ../geez-dataset
 """
+import argparse
 import json
 import os
 import re
-import sys
 
 import geez_config as gc
 
@@ -310,9 +317,25 @@ def build(dictionary_path, triples_path, fixes_path, previous_fixes_path=None):
     return n_verbs, n_trip, fixes
 
 
-if __name__ == "__main__":
+def parse_args(argv=None):
     import dataset_loader
-    ds = sys.argv[1] if len(sys.argv) > 1 else dataset_loader.default_dataset_dir()
+    p = argparse.ArgumentParser(
+        description="Rebuild the Kidane Wold verb triples and root fixes. Rewrites three files in "
+                    "<dataset>/data/lexicon/: kidane_wold_verb_triples.jsonl, "
+                    "kidane_wold_verb_triples_rejected.jsonl and kidane_wold_root_fixes.jsonl.")
+    p.add_argument("dataset", nargs="?", default=None,
+                   help="Checkout of the geez-dataset repo (same as --dataset_dir)")
+    p.add_argument("--dataset_dir", default=None,
+                   help="Checkout of the geez-dataset repo (default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
+    args = p.parse_args(argv)
+    if args.dataset and args.dataset_dir and args.dataset != args.dataset_dir:
+        p.error("give the dataset folder once, as a positional argument or with --dataset_dir")
+    args.dataset_dir = args.dataset_dir or args.dataset or dataset_loader.default_dataset_dir()
+    return args
+
+
+if __name__ == "__main__":
+    ds = parse_args().dataset_dir
     lex = os.path.join(ds, "data", "lexicon")
     fixes_file = os.path.join(lex, "kidane_wold_root_fixes.jsonl")
     # the decisions of the current fixes file are read before it is rewritten

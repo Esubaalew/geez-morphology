@@ -1,4 +1,4 @@
-"""type_d subjunctive/jussive and imperative follow ፍሬ ግእዝ pp. 18, 63
+"""type_d subjunctive and imperative follow ፍሬ ግእዝ pp. 18, 63
 (ሰአለ ይስእል ይስአል, ድሕነ ይድሕን ይድሐን, መሐለ ይምሕል ይምሐል): the guttural 2nd radical is
 1st order before the last letter. Perfect and present stay as Kidane Wold writes them.
 Root ወ-ዐ-አ is dropped (no clean Kidane Wold perfect)."""

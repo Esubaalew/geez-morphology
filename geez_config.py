@@ -1,24 +1,21 @@
 """
-Ge'ez language configuration for the general root-and-pattern engine.
-
-This is the ONLY Ge'ez-hardcoded part of the system. Everything else
-(engine.py, pattern_learner.py) is language-agnostic.
+Ge'ez script tables for the root-and-pattern engine.
 
 Contents:
   1. Vowel inventory: the 7 Ethiopic vowel orders with abstract labels.
-  2. Consonant inventory: abstract symbol -> base codepoint mapping.
+  2. Consonant inventory: abstract symbol -> base code point.
   3. Renderer: (consonant, vowel) -> Ethiopic character via Unicode
      vowel-order arithmetic (the usual approach).
   4. Decomposer: character -> (consonant, vowel), inverse of renderer.
-  5. Affix inventories: subject prefixes/suffixes per tense (for reference;
-     the learner discovers how they combine, they are documented here).
+  5. Guttural spelling variants, root helpers, and a reference list of subject prefixes.
 
-Vowel order labels follow the traditional Ethiopic order:
+Prose in this repository names the vowel orders 1st to 7th (ግዕዝ ... ሳብዕ). The code uses
+indices 0-6: index 0 = 1st order ... index 5 = 6th order (ሳድስ), index 6 = 7th order.
   0: a (ሀ)   1: u (ሁ)   2: i (ሂ)   3: A (ሃ)
   4: e (ሄ)   5: I (ህ)   6: o (ሆ)
 """
 
-# Abstract vowel labels -> Ethiopic vowel order (0-6)
+# Abstract vowel labels -> vowel order index (0 = 1st order ... 6 = 7th order)
 VOWEL_ORDERS = {
     "a": 0,
     "u": 1,
@@ -47,7 +44,7 @@ CONSONANTS = {
     "t":  0x1270,
     "ch": 0x1278,
     "kh": 0x1280,
-    "khw": 0x1288,  # ኈ xʷ (labiovelar; was missing)
+    "khw": 0x1288,  # ኈ xʷ (labiovelar)
     "n":  0x1290,
     "ny": 0x1298,
     "a":  0x12A0,
@@ -60,7 +57,7 @@ CONSONANTS = {
     "y":  0x12E8,
     "d":  0x12F0,
     "g":  0x1308,
-    "gw": 0x1310,   # ጐ gʷ (labiovelar; was missing)
+    "gw": 0x1310,   # ጐ gʷ (labiovelar)
     "T":  0x1320,
     "p":  0x1330,
     "S":  0x1338,
@@ -111,8 +108,8 @@ def decompose_char(ch: str):
     return (consonant, ORDER_TO_VOWEL[order])
 
 
-# the maintainers (2026-10-05): after a guttural, 1st and 4th order are spelling
-# variants. Generation writes the 1st order; comparison treats both as equal.
+# After a guttural, 1st and 4th order are spelling variants (docs/grammar_rules.md section 3).
+# Generation writes the 1st order; comparison treats both as equal.
 GUTTURAL_4TH_TO_1ST = str.maketrans("ኣዓሓኃሃ", "አዐሐኀሀ")
 GUTTURAL_SYMBOLS = ("a", "a2", "h1", "h2", "kh")
 
@@ -174,8 +171,8 @@ def first_order_root(root_str: str) -> str:
     consonants only), e.g. ን-ስ-ሕ-ለ-ል -> ነ-ሰ-ሐ-ለ-ለ, ር-እ-የ -> ረ-አ-የ, ሦ -> ሠ.
 
     Labialized series stay labialized: ቍ -> ቈ, ኵ -> ኰ, ጒ -> ጐ, ኍ -> ኈ. A 7th-order
-    ቆ/ኮ/ጎ is taken as written, i.e. in the plain series (ቀ/ከ/ገ) (the maintainers
-    rules). Latin roots go through to_ethiopic_root first. Letters that
+    ቆ/ኮ/ጎ is taken as written, i.e. in the plain series (ቀ/ከ/ገ). Latin roots go
+    through to_ethiopic_root first. Letters that
     are not in the consonant table (e.g. ጘ) are kept as written.
     """
     out = []
@@ -202,7 +199,7 @@ def root_symbols(root_str: str) -> tuple:
 
 
 # ---------------------------------------------------------------------------
-# Reference affix inventories (documented; the learner discovers usage)
+# Reference affix inventories (documentation only; no code reads them)
 # ---------------------------------------------------------------------------
 
 SUBJECT_PREFIXES = {

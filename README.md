@@ -12,10 +12,10 @@ geez-morphology/
 ├── patterns.json                 triliteral templates
 ├── patterns_quadriliteral.json   quadriliteral templates
 ├── patterns_rejected.json        templates removed in review (kept for reference)
-├── verb_class_paradigms.py       checked paradigms: Type B, Type C, final-weak, initial-weak
+├── verb_class_paradigms.py       checked paradigms: Type B, Type C, Type D, final-w, final-y, initial-w
 ├── verb_classes.py               class lookup and paradigm rows for generator and analyzer
-├── kw_verb_triples.py            parses Kidane Wold perfect/imperfect/subjunctive triples
-├── analyzer.py                   HybridAnalyzer: fast path -> pattern matcher -> ByT5 fallback
+├── kw_verb_triples.py            parses Kidane Wold verb triples; rewrites three dataset lexicon files
+├── analyzer.py                   HybridAnalyzer: class paradigms -> fast path -> templates -> ByT5 fallback
 ├── cli.py                        analyze / lemmatize / generate / lookup
 ├── generate_synthetic_fixed.py   writes the synthetic training data
 ├── dataset_loader.py             reads the gold files of a geez-dataset checkout (trainer and evaluation)
@@ -35,13 +35,25 @@ Not in git: `.venv/`, `byt5_morphology_model/`, `checkpoints*/`, logs, `.env`.
 
 ## Setup
 
+Tested with Python 3.13.5.
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install torch transformers accelerate pytest
+pip install -r requirements.txt          # pytest, for the tests
+pip install -r requirements-train.txt    # torch, transformers, accelerate: training and the ByT5 fallback
 ```
 
-The rule engine, analyzer (rules only), CLI and generator need only the Python standard library; torch and transformers are for training and the ByT5 fallback, pytest for the tests.
+The rule engine, the analyzer (rules only), the CLI and the generator need only the Python standard library.
+
+### Get the dataset
+
+Clone [geez-dataset](https://github.com/Esubaalew/geez-dataset) next to this repo (the default place), or give its path with `--dataset_dir` or `$GEEZ_DATASET_DIR`:
+
+```bash
+git clone https://github.com/Esubaalew/geez-dataset ../geez-dataset
+(cd ../geez-dataset && python scripts/check_dataset.py)   # prints the pairs that load
+```
 
 The analyzer reads the dictionary `data/geez_amharic_dictionary.jsonl` of the dataset checkout. If that file is not there it stops with `Dictionary not found: ...`; it does not run without a dictionary.
 
@@ -49,9 +61,11 @@ The analyzer reads the dictionary `data/geez_amharic_dictionary.jsonl` of the da
 
 ```bash
 python cli.py --dataset_dir ../geez-dataset analyze ይቀትል
-python cli.py generate q-t-l --verb_type strong_A --tense present
+python cli.py generate q-t-l --verb_type type_a --tense present
 python cli.py --dataset_dir ../geez-dataset lookup ቀተለ
 ```
+
+`generate` uses the triliteral templates. With `--verb_type` it uses the forms the generator uses for that class: the Type A templates for `type_a` and `hollow`, the quadriliteral templates for `quadriliteral`, and the checked class tables for `type_b`, `type_c`, `type_d`, `final_w`, `final_y` and `initial_w_drop`. `--tense` takes `past` (perfect), `present` (imperfect), `subjunctive` and `imperative`.
 
 ## Generate the data
 
@@ -59,7 +73,13 @@ python cli.py --dataset_dir ../geez-dataset lookup ቀተለ
 python generate_synthetic_fixed.py --dataset_dir ../geez-dataset
 ```
 
-Writes `<dataset>/output/` (not in git), copies the synthetic files to `<dataset>/data/paradigms/`, and moves the lines whose root is a gold val or test root to `<dataset>/data/synthetic/`. Line counts are in the dataset README.
+By default the generator writes into the dataset folder: it writes `<dataset>/output/` (not in git), copies the two synthetic files over the ones in `<dataset>/data/paradigms/`, and moves the lines whose root is a gold val or test root to `<dataset>/data/synthetic/`. To leave the dataset's `data/` folder as it is, add `--no_mirror`; add `--output_dir` to write somewhere other than `<dataset>/output/`:
+
+```bash
+python generate_synthetic_fixed.py --dataset_dir ../geez-dataset --output_dir /tmp/synthetic --no_mirror
+```
+
+Line counts are in the dataset README.
 
 The generator leaves out the roots listed in `data/heldout_test_roots_c7bc587.txt`: the 185 roots of the gold test file at dataset commit c7bc587 (`data/paradigms/merho_ges_gold_test.jsonl`, the file as extracted), one per line. The synthetic files in the dataset were generated without these roots. The list is committed here, so the generator does not need the dataset's git history (a shallow or fresh clone works). sha256 of the file: `8a6b64053cddd0d54301acc4142e3aa9e2b25cc88bb6334ce5a05dd061b7c88d` (checked by `tests/test_heldout_roots_file.py`). `--test_file <gold test file>` leaves out the roots of another test file instead.
 
@@ -78,12 +98,17 @@ python -m pytest tests/ --dataset_dir /path/to/geez-dataset
 
 Without `--dataset_dir` the tests use `$GEEZ_DATASET_DIR`, else `../geez-dataset`. Without a dataset checkout the tests that need one are skipped. `tests/test_dataset_checkout.py` checks that the loader gives the same pair counts as the dataset's `scripts/check_dataset.py`, that no flagged row loads, that a root is in one gold split only, and that no synthetic training line has a gold val or test root.
 
-## Train and evaluate from a dataset checkout
+## Rebuild the Kidane Wold triples
 
 ```bash
-git clone https://github.com/Esubaalew/geez-dataset ../geez-dataset
-(cd ../geez-dataset && python scripts/check_dataset.py)   # prints the pairs that load
+python kw_verb_triples.py --dataset_dir ../geez-dataset
+```
 
+This reads `data/lexicon/classical_dictionary_kidane_wold.jsonl` of the dataset and rewrites three files next to it: `kidane_wold_verb_triples.jsonl`, `kidane_wold_verb_triples_rejected.jsonl` and `kidane_wold_root_fixes.jsonl`. Rows of the current root fixes file with `new_root` null or with `root_notes` are carried over. The generator and the analyzer read these files, so run it only when the dictionary changes.
+
+## Train and evaluate
+
+```bash
 python train_byt5_morphology.py --dataset_dir ../geez-dataset --load_only     # counts only, no training
 python train_byt5_morphology.py --dataset_dir ../geez-dataset                 # train
 python evaluate_gold.py --dataset_dir ../geez-dataset --system byt5 \
@@ -93,7 +118,7 @@ python evaluate_gold.py --dataset_dir ../geez-dataset --system byt5 \
 What the trainer reads, as written (nothing is corrected at load time):
 
 - `data/paradigms/synthetic_morphology_train.jsonl`, all lines. 10% of them (seed 42) are the eval split for the loss; gold rows never go there.
-- `data/paradigms/merho_ges_gold_train.jsonl`, through `dataset_loader.load_gold_split`: one pair per form of each table row. Rows listed in `data/paradigms/merho_ges_gold_flagged_rows.tsv` and rows with no root do not load. A malformed root or a form that is not one Ge'ez word stops the run; `check_dataset.py` would report it too. On dataset commit 6d856e6 this gives 8,187 train pairs (val 1,165, test 1,553).
+- `data/paradigms/merho_ges_gold_train.jsonl`, through `dataset_loader.load_gold_split`: one pair per form of each table row. Rows listed in `data/paradigms/merho_ges_gold_flagged_rows.tsv` and rows with no root do not load. A malformed root or a form that is not one Ge'ez word stops the run; `check_dataset.py` would report it too. On dataset commit 0d0ceaa this gives 8,237 train pairs (val 1,173, test 1,558).
 - The files under `data/synthetic/` are never read.
 
 Training: ByT5-small, fp32, lr 3e-4, 3% warmup, 3 epochs, batch 16. Device: cuda, then mps, then cpu. Everything goes to `--output_dir` (default `byt5_morphology_model/`):
@@ -112,16 +137,20 @@ On SIGTERM or Ctrl-C the trainer saves a checkpoint and stops; the same command 
 
 ```
 Root accuracy (exact match):
-  val    43.0% (501/1165)
-  test   39.7% (617/1553)
+  val    43.1% (505/1173)
+  test   39.9% (622/1558)
 ```
 
-A root counts as correct only when it equals the gold root letter for letter (`ቅ-ት-ል` for `ቀ-ተ-ለ` is wrong). The numbers above are the rules-only analyzer (`--system hybrid --no_neural`) on dataset 6d856e6; it does not predict nouns and adjectives, so their type and exact match are always wrong. The full table also gives type, stem, tense, person, gender, number, object and exact match, by type, verb class, tense and tier. `--predictions_out` writes one line per pair with the gold labels, the prediction and the fields it got right.
+A root counts as correct only when it equals the gold root letter for letter (`ቅ-ት-ል` for `ቀ-ተ-ለ` is wrong). The numbers above are the rules-only analyzer (`--system hybrid --no_neural`) on dataset 0d0ceaa; it does not predict nouns and adjectives, so their type and exact match are always wrong. The full table also gives type, stem, tense, person, gender, number, object and exact match, by type, verb class, tense and tier. `--predictions_out` writes one line per pair with the gold labels, the prediction and the fields it got right.
 
 ## Rules
 
 Language decisions and their sources: [`docs/grammar_rules.md`](docs/grammar_rules.md).
 
+## Citation
+
+See [`CITATION.cff`](CITATION.cff).
+
 ## License
 
-Apache License 2.0.
+Apache License 2.0; see [`LICENSE`](LICENSE). The geez-dataset repo is licensed separately (its data files under CC BY-SA 4.0).

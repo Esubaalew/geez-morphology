@@ -1,5 +1,5 @@
 """dataset_loader.record_id: the id stored in a corrected gold record wins, and is never recomputed
-."""
+(record_id stays frozen at its value in the files as extracted, dataset commit c7bc587)."""
 import dataset_loader as G
 
 

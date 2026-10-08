@@ -1,7 +1,7 @@
 """
-Checked paradigms for the verb classes missing from the synthetic data:
-Type B (ቀደሰ), Type C (ባረከ), final-weak (ሰትየ, ተለወ) and the
-initial-weak subjunctive (ወለደ, ወረደ).
+Checked paradigms for the verb classes the Type A templates do not cover:
+Type B (ቀደሰ), Type C (ባረከ), final-y (ሰተየ), final-w (ተለወ) and the
+initial-w subjunctive (ወለደ, ወረደ).
 
 Forms follow the standard classical paradigms (Lambdin, Introduction to
 Classical Ethiopic; Dillmann). Each class is a template over radical
@@ -41,8 +41,7 @@ def strong_perfect(r, v1):
     """Perfect for Type A/B/C: v1 = order of radical 1 (1 for A/B, 4 for C).
     Last radical a guttural (አ ዐ ሀ ሐ ኀ): the middle radical takes the 6th order in the 3rd person
     (ቃርሐ ቃርሐት ቃርሑ ቃርሓ, Merho p.22; ሰብሐ ሰብሑ) and the 4th order (ā) in the 1st/2nd person,
-    with the guttural in the 6th (ቃራሕኩ, ሰባሕኩ).  the maintainers confirmed
-    the 1st/2nd person ā shape, 2026-10-06 13:55."""
+    with the guttural in the 6th (ቃራሕኩ, ሰባሕኩ)."""
     c1 = syl(r[0], v1)
     gutt = syl(r[2], 1) in GUTTURAL_FINAL
     m3, m12 = (6, 4) if gutt else (1, 1)
@@ -277,8 +276,7 @@ EXPECTED = {
 
 CLASSES = {"type_b": type_b, "type_c": type_c, "final_y": final_y,
            "final_w": final_w, "initial_w_drop": initial_w_drop,
-           # From the grammar check of the written shape types (2026-10-05). Used only
-           # for roots whose Kidane Wold triple is written this way.
+           # the written shape types; used only for roots whose Kidane Wold triple is written this way.
            "type_c_o": type_c_o, "type_c_e": type_c_e, "quad_c": quad_c}
 
 # Ambiguities the analyzer and label merge must respect

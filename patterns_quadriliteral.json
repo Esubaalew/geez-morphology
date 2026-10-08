@@ -457,7 +457,7 @@
       "verb_type": "quadriliteral"
     },
     "pattern_spec": "[ት]-C0a-C1I-C2I-C3I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ትደንግፅ"
     ]
@@ -472,7 +472,7 @@
       "verb_type": "quadriliteral"
     },
     "pattern_spec": "[ት]-C0a-C1I-C2I-C3i",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ትደንግፂ"
     ]
@@ -487,7 +487,7 @@
       "verb_type": "quadriliteral"
     },
     "pattern_spec": "[ይ]-C0a-C1I-C2I-C3A",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ይደንግፃ"
     ]
@@ -502,7 +502,7 @@
       "verb_type": "quadriliteral"
     },
     "pattern_spec": "[ት]-C0a-C1I-C2I-C3u",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ትደንግፁ"
     ]
@@ -517,7 +517,7 @@
       "verb_type": "quadriliteral"
     },
     "pattern_spec": "[ት]-C0a-C1I-C2I-C3A",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ትደንግፃ"
     ]
@@ -532,7 +532,7 @@
       "verb_type": "quadriliteral"
     },
     "pattern_spec": "C0a-C1I-C2I-C3A",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ደንግፃ"
     ]

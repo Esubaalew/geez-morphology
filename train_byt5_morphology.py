@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Fine-tune ByT5-small to analyze Classical Ge'ez verb forms.
+"""Fine-tune ByT5-small to analyze Classical Ge'ez word forms: verbs, and the nouns and adjectives
+of the gold tables.
 
 Input text:  "analyze: <surface form>"
-Target text: "root: <ሀ-ለ-መ> | tense: <t> | person: <p> | gender: <g> | number: <n> | stem: <s>"
+Target text: "root: <ሀ-ለ-መ> | tense: <t> | person: <p> | gender: <g> | number: <n> | stem: <s>" for a verb
+             (gold verbs with an object add " | object: <o>"), and
+             "root: <ሀ-ለ-መ> | type: <noun|adjective> | gender: <g> | number: <n>" for a noun or adjective
+             (gender only where the gold row has one); see dataset_loader.target_text.
 
 Data (read from --dataset_dir, the geez-dataset checkout), as written:
   data/paradigms/synthetic_morphology_train.jsonl        synthetic pairs

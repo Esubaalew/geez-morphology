@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import geez_config as gc
 
 
-def test_first_order_examples_from_decision():
+def test_first_order_examples():
     assert gc.first_order_root("ን-ስ-ሕ-ለ-ል") == "ነ-ሰ-ሐ-ለ-ለ"
     assert gc.first_order_root("ር-እ-የ") == "ረ-አ-የ"
     assert gc.first_order_root("ጼ-ው-ው") == "ጸ-ወ-ወ"

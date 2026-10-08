@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """
-evaluate_gold.py
 Score a system on the Merho Ges gold val and test splits of a geez-dataset checkout.
 
 Systems:
@@ -11,7 +10,7 @@ Systems:
 What is scored:
   - Every pair dataset_loader.load_gold_split gives for the split: the gold file as written, without
     the rows in merho_ges_gold_flagged_rows.tsv and rows with no root (the same reader the trainer
-    uses for the train split). On geez-dataset 6d856e6: val 1165 pairs, test 1553.
+    uses for the train split). On geez-dataset 0d0ceaa: val 1,173 pairs, test 1,558.
   - Root accuracy: the predicted root must equal the gold root exactly. The prediction is first
     written in Ethiopic letters (q-t-l -> ቀ-ተ-ለ, for the rule-based analyzer); letters are not
     otherwise changed, so ቅ-ት-ል for ቀ-ተ-ለ is wrong. This is the number to read for root detection.

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-cli.py
-Command-line interface for Ge'ez morphological analysis, generation, and lexicon lookup.
+Command line for Ge'ez morphological analysis, generation and dictionary lookup.
 """
 
 import sys
@@ -34,7 +33,7 @@ def cmd_analyze(args):
             pos = lex.get("pos", "unknown")
             defn = lex.get("amharic_definition", "")
             print(f"    POS:          {pos}")
-            print(f"    Definition:   {defn[:100]}...")
+            print(f"    Definition:   {defn[:100]}{'...' if len(defn) > 100 else ''}")
             if lex.get("citations"):
                 print(f"    Citations:    {', '.join(lex['citations'][:3])}")
         print("-" * 60)
@@ -54,15 +53,30 @@ def cmd_lemmatize(args):
             print(f"{t.token:<15} -> (unmatched){clitic_str}")
 
 
+# --verb_type takes the class names the generator uses.
+#   type_a, hollow   the triliteral templates (Type A; hollow roots use the Type A basic stem,
+#                    and the engine contracts the glide, as in the generator)
+#   quadriliteral    patterns_quadriliteral.json
+#   the others       the checked class tables (verb_classes.paradigm_rows), basic stem only
+TEMPLATE_CLASSES = ("type_a", "hollow")
+TABLE_CLASSES = ("type_b", "type_c", "type_d", "final_w", "final_y", "initial_w_drop")
+VERB_TYPE_CHOICES = TEMPLATE_CLASSES + ("quadriliteral",) + TABLE_CLASSES
+
+
 def cmd_generate(args):
     engine = InterdigitationEngine(renderer=geez_config.render_unit)
     
     # Load patterns
     import os
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    patterns_file = os.path.join(base_dir, "patterns.json")
+    vtype = getattr(args, "verb_type", None)
+    patterns_file = os.path.join(base_dir, "patterns_quadriliteral.json" if vtype == "quadriliteral"
+                                 else "patterns.json")
     with open(patterns_file, "r", encoding="utf-8") as f:
         patterns = json.load(f)
+    if vtype in TEMPLATE_CLASSES:
+        patterns = [p for p in patterns if p["features"].get("verb_type", "strong_A") == "strong_A"
+                    and (vtype == "type_a" or p["features"].get("stem") == "basic")]
 
     # Parse root
     if "-" in args.root:
@@ -77,20 +91,32 @@ def cmd_generate(args):
     print(f"\nGenerating forms for root: {'-'.join(cons)}")
     print("=" * 60)
 
+    def wanted(feat):
+        return not ((args.tense and feat.get("tense") != args.tense)
+                    or (args.person and feat.get("person") != args.person)
+                    or (args.number and feat.get("number") != args.number)
+                    or (args.gender and feat.get("gender") != args.gender)
+                    or (args.stem and feat.get("stem") != args.stem))
+
     matches = []
-    for p in patterns:
+    if vtype in TABLE_CLASSES:
+        import verb_classes
+        if not verb_classes.class_fits_root(vtype, cons):
+            print(f"The {vtype} table does not take the root {'-'.join(cons)}.")
+            return
+        orders = None
+        if vtype == "type_d":
+            # type_d vowels come from the root's own Kidane Wold triple, as in the generator
+            orders = verb_classes.type_d_orders(args.dataset_dir).get(cons)
+            if orders is None:
+                print(f"No Kidane Wold type_d triple gives the vowels for {'-'.join(cons)}.")
+                return
+        for feat, form in verb_classes.paradigm_rows(cons, vtype, orders):
+            if wanted(feat):
+                matches.append((form, feat, f"verb_class_paradigms.{vtype}"))
+    for p in ([] if vtype in TABLE_CLASSES else patterns):
         feat = p["features"]
-        if args.tense and feat.get("tense") != args.tense:
-            continue
-        if args.person and feat.get("person") != args.person:
-            continue
-        if args.number and feat.get("number") != args.number:
-            continue
-        if args.gender and feat.get("gender") != args.gender:
-            continue
-        if args.stem and feat.get("stem") != args.stem:
-            continue
-        if getattr(args, "verb_type", None) and feat.get("verb_type") != args.verb_type:
+        if not wanted(feat):
             continue
         
         try:
@@ -111,7 +137,7 @@ def cmd_lookup(args):
     analyzer = GeezMorphologicalAnalyzer(dataset_dir=args.dataset_dir)
     entries = analyzer.lookup_lexicon(args.word)
     if not entries:
-        print(f"'{args.word}' was not found in the Kidane Wold Kifle lexicon.")
+        print(f"'{args.word}' was not found in the dictionary.")
         return
 
     print(f"\nLexicon entries for '{args.word}' ({len(entries)} matches):")
@@ -129,7 +155,7 @@ def cmd_lookup(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Classical Ge'ez Computational Morphology Toolkit")
+    parser = argparse.ArgumentParser(description="Analyze, generate and look up Classical Ge'ez verbs.")
     parser.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
                         help="Checkout of the geez-dataset repo, for the dictionary "
                              "(default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
@@ -146,15 +172,18 @@ def main():
     # generate
     p_gen = subparsers.add_parser("generate", help="Generate inflected forms from a root")
     p_gen.add_argument("root", help="Consonantal root (e.g. q-t-l or ቀተለ)")
-    p_gen.add_argument("--tense", choices=["past", "present", "subjunctive", "jussive", "imperative"])
+    p_gen.add_argument("--tense", choices=["past", "present", "subjunctive", "imperative"],
+                       help="past = perfect, present = imperfect")
     p_gen.add_argument("--person", choices=["1", "2", "3"])
     p_gen.add_argument("--number", choices=["s", "p"])
     p_gen.add_argument("--gender", choices=["m", "f"])
-    p_gen.add_argument("--stem", choices=["basic", "causative", "passive", "reciprocal"])
-    p_gen.add_argument("--verb_type", choices=["strong_A", "strong_B", "weak_initial", "weak_middle", "weak_final", "irregular"], help="Filter by verb class/type")
+    p_gen.add_argument("--stem", choices=["basic", "causative", "passive", "aste"],
+                       help="aste is the causative-reflexive stem (አስተ-)")
+    p_gen.add_argument("--verb_type", choices=VERB_TYPE_CHOICES,
+                       help="Verb class, as the generator names it. Without it every triliteral template is used.")
 
     # lookup
-    p_lookup = subparsers.add_parser("lookup", help="Look up a lemma in Kidane Wold Kifle lexicon")
+    p_lookup = subparsers.add_parser("lookup", help="Look up a lemma in the dictionary")
     p_lookup.add_argument("word", help="Ge'ez lemma or word")
 
     args = parser.parse_args()

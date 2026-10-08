@@ -1,10 +1,10 @@
-"""Grammar decisions of 2026-10-05.
+"""Guttural spelling variants and the middle-guttural rule (docs/grammar_rules.md sections 2 and 3).
 
 1. After a guttural, 1st and 4th order are spelling variants (ዐ/ዓ ሐ/ሓ ኀ/ኃ ሀ/ሃ አ/ኣ).
    The data keeps the 1st order; the analyzer input and the gold-eval comparison treat
    each pair as equal (4th -> 1st, for these five letters only, at comparison time).
 2. ፍሬ ግእዝ middle-guttural rule for three-radical roots that default to Type A:
-   present ይምሕል (no doubling), subjunctive/jussive ይምሐል, imperative ምሐል.
+   imperfect ይምሕል (no doubling), subjunctive ይምሐል, imperative ምሐል.
    Roots with their own Kidane Wold triple, class-tagged roots, initial-weak roots and
    roots with a guttural first radical keep their forms. Derived stems are unchanged.
 """
@@ -135,10 +135,10 @@ def test_generated_middle_guttural_forms(synth, root, tense, per, expect):
 
 
 @pytest.mark.parametrize("root,tense,per,stem,expect", [
-    ("S-h2-f", "subjunctive", "3ms", "basic", "ይጽሐፍ"),     # triple's ይጽሕፍ is an OCR collapse
+    ("S-h2-f", "subjunctive", "3ms", "basic", "ይጽሐፍ"),     # triple's ይጽሕፍ is an OCR collapse (section 4)
     ("S-h2-f", "present", "3ms", "basic", "ይጽሕፍ"),         # present from the triple
     ("s-a-l", "present", "3ms", "basic", "ይስእል"),          # type_d, Kidane Wold
-    ("s-a-l", "subjunctive", "3ms", "basic", "ይስአል"),      # Type D book rule
+    ("s-a-l", "subjunctive", "3ms", "basic", "ይስአል"),      # ፍሬ ግእዝ book rule
     ("a-kh-z", "present", "3ms", "basic", "የአኅዝ"),         # guttural first radical: የ- rule kept
     ("m-h2-l", "present", "3ms", "passive", "ይትመሐል"),     # derived stems unchanged
     ("m-h2-l", "present", "3ms", "causative", "ያመሕል"),

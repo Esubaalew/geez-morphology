@@ -1,4 +1,4 @@
-"""classes from the grammar check of the written shape types (2026-10-05)."""
+"""Classes read off the written Kidane Wold triple: the written shape types (ጦመረ, ሴሰየ, ማህረከ shapes)."""
 import json
 import os
 import sys
@@ -52,7 +52,7 @@ def test_type_a_a_subjunctive_spec():               # ገብረ -> ይግበር,
     assert ENGINE.generate(root, slots_from_spec("C0I-C1I-C2I".replace("C1I", "C1a"))) == "ግበር"
 
 
-# ---- the maintainers' corrections
+# ---- OCR gate and class corrections
 def test_ocr_gate():
     import kw_verb_triples as kw
     assert kw.ocr_gate("ቀተለ", "ይቀትል", "ይቅትል") is None

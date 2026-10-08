@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-analyzer.py
-Morphological analyzer, text lemmatizer, and lexicon lookup for Classical Ge'ez.
-Integrates deterministic rule-based fast-path lookup, two-level Semitic
-interdigitation pattern matching, dictionary grounding, and neural fallback.
+Morphological analyzer, text lemmatizer and dictionary lookup for Classical Ge'ez.
+Tries the class paradigms licensed by the lexicon, then affix stripping with a
+dictionary lookup, then template matching, and (HybridAnalyzer) a ByT5 fallback.
 """
 
 import os
@@ -53,7 +52,7 @@ def find_model_dir(model_dir: Optional[str] = None) -> str:
     return folder
 
 
-# Guttural first radical (አ ዐ ሀ ሐ ኀ): imperfect prefix in the 1st order.
+# Guttural first radical (አ ዐ ሀ ሐ ኀ): imperfect prefix in the 1st order (docs/grammar_rules.md section 1).
 GUTTURAL_FIRST = ("a", "a2", "h1", "h2", "kh")
 GUTTURAL_PREFIX_SPEC = {"[ይ]": "[የ]", "[ት]": "[ተ]", "[እ]": "[አ]", "[ን]": "[ነ]"}
 GUTTURAL_PRESENT_PERSON = {"የ": ("3", "m", "s"), "ተ": ("2", "m", "s"),
@@ -142,9 +141,8 @@ class LemmatizedToken:
 
 class GeezMorphologicalAnalyzer:
     """
-    Morphological analyzer and lemmatizer for Classical Ge'ez.
-    Supports deterministic rule-based fast path, Semitic interdigitation patterns,
-    and dictionary grounding against classical lexica.
+    Morphological analyzer and lemmatizer for Classical Ge'ez: affix stripping with a
+    dictionary lookup, then root-and-pattern template matching.
     """
 
     _loose_gutturals = False   # set only during the spelling-variant pass in HybridAnalyzer
@@ -202,8 +200,8 @@ class GeezMorphologicalAnalyzer:
                                                 first_in=GUTTURAL_FIRST, not_first=None,
                                                 source=p.get("source", "patterns.json") + "+guttural_subjunctive"))
                     break
-        # Middle guttural (ፍሬ ግእዝ pp. 18, 63), non-guttural first radical: present
-        # ይምሕል (all 6th, no doubling), subjunctive/jussive and imperative ይምሐል / ምሐል.
+        # Middle guttural (ፍሬ ግእዝ pp. 18, 63), non-guttural first radical: imperfect
+        # ይምሕል (all 6th, no doubling), subjunctive and imperative ይምሐል / ምሐል.
         for p in self.patterns_data:
             f = p["features"]
             spec = p["pattern_spec"]
@@ -246,12 +244,12 @@ class GeezMorphologicalAnalyzer:
                 if p.get(key) is not None:
                     self.compiled_patterns[-1][key] = p[key]
 
-        # Verb class per root (Type B / Type C / ሰትየ-type) from lexical sources only;
+        # Verb class per root (Type B / Type C / ሰተየ type) from lexical sources only;
         # a Type B perfect is spelled like Type A, so spelling cannot decide it.
         self.class_tags = verb_classes.class_tags(dataset_dir)[0] if verb_classes else {}
         if verb_classes:
             # A class paradigm only matches roots of that class: Type B, Type C,
-            # ተለወ-type and ሰትየ-type need a lexical tag (Kidane Wold triple, Merho
+            # the ተለወ type and the ሰተየ type need a lexical tag (Kidane Wold triple, Merho
             # Ges, class lemma); ወለደ-type needs W_DROP or a ይለድ-shaped triple.
             only = {cls: {"-".join(r) for r, c in self.class_tags.items() if c == cls}
                     for cls in ("type_b", "type_c", "final_y", "final_w")}
@@ -758,8 +756,8 @@ class GeezMorphologicalAnalyzer:
     def analyze(self, word: str, lookup_dictionary: bool = True, use_hybrid: bool = True) -> List[MorphologicalAnalysis]:
         """
         Analyze a single Ge'ez surface word into candidate roots and morphological features.
-        When use_hybrid=True, fast path deterministic stripping & dictionary lookup is attempted first.
-        Falls back to two-level Semitic interdigitation pattern matching when unmatched or ambiguous.
+        When use_hybrid=True, the licensed class paradigms and then affix stripping with a dictionary
+        lookup are tried first. Otherwise, or when they find nothing, the templates are matched.
         """
         word = word.strip().strip("፡።፣፤፥፦")
         if not word:
@@ -771,7 +769,7 @@ class GeezMorphologicalAnalyzer:
             if licensed:
                 return licensed
 
-        # 1. Fast path (Deterministic Rule + Dictionary Grounding)
+        # 1. Fast path (affix stripping + dictionary lookup)
         if use_hybrid:
             fast_results = self.fast_path_analyze(word)
             if fast_results:
@@ -895,7 +893,7 @@ class GeezMorphologicalAnalyzer:
         return token_results
 
     def lookup_lexicon(self, word_or_lemma: str) -> List[Dict[str, Any]]:
-        """Direct lookup in Kidane Wold Kifle lexicon."""
+        """Direct lookup in the dictionary (Kidane Wold entries plus modern entries)."""
         results = self.lexicon.get(word_or_lemma, [])
         if not results:
             units = geez_config.decompose_string(word_or_lemma)
@@ -960,11 +958,12 @@ def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
 
 class HybridAnalyzer(GeezMorphologicalAnalyzer):
     """
-    Hybrid Morphological Analyzer for Classical Ge'ez.
-    Combines:
-    1. Deterministic rule-based fast path (affix stripping + dictionary root index)
-    2. Semitic root-and-pattern interdigitation matcher (105 morphological templates)
-    3. Neural ByT5 sequence-to-sequence fallback for unseen roots and complex forms.
+    Hybrid morphological analyzer for Classical Ge'ez. Tries, in order:
+    1. the class paradigms licensed by the lexicon;
+    2. affix stripping with a lookup in the dictionary's root index;
+    3. root-and-pattern matching with the 138 triliteral templates (patterns.json), the 38
+       quadriliteral templates (patterns_quadriliteral.json) and the class paradigms;
+    4. the ByT5 model, for words the rules do not analyze.
     """
 
     def __init__(
@@ -1053,7 +1052,7 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
     def analyze(self, word: str, lookup_dictionary: bool = True, use_hybrid: bool = True) -> List[MorphologicalAnalysis]:
         """
         Analyze a Ge'ez surface word using hybrid multi-tiered resolution:
-        1. Fast-path deterministic rule stripping + dictionary lookup (100% exact).
+        1. Affix stripping + dictionary lookup.
         2. Interdigitation pattern matching (patterns.json, patterns_quadriliteral.json,
            checked class paradigms).
         3. Neural ByT5 sequence-to-sequence model fallback for unseen roots.

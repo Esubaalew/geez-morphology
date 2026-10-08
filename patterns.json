@@ -124,7 +124,7 @@
     "observations": 1,
     "consistent": true,
     "examples": [
-      "ይቀትላ"
+      "ይቅትላ"
     ]
   },
   {
@@ -396,7 +396,7 @@
     "observations": 1,
     "consistent": true,
     "examples": [
-      "ይቀትሉ"
+      "ይቅትሉ"
     ]
   },
   {
@@ -780,7 +780,7 @@
     "observations": 1,
     "consistent": true,
     "examples": [
-      "ይቀትል"
+      "ይቅትል"
     ]
   },
   {
@@ -844,7 +844,7 @@
     "examples": [
       "ተቀትለ"
     ],
-    "source": "geez_language_reference_2026-10-05"
+    "source": "grammar_reference"
   },
   {
     "features": {
@@ -859,7 +859,7 @@
     "examples": [
       "ተቀትለት"
     ],
-    "source": "geez_language_reference_2026-10-05"
+    "source": "grammar_reference"
   },
   {
     "features": {
@@ -874,7 +874,7 @@
     "examples": [
       "ተቀትሉ"
     ],
-    "source": "geez_language_reference_2026-10-05"
+    "source": "grammar_reference"
   },
   {
     "features": {
@@ -889,7 +889,7 @@
     "examples": [
       "ተቀትላ"
     ],
-    "source": "geez_language_reference_2026-10-05"
+    "source": "grammar_reference"
   },
   {
     "features": {
@@ -1308,7 +1308,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ትት]-C0a-C1a-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ትትቀተል"
     ]
@@ -1323,7 +1323,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ይት]-C0a-C1a-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ይትቀተል"
     ]
@@ -1338,7 +1338,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ትት]-C0a-C1a-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ትትቀተል"
     ]
@@ -1353,7 +1353,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ትት]-C0a-C1a-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ትትቀተል"
     ]
@@ -1368,7 +1368,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ትት]-C0a-C1a-C2i",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ትትቀተሊ"
     ]
@@ -1383,7 +1383,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[እት]-C0a-C1a-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "እትቀተል"
     ]
@@ -1398,7 +1398,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ይት]-C0a-C1a-C2u",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ይትቀተሉ"
     ]
@@ -1413,7 +1413,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ይት]-C0a-C1a-C2A",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ይትቀተላ"
     ]
@@ -1428,7 +1428,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ትት]-C0a-C1a-C2u",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ትትቀተሉ"
     ]
@@ -1443,7 +1443,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ትት]-C0a-C1a-C2A",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ትትቀተላ"
     ]
@@ -1458,7 +1458,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ንት]-C0a-C1a-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ንትቀተል"
     ]
@@ -1473,7 +1473,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ተ]-C0a-C1a-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ተቀተል"
     ]
@@ -1488,7 +1488,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ተ]-C0a-C1a-C2i",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ተቀተሊ"
     ]
@@ -1503,7 +1503,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ተ]-C0a-C1a-C2u",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ተቀተሉ"
     ]
@@ -1518,7 +1518,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ተ]-C0a-C1a-C2A",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ተቀተላ"
     ]
@@ -1533,7 +1533,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ያ]-C0a-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ያቀትል"
     ]
@@ -1548,7 +1548,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ታ]-C0a-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ታቀትል"
     ]
@@ -1563,7 +1563,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ታ]-C0a-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ታቀትል"
     ]
@@ -1578,7 +1578,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ታ]-C0a-C1I-C2i",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ታቀትሊ"
     ]
@@ -1593,7 +1593,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[አ]-C0a-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "አቀትል"
     ]
@@ -1608,7 +1608,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ያ]-C0a-C1I-C2u",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ያቀትሉ"
     ]
@@ -1623,7 +1623,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ያ]-C0a-C1I-C2A",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ያቀትላ"
     ]
@@ -1638,7 +1638,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ታ]-C0a-C1I-C2u",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ታቀትሉ"
     ]
@@ -1653,7 +1653,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ታ]-C0a-C1I-C2A",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ታቀትላ"
     ]
@@ -1668,7 +1668,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ና]-C0a-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ናቀትል"
     ]
@@ -1683,7 +1683,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ያ]-C0I-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ያቅትል"
     ]
@@ -1698,7 +1698,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ታ]-C0I-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ታቅትል"
     ]
@@ -1713,7 +1713,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ታ]-C0I-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ታቅትል"
     ]
@@ -1728,7 +1728,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ታ]-C0I-C1I-C2i",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ታቅትሊ"
     ]
@@ -1743,7 +1743,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[አ]-C0I-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "አቅትል"
     ]
@@ -1758,7 +1758,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ያ]-C0I-C1I-C2u",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ያቅትሉ"
     ]
@@ -1773,7 +1773,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ያ]-C0I-C1I-C2A",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ያቅትላ"
     ]
@@ -1788,7 +1788,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ታ]-C0I-C1I-C2u",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ታቅትሉ"
     ]
@@ -1803,7 +1803,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ታ]-C0I-C1I-C2A",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ታቅትላ"
     ]
@@ -1818,7 +1818,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ና]-C0I-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ናቅትል"
     ]
@@ -1833,7 +1833,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[አ]-C0I-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "አቅትል"
     ]
@@ -1848,7 +1848,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[አ]-C0I-C1I-C2i",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "አቅትሊ"
     ]
@@ -1863,7 +1863,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[አ]-C0I-C1I-C2u",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "አቅትሉ"
     ]
@@ -1878,7 +1878,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[አ]-C0I-C1I-C2A",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "አቅትላ"
     ]
@@ -1893,7 +1893,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "C0a-C1a-C2I-[ኩ]",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ቀተልኩ"
     ]
@@ -1908,7 +1908,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "C0a-C1a-C2I-[ነ]",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ቀተልነ"
     ]
@@ -1923,7 +1923,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[እ]-C0a-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "እቀትል"
     ]
@@ -1938,7 +1938,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ን]-C0a-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ንቀትል"
     ]
@@ -1953,7 +1953,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[እ]-C0I-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "እቅትል"
     ]
@@ -1968,7 +1968,7 @@
       "verb_type": "strong_A"
     },
     "pattern_spec": "[ን]-C0I-C1I-C2I",
-    "source": "geez_language_reference_2026-10-05",
+    "source": "grammar_reference",
     "examples": [
       "ንቅትል"
     ]

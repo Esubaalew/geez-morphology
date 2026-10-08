@@ -1,5 +1,4 @@
-"""Kidane Wold triple parsing and the templates checked against the
-Ge'ez language reference forms (2026-10-05)."""
+"""Kidane Wold triple parsing, and the templates checked against reference forms."""
 import json
 import os
 import sys
@@ -69,7 +68,7 @@ def forms(patterns, root, stem, tense, pgn):
     return out
 
 
-# Ge'ez language reference forms (3ms; imperative 2ms)
+# Reference forms (3ms; imperative 2ms)
 REFERENCE = [
     ("patterns.json", ("q", "t", "l"), "passive", "past", "3ms", "ተቀትለ"),
     ("patterns.json", ("q", "t", "l"), "passive", "present", "3ms", "ይትቀተል"),
