@@ -34,6 +34,12 @@ def _project_dir() -> str:
     return os.path.dirname(here)
 
 
+def _dataset_dir() -> str:
+    """The geez-dataset checkout: $GEEZ_DATASET_DIR, else ../geez-dataset (gold_filters.default_dataset_dir)."""
+    import gold_filters
+    return gold_filters.default_dataset_dir()
+
+
 # Guttural first radical (አ ዐ ሀ ሐ ኀ): imperfect prefix in the 1st order.
 GUTTURAL_FIRST = ("a", "a2", "h1", "h2", "kh")
 GUTTURAL_PREFIX_SPEC = {"[ይ]": "[የ]", "[ት]": "[ተ]", "[እ]": "[አ]", "[ን]": "[ነ]"}
@@ -187,7 +193,7 @@ class GeezMorphologicalAnalyzer:
             gutt_copies.append(dict(p, pattern_spec=new, not_mid_gutt=None, mid_gutt_only=True,
                                     not_first=None, first_in=None,
                                     source=p.get("source", "patterns.json") + "+middle_guttural"))
-        dataset_dir = os.path.abspath(os.path.join(base_dir, "..", "geez-dataset-v1"))
+        dataset_dir = _dataset_dir()
         type_d_pats = verb_classes.type_d_patterns(dataset_dir) if verb_classes else []
 
         # Precompile pattern slots
@@ -215,7 +221,7 @@ class GeezMorphologicalAnalyzer:
 
         # Verb class per root (Type B / Type C / ሰትየ-type) from lexical sources only;
         # a Type B perfect is spelled like Type A, so spelling cannot decide it.
-        dataset_dir = os.path.abspath(os.path.join(base_dir, "..", "geez-dataset-v1"))
+        dataset_dir = _dataset_dir()
         self.class_tags = verb_classes.class_tags(dataset_dir)[0] if verb_classes else {}
         if verb_classes:
             # A class paradigm only matches roots of that class: Type B, Type C,
@@ -246,9 +252,9 @@ class GeezMorphologicalAnalyzer:
 
         if dictionary_path is None:
             candidates = [
-                os.path.abspath(os.path.join(base_dir, "..", "geez-dataset-v1", "dictionary.jsonl")),
-                os.path.abspath(os.path.join(base_dir, "..", "geez-dataset-v1", "data", "geez_amharic_dictionary.jsonl")),
-                os.path.abspath(os.path.join(base_dir, "..", "geez-dataset-v1", "data", "lexicon", "classical_dictionary_kidane_wold.jsonl")),
+                os.path.join(_dataset_dir(), "dictionary.jsonl"),
+                os.path.join(_dataset_dir(), "data", "geez_amharic_dictionary.jsonl"),
+                os.path.join(_dataset_dir(), "data", "lexicon", "classical_dictionary_kidane_wold.jsonl"),
                 os.path.abspath(os.path.join(base_dir, "dictionary.jsonl")),
             ]
             for c in candidates:

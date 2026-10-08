@@ -30,10 +30,17 @@ if SCRIPT_DIR not in sys.path:
 import geez_config  # noqa: E402
 
 SPLITS = ("train", "val", "test")
+DATASET_DIR_ENV = "GEEZ_DATASET_DIR"
 PARADIGMS_DIR = os.path.join("data", "paradigms")
 FLAGGED_ROWS_FILE = "merho_ges_gold_flagged_rows.tsv"
 TYPES = ("verb", "noun", "adjective")
 NOMINAL_TYPES = ("noun", "adjective")
+
+
+def default_dataset_dir():
+    """Where the geez-dataset checkout is when no --dataset_dir is given: $GEEZ_DATASET_DIR if set,
+    else ../geez-dataset next to this repo (the folder `git clone .../geez-dataset` makes)."""
+    return os.environ.get(DATASET_DIR_ENV) or os.path.normpath(os.path.join(SCRIPT_DIR, "..", "geez-dataset"))
 
 
 def gold_file_name(split):

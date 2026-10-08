@@ -18,9 +18,10 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
 import geez_config  # noqa: E402
+import gold_filters  # noqa: E402
 import verb_classes  # noqa: E402
 
-DATASET = os.path.abspath(os.path.join(HERE, "..", "geez-dataset-v1"))
+DATASET = gold_filters.default_dataset_dir()
 SYNTH = os.path.join(DATASET, "data", "paradigms", "synthetic_morphology_train.jsonl")
 # the generator's output is the training file plus the lines held out for the gold val/test roots (14:35)
 HELD = os.path.join(DATASET, "data", "synthetic", "synthetic_forms_for_val_test_roots.jsonl")
@@ -47,6 +48,8 @@ def test_normalize_touches_only_the_five_gutturals():
 
 @pytest.fixture(scope="module")
 def analyzer():
+    if not os.path.exists(DATASET):
+        pytest.skip("no geez-dataset checkout (the analyzer reads its lexicon)")
     from analyzer import HybridAnalyzer
     return HybridAnalyzer()
 

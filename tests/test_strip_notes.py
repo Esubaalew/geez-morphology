@@ -12,7 +12,7 @@ sys.path.insert(0, HERE)
 
 import gold_filters as G  # noqa: E402
 
-DATASET = os.path.normpath(os.path.join(HERE, "..", "geez-dataset-v1"))
+DATASET = G.default_dataset_dir()
 
 
 def test_clean_variants():

@@ -234,14 +234,15 @@ def main():
     ap.add_argument("--system", choices=["byt5", "hybrid"], default="byt5")
     ap.add_argument("--no_neural", action="store_true", help="hybrid only: no ByT5 fallback")
     ap.add_argument("--model_dir", default=os.path.join(SCRIPT_DIR, "checkpoints"))
-    default_test = os.path.join(SCRIPT_DIR, "..", "geez-dataset-v1", "data", "paradigms", "merho_ges_gold_test.jsonl")
-    ap.add_argument("--test_file", default=os.path.normpath(default_test),
-                    help="Must be the split whose *_train.jsonl the model saw (train_byt5_morphology.py injects data/paradigms/merho_ges_gold_train.jsonl)")
+    ap.add_argument("--dataset_dir", default=gold_filters.default_dataset_dir(),
+                    help="Checkout of the geez-dataset repo the model was trained on "
+                         "(default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
     ap.add_argument("--limit", type=int, default=0, help="Random sample of N pairs (0 = all, the default)")
     ap.add_argument("--out_json", default=None, help="Write the metrics table to this JSON file")
     ap.add_argument("--export_pairs", default=None, help="Write the scored pairs to this JSONL file")
     args = ap.parse_args()
 
+    args.test_file = gold_filters.gold_file_path(args.dataset_dir, "test")
     if not os.path.exists(args.test_file):
         sys.exit(f"[!] Test file not found: {args.test_file}")
 

@@ -226,8 +226,8 @@ def install_signal_handlers() -> None:
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Fine-tune ByT5-small on Ge'ez verb morphology (resumable).")
-    p.add_argument("--dataset_dir", default=os.path.join(SCRIPT_DIR, "..", "geez-dataset-v1"),
-                   help="Checkout of the geez-dataset repo (default: ../geez-dataset-v1)")
+    p.add_argument("--dataset_dir", default=gold_filters.default_dataset_dir(),
+                   help="Checkout of the geez-dataset repo (default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
     p.add_argument("--output_dir", default=os.path.join(SCRIPT_DIR, "checkpoints_full"),
                    help="Where checkpoints, trainer_state.json and run_info.json go")
     p.add_argument("--resume_from", default=None,

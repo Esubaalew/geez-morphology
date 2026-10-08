@@ -12,9 +12,10 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
 import geez_config  # noqa: E402
+import gold_filters  # noqa: E402
 import verb_classes  # noqa: E402
 
-DATASET = os.path.abspath(os.path.join(HERE, "..", "geez-dataset-v1"))
+DATASET = gold_filters.default_dataset_dir()
 SYNTH = os.path.join(DATASET, "data", "paradigms", "synthetic_morphology_train.jsonl")
 
 

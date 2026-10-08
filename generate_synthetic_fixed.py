@@ -48,6 +48,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 import geez_config
+import gold_filters  # default_dataset_dir()
 import verb_class_paradigms as vcp
 import verb_classes
 from engine import InterdigitationEngine, slots_from_spec
@@ -243,7 +244,7 @@ def load_dictionary_and_patterns(dataset_dir: str):
 
 
 def generate_extended_dataset(
-    dataset_dir: str = "../geez-dataset-v1",
+    dataset_dir: Optional[str] = None,
     output_dir: Optional[str] = None,
     include_objects: bool = True,
     include_negative: bool = True,
@@ -252,6 +253,8 @@ def generate_extended_dataset(
     mirror_dir: Optional[str] = None,
     split_heldout: bool = False,
 ):
+    if dataset_dir is None:
+        dataset_dir = gold_filters.default_dataset_dir()
     if output_dir is None:
         output_dir = os.path.join(dataset_dir, "output")
     os.makedirs(output_dir, exist_ok=True)
@@ -719,7 +722,8 @@ def generate_extended_dataset(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate extended synthetic morphology data for Classical Ge'ez")
-    parser.add_argument("--dataset_dir", default="../geez-dataset-v1", help="Path to geez-dataset-v1")
+    parser.add_argument("--dataset_dir", default=gold_filters.default_dataset_dir(),
+                        help="Checkout of the geez-dataset repo (default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
     parser.add_argument("--output_dir", default=None, help="Output directory")
     parser.add_argument("--no_objects", action="store_true", help="Exclude object pronominal suffixes")
     parser.add_argument("--no_negative", action="store_true", help="Exclude negative prefix")
@@ -735,10 +739,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     resolved_dataset_dir = os.path.abspath(args.dataset_dir)
-    if not os.path.exists(resolved_dataset_dir):
-        alt = os.path.abspath(os.path.join(BASE_DIR, "..", "geez-dataset-v1"))
-        if os.path.exists(alt):
-            resolved_dataset_dir = alt
 
     generate_extended_dataset(
         dataset_dir=resolved_dataset_dir,
