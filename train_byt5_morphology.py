@@ -16,7 +16,13 @@ not read here; use evaluate_gold.py for that.
 
 The script picks the device (cuda, then mps, then cpu), trains in fp32 (ByT5
 is unstable in fp16), saves a checkpoint every --save_steps and keeps the last
-two. If --output_dir already holds a checkpoint-*, training resumes from the
+two. Output folder (--output_dir, default byt5_morphology_model/):
+  checkpoint-<step>/   resumable checkpoints (model, optimizer, trainer_state.json)
+  run_info.json        git commits, data sha256, pair counts and arguments of the run
+  config.json, model.safetensors, tokenizer files
+                       the final model, written when training finishes; evaluate_gold.py
+                       and the analyzer load this one
+If --output_dir already holds a checkpoint-*, training resumes from the
 latest one; --resume_from can point at a checkpoint (or a folder of
 checkpoints) somewhere else, e.g. a previous Kaggle run's output. On SIGTERM or
 SIGINT it saves a checkpoint at the end of the current step and exits.
@@ -24,7 +30,7 @@ SIGINT it saves a checkpoint at the end of the current step and exits.
 Examples:
   python train_byt5_morphology.py                     # full run, resumes if possible
   python train_byt5_morphology.py --dataset_dir /kaggle/input/geez-dataset \\
-      --output_dir /kaggle/working/checkpoints --resume_from /kaggle/input/prev-run
+      --output_dir /kaggle/working/byt5_morphology_model --resume_from /kaggle/input/prev-run
   python train_byt5_morphology.py --max_steps 5 --sample_limit 200 \\
       --max_eval_samples 32 --output_dir /tmp/byt5_dry_run   # dry run
 """
@@ -54,6 +60,8 @@ EVAL_FRACTION = 0.1
 SYNTHETIC_FILE = os.path.join("data", "paradigms", "synthetic_morphology_train.jsonl")
 GOLD_TRAIN_FILE = os.path.join("data", "paradigms", gold_filters.gold_file_name("train"))
 CHECKPOINT_RE = re.compile(r"^checkpoint-(\d+)$")
+DEFAULT_OUTPUT_DIR = os.path.join(SCRIPT_DIR, "byt5_morphology_model")
+EXPORT_FILES = {"train": "train_pairs.jsonl", "eval": "eval_pairs_synthetic.jsonl"}
 
 
 def load_env_file(path: str) -> None:
@@ -228,8 +236,8 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Fine-tune ByT5-small on Ge'ez verb morphology (resumable).")
     p.add_argument("--dataset_dir", default=gold_filters.default_dataset_dir(),
                    help="Checkout of the geez-dataset repo (default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
-    p.add_argument("--output_dir", default=os.path.join(SCRIPT_DIR, "checkpoints_full"),
-                   help="Where checkpoints, trainer_state.json and run_info.json go")
+    p.add_argument("--output_dir", default=DEFAULT_OUTPUT_DIR,
+                   help="Where the checkpoints, run_info.json and the final model go (default: byt5_morphology_model/)")
     p.add_argument("--resume_from", default=None,
                    help="checkpoint-N folder, or a folder of them, to resume from when output_dir has none")
     p.add_argument("--sample_limit", type=int, default=0, help="Use N synthetic pairs (0 = all, the default)")
@@ -249,7 +257,7 @@ def parse_args(argv=None):
     p.add_argument("--device", choices=["auto", "cuda", "mps", "cpu"], default="auto")
     p.add_argument("--load_only", action="store_true", help="Load and split the data, print counts, exit")
     p.add_argument("--export_dir", default=None,
-                   help="Write the loaded train and eval pairs (train.jsonl, eval.jsonl) to this folder")
+                   help="Write the loaded pairs to this folder (train_pairs.jsonl, eval_pairs_synthetic.jsonl)")
     p.add_argument("--no_test_inference", action="store_true", help="Skip the sample predictions after training")
     args = p.parse_args(argv)
     if args.full:
@@ -279,7 +287,7 @@ def main(argv=None) -> int:
     if args.export_dir:
         os.makedirs(args.export_dir, exist_ok=True)
         for name, rows in (("train", train_samples), ("eval", eval_samples)):
-            with open(os.path.join(args.export_dir, name + ".jsonl"), "w", encoding="utf-8") as f:
+            with open(os.path.join(args.export_dir, EXPORT_FILES[name]), "w", encoding="utf-8") as f:
                 for x in rows:
                     f.write(json.dumps(x, ensure_ascii=False) + "\n")
         print(f"Exported train/eval pairs to {args.export_dir}")

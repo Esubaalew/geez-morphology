@@ -27,7 +27,7 @@ TENSE_ALIASES = {"jussive": "subjunctive"}
 
 
 def _project_dir() -> str:
-    """Folder that holds patterns.json and checkpoints/ (normally this file's folder)."""
+    """Folder that holds patterns.json and the trained model (normally this file's folder)."""
     here = os.path.dirname(os.path.abspath(__file__))
     if os.path.exists(os.path.join(here, "patterns.json")):
         return here
@@ -967,6 +967,7 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
         if checkpoint_dir is None:
             # Check default checkpoint locations
             candidates = [
+                os.path.join(base_dir, "byt5_morphology_model"),     # train_byt5_morphology.py's final model
                 os.path.join(base_dir, "checkpoints", "checkpoint-3936"),
                 os.path.join(base_dir, "checkpoints", "checkpoint-2624"),
                 os.path.join(base_dir, "checkpoints_backup_20k", "checkpoint-3936"),

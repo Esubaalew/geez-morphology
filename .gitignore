@@ -16,6 +16,7 @@ env/
 
 # Model checkpoints and weights (kept locally, never committed)
 checkpoints*/
+byt5_morphology_model/
 byt5_geez_checkpoint/
 *.safetensors
 *.pt

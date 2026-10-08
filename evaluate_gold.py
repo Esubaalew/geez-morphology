@@ -27,6 +27,7 @@ What is scored (no hidden misses):
 """
 
 import os
+import re
 import sys
 import json
 import argparse
@@ -38,6 +39,7 @@ if SCRIPT_DIR not in sys.path:
 
 import geez_config
 import gold_filters  # reads the gold files; shared with train_byt5_morphology.py
+from train_byt5_morphology import DEFAULT_OUTPUT_DIR as DEFAULT_MODEL_DIR
 
 FIELDS = ["root", "type", "stem", "tense", "person", "gender", "number", "object"]
 TENSE_ALIASES = {"jussive": "subjunctive"}
@@ -150,18 +152,27 @@ def load_gold_test_pairs(test_file, stats=None):
     return pairs, len({p["record_id"] for p in gold})
 
 
+def model_to_load(model_dir):
+    """The final model at the top of model_dir (written when training finished), else its latest
+    checkpoint-<step> folder (a run that stopped early), else model_dir itself."""
+    if os.path.exists(os.path.join(model_dir, "config.json")):
+        return model_dir
+    subdirs = [os.path.join(model_dir, d) for d in os.listdir(model_dir)
+               if re.fullmatch(r"checkpoint-\d+", d)] if os.path.isdir(model_dir) else []
+    if subdirs:
+        return sorted(subdirs, key=lambda x: int(x.rsplit("-", 1)[-1]))[-1]
+    return model_dir
+
+
 class ByT5System:
     def __init__(self, model_dir):
         import torch
         from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-        chkpt = model_dir
-        if os.path.isdir(model_dir):
-            subdirs = [os.path.join(model_dir, d) for d in os.listdir(model_dir) if d.startswith("checkpoint-")]
-            if subdirs:
-                chkpt = sorted(subdirs, key=lambda x: int(x.split("-")[-1]))[-1]
-        print(f"Loading model checkpoint from: {chkpt}")
+        chkpt = model_to_load(model_dir)
+        print(f"Loading model from: {chkpt}")
         self.torch = torch
-        self.device = "mps" if torch.backends.mps.is_available() else "cpu"
+        self.device = ("cuda" if torch.cuda.is_available() else
+                       "mps" if torch.backends.mps.is_available() else "cpu")
         self.tok = AutoTokenizer.from_pretrained(chkpt)
         self.model = AutoModelForSeq2SeqLM.from_pretrained(chkpt).to(self.device)
         self.model.eval()
@@ -233,7 +244,8 @@ def main():
     ap = argparse.ArgumentParser(description="Evaluate on the Merho Ges gold test set")
     ap.add_argument("--system", choices=["byt5", "hybrid"], default="byt5")
     ap.add_argument("--no_neural", action="store_true", help="hybrid only: no ByT5 fallback")
-    ap.add_argument("--model_dir", default=os.path.join(SCRIPT_DIR, "checkpoints"))
+    ap.add_argument("--model_dir", default=DEFAULT_MODEL_DIR,
+                    help="The trainer's --output_dir (default: byt5_morphology_model/), or one checkpoint-<step> folder")
     ap.add_argument("--dataset_dir", default=gold_filters.default_dataset_dir(),
                     help="Checkout of the geez-dataset repo the model was trained on "
                          "(default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
