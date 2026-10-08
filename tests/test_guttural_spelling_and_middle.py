@@ -166,6 +166,7 @@ def test_no_doubled_guttural_present_in_changed_roots(synth):
             bad.append(r["surface_form"])
         if f["tense"] in ("subjunctive", "imperative") and dec[j][1] != "a":
             bad.append(r["surface_form"])
-    assert len(seen) == 72      # 155 before the 2026-10-08 allow-list; 85 with the v3 list; 72 after the kw rebuild (the update:
+    assert len(seen) == 71      # 155 before the 2026-10-08 allow-list; 85 with the v3 list; 72 after the kw rebuild; 71 without
+    #                             qh-h2-m (the update, phantom root off the list) (the update:
     #                             roots with their own corrected triple are not counted here, see test_kidane_wold_subjunctive PATCH_ROOTS)
     assert bad == []

@@ -113,7 +113,7 @@ def _w(*units):
     return "".join(geez_config.render_unit(c, v) for c, v in units)
 
 
-@pytest.mark.parametrize("root", ["qh-h2-m", "s-a-l"])
+@pytest.mark.parametrize("root", ["s-a-l"])   # qh-h2-m left the allow-list (the update, phantom root)
 def test_regular_middle_guttural(synth, root):
     """Not type_d any more (s-a-l: perfect ሰአለ in the corrected text; the maintainers 2026-10-08: s-a-l is a regular
     middle-guttural verb, ይስእል / ይስአል; qh-h2-m has no triple and stays Type A, its old one was an OCR misread,

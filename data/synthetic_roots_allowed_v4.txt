@@ -5,12 +5,12 @@
 # Made from: the 2,148 roots in the generator output (allow-list switched off) on geez-dataset 3da90415abfaa68effd0f9d6e7021d485a41663c
 #   (dictionary with the Kidane Wold root decisions and the kw tables rebuilt on it; generate_synthetic_fixed.py at geez-morphology-model
 #   ab7a166; synthetic_morphology_train.jsonl sha256 11925452f629f103403592dbcf57a85037a81b900fccc3e5104301c1bd25c1a1), kept when they have such evidence and are not ruled
-#   DROP (145) or EXCLUDE_NO_VERB (742) in the exception table; its 8 RESTORE
+#   DROP (146) or EXCLUDE_NO_VERB (742) in the exception table; its 8 RESTORE
 #   roots stay on the list: S-w-t, b-y-S, f-r-S, h2-r-g, m-h2-l, m-s-k, m-s-l, w-k-a2.
 #   v4 = v3 (the root list + the exception table (50a5253b) + the exception table (45cb2ef2)
-#   + triple_check_exceptions.tsv (19c24527: w-kh-T off, CHECK) + the root check (q-y-a off).
-#   Against synthetic_roots_allowed_6183c24_v3.txt (1,130 roots): 183 roots enter, 41 leave.
-# 1,272 roots, sorted. 74 of them are gold val/test roots; synthetic_heldout.py moves their lines to data/synthetic/ in the dataset.
+#   + triple_check_exceptions.tsv (19c24527: w-kh-T off, CHECK) + the root check (q-y-a off) + the root check (qh-h2-m off, a phantom root).
+#   Against synthetic_roots_allowed_6183c24_v3.txt (1,130 roots): 183 roots enter, 42 leave.
+# 1,271 roots, sorted. 74 of them are gold val/test roots; synthetic_heldout.py moves their lines to data/synthetic/ in the dataset.
 S-T-f
 S-a-n
 S-a2-T
@@ -885,7 +885,6 @@ qh-T-f
 qh-T-n
 qh-T-q-T
 qh-T-qh-T
-qh-h2-m
 qh-l-S
 qh-l-b
 qh-l-f

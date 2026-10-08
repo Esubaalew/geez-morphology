@@ -30,7 +30,7 @@ import geez_config  # noqa: E402
 import synthetic_heldout as H  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
-ALLOWED_SHA256 = "f3dd0459308fbb536208f3e2346ce203c856638ecb79e95f8dad09955702739c"
+ALLOWED_SHA256 = "c198ab17acc44534bcdc916b9500526eeeb3d7be7dae7e043620c289d0a602ae"
 BLOCKED_SHA256 = "5c046ce68762d3e18d3510377b3a5bcb45ddded6fdd3c9c24df17dea1b594f4e"
 TRILITERAL = ["q-t-l", "g-b-r", "n-g-r", "s-b-r", "k-t-b", "d-m-r", "f-t-l", "m-s-l"]
 QUADRILITERAL = ["d-n-g-s", "s-n-b-t", "t-r-g-m", "m-s-k-r", "q-n-d-l", "b-r-b-r"]
@@ -52,9 +52,9 @@ def test_files_are_unchanged():
     assert _sha(gen.BLOCKED_FORMS_FILE) == BLOCKED_SHA256
 
 
-def test_allow_list_has_1272_roots():
+def test_allow_list_has_1271_roots():
     roots = gen.read_allowed_roots_file()
-    assert len(roots) == 1272
+    assert len(roots) == 1271
     # RESTORE rows of the v4 decisions: kept on the decision (m-h2-l, m-s-l from v3; six more after the kw rebuild)
     restored = ["m-h2-l", "m-s-l", "S-w-t", "b-y-S", "f-r-S", "h2-r-g", "m-s-k", "w-k-a2"]
     assert {tuple(r.split("-")) for r in restored} <= roots

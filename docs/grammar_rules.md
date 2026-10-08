@@ -75,7 +75,7 @@ On the corrected Kidane Wold transcription these are the roots with such a tripl
 
 S-h2-f and s-a-l are no longer in that list: their corrected triples write the section 2 forms, and
 the maintainers confirmed s-a-l as a regular middle-guttural verb (2026-10-08). d-kh-l left the allow-list.
-qh-h2-m has no triple any more: its old one was an OCR misread (section 4.3).
+qh-h2-m has no triple any more: its old one was an OCR misread, and the root is off the allow-list (section 4.3).
 A root whose triple is not classified (class "unclear") but writes the section 2 shape (ሰአለ ፡ ይስእል ፡ ይስአል) gets the
 section 2 rule.
 
@@ -123,7 +123,8 @@ The decision is recorded in `data/final_y_past_stem_roots.tsv`.
 
 Every root whose class changes with the rebuilt triples has a row in `data/class_changes.tsv`:
 27 roots become Type B and 4 Type D because their triples say so; kh-y-r is hollow; a-l-l and s-a-l were ruled earlier.
-q-l-s stays Type A. qh-h2-m stays Type A (ruled): its Type D triple came from an OCR misread; entry 360 is
+q-l-s stays Type A. qh-h2-m is a phantom root: its Type D triple came from an OCR misread, and it has no other book
+source, so it is off the allow-list. Entry 360 is
 ቅሒም / ቀሐመ ፡ ይቅሕም ፡ ይቅሐም. For d-r-g, n-z-z and q-r-h2 the Merho Ges class (Type C) outranks the new triple, which belongs
 to another verb on the same root code, so they keep Type C (`verb_classes.RULED_CLASS_TAGS`).
 Passive, causative and aste forms are generated only for Type A and quadriliteral roots; all other classes have none yet.
