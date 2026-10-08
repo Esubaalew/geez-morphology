@@ -7,7 +7,7 @@ Contents:
   3. Renderer: (consonant, vowel) -> Ethiopic character via Unicode
      vowel-order arithmetic (the usual approach).
   4. Decomposer: character -> (consonant, vowel), inverse of renderer.
-  5. Guttural spelling variants, root helpers, and a reference list of subject prefixes.
+  5. Guttural spelling variants and root helpers.
 
 Prose in this repository names the vowel orders 1st to 7th (ግዕዝ ... ሳብዕ). The code uses
 indices 0-6: index 0 = 1st order ... index 5 = 6th order (ሳድስ), index 6 = 7th order.
@@ -196,34 +196,3 @@ def root_symbols(root_str: str) -> tuple:
         cons = decompose_char(part)[0] if len(part) == 1 else None
         out.append(cons or part)
     return tuple(out)
-
-
-# ---------------------------------------------------------------------------
-# Reference affix inventories (documentation only; no code reads them)
-# ---------------------------------------------------------------------------
-
-SUBJECT_PREFIXES = {
-    "past": {"3ms": "", "3fs": "", "2ms": "", "2fs": "", "1cs": "",
-             "3mp": "", "3fp": "", "2mp": "", "2fp": "", "1cp": ""},
-    "present": {"3ms": "ይ", "3fs": "ት", "2ms": "ት", "2fs": "ት",
-                "1cs": "እ", "3mp": "ይ", "3fp": "ይ",
-                "2mp": "ት", "2fp": "ት", "1cp": "ን"},
-    "subjunctive": {"3ms": "ይ", "3fs": "ት", "2ms": "ት", "2fs": "ት",
-                    "1cs": "እ", "3mp": "ይ", "3fp": "ይ",
-                    "2mp": "ት", "2fp": "ት", "1cp": "ን"},
-    "jussive": {"3ms": "ይ", "3fs": "ት", "2ms": "ት", "2fs": "ት",
-                "1cs": "እ", "3mp": "ይ", "3fp": "ይ",
-                "2mp": "ት", "2fp": "ት", "1cp": "ን"},
-    "imperative": {"2ms": "", "2fs": "", "2mp": "", "2fp": ""},
-}
-
-VERB_TYPES = {
-    "strong_A": "Triliteral, e.g. ቀተለ (q-t-l). Full 7-order contrast.",
-    "strong_B": "Type B, doubled middle radical, e.g. ቀደሰ (imperfect ይቄድስ). Class comes from the lexicon, not the spelling.",
-    "strong_C": "Type C, long a after the first radical, e.g. ባረከ (imperfect = subjunctive ይባርክ).",
-    "weak_initial": "First radical is w/y, e.g. ወለደ (ይወልድ; subjunctive ይለድ only for W_DROP roots).",
-    "weak_middle": "Second radical is w/y, e.g. ሠይመ, ዐወቀ, ከወነ.",
-    "weak_final": "Third radical is w/y, e.g. ተለወ (ይተሉ), ሰትየ (ይሰቲ).",
-    "irregular": "Suppletive or highly irregular, e.g. ብህለ (to say).",
-    "quadriliteral": "Four radicals, e.g. መስከረ.",
-}

@@ -119,4 +119,3 @@ def test_parse_args_defaults():
     a = T.parse_args([])
     assert (a.lr, a.warmup_ratio, a.epochs, a.batch_size, a.grad_accum) == (3e-4, 0.03, 3, 16, 1)
     assert (a.save_steps, a.save_total_limit, a.sample_limit) == (1000, 2, 0)
-    assert T.parse_args(["--full", "--sample_limit", "200"]).sample_limit == 0

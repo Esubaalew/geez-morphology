@@ -170,23 +170,6 @@ class InterdigitationEngine:
         pattern = self.contract_pattern(tuple(root), pattern, stem)
         return self.render(self.interdigitate(root, pattern))
 
-    # ------------------------------------------------------------------
-    # Analysis (inverse) helpers
-    # ------------------------------------------------------------------
-
-    def pattern_signature(self, pattern: Pattern) -> str:
-        """
-        A canonical string signature for a pattern, for comparison and
-        deduplication. Root slots render as C{i}{vowel}, fixed as-is.
-        """
-        parts = []
-        for slot in pattern:
-            if slot[0] == "R":
-                parts.append(f"C{slot[1]}{slot[2]}")
-            else:
-                parts.append(f"[{slot[1]}]")
-        return "-".join(parts)
-
 
 # ---------------------------------------------------------------------------
 # Pattern utilities (also language-agnostic)

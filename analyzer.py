@@ -14,25 +14,11 @@ from typing import List, Dict, Optional, Tuple, Any, Set
 import geez_config
 import dataset_loader  # default_dataset_dir(): --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset
 from train_byt5_morphology import DEFAULT_OUTPUT_DIR as DEFAULT_MODEL_DIR, model_to_load
-try:
-    from .engine import InterdigitationEngine, slots_from_spec, Pattern
-except ImportError:
-    from engine import InterdigitationEngine, slots_from_spec, Pattern
-try:
-    import verb_classes  # checked Type B/C, final-weak, initial-w paradigms
-except ImportError:
-    verb_classes = None
+from engine import InterdigitationEngine, slots_from_spec, Pattern
+import verb_classes  # checked Type B/C, final-weak, initial-w paradigms
 
 # Ge'ez has one subjunctive; patterns_triliteral.json still says "jussive" for some templates.
 TENSE_ALIASES = {"jussive": "subjunctive"}
-
-
-def _project_dir() -> str:
-    """Folder that holds patterns_triliteral.json and the trained model (normally this file's folder)."""
-    here = os.path.dirname(os.path.abspath(__file__))
-    if os.path.exists(os.path.join(here, "patterns_triliteral.json")):
-        return here
-    return os.path.dirname(here)
 
 
 # The dictionary the analyzer reads, inside the geez-dataset checkout.
@@ -154,7 +140,7 @@ class GeezMorphologicalAnalyzer:
         (<dataset_dir>/data/geez_amharic_dictionary.jsonl, or dictionary_path) must exist:
         without it the analyzer would run with no lexicon and give much worse answers, so a
         missing dictionary is an error, not a silent fallback."""
-        base_dir = _project_dir()
+        base_dir = os.path.dirname(os.path.abspath(__file__))   # holds the template files
         self.dataset_dir = os.path.abspath(dataset_dir or dataset_loader.default_dataset_dir())
         if dictionary_path is None:
             dictionary_path = os.path.join(self.dataset_dir, DICTIONARY_FILE)
@@ -178,7 +164,7 @@ class GeezMorphologicalAnalyzer:
                 self.quad_patterns = [dict(q, source="patterns_quadriliteral.json") for q in json.load(f)]
 
         # Checked class paradigms (Type B/C, final-weak, ወለደ-type) as extra patterns
-        self.class_patterns = verb_classes.class_patterns() if verb_classes else []
+        self.class_patterns = verb_classes.class_patterns()
 
         # Guttural first radical: basic imperfect የኀፍር, not ይኀፍር;
         # ይ + C0a with a guttural first radical is the subjunctive (ይኀፍር).
@@ -219,7 +205,7 @@ class GeezMorphologicalAnalyzer:
                                     not_first=None, first_in=None,
                                     source=p.get("source", "patterns_triliteral.json") + "+middle_guttural"))
         dataset_dir = self.dataset_dir
-        type_d_pats = verb_classes.type_d_patterns(dataset_dir) if verb_classes else []
+        type_d_pats = verb_classes.type_d_patterns(dataset_dir)
 
         # Precompile pattern slots
         self.compiled_patterns = []
@@ -246,20 +232,19 @@ class GeezMorphologicalAnalyzer:
 
         # Verb class per root (Type B / Type C / ሰተየ type) from lexical sources only;
         # a Type B perfect is spelled like Type A, so spelling cannot decide it.
-        self.class_tags = verb_classes.class_tags(dataset_dir)[0] if verb_classes else {}
-        if verb_classes:
-            # A class paradigm only matches roots of that class: Type B, Type C,
-            # the ተለወ type and the ሰተየ type need a lexical tag (Kidane Wold triple, Merho
-            # Ges, class lemma); ወለደ-type needs W_DROP or a ይለድ-shaped triple.
-            only = {cls: {"-".join(r) for r, c in self.class_tags.items() if c == cls}
-                    for cls in ("type_b", "type_c", "final_y", "final_w")}
-            only["initial_w_drop"] = set(verb_classes.vcp.W_DROP) | {
-                "-".join(r) for r, c in self.class_tags.items()
-                if c == "initial_w_drop" and verb_classes.w_drop_shape(r)}
-            for cp in self.compiled_patterns:
-                cls = cp["source"].replace("verb_class_paradigms.", "")
-                if cls in only:
-                    cp["only_roots"] = only[cls]
+        self.class_tags = verb_classes.class_tags(dataset_dir)[0]
+        # A class paradigm only matches roots of that class: Type B, Type C,
+        # the ተለወ type and the ሰተየ type need a lexical tag (Kidane Wold triple, Merho
+        # Ges, class lemma); ወለደ-type needs W_DROP or a ይለድ-shaped triple.
+        only = {cls: {"-".join(r) for r, c in self.class_tags.items() if c == cls}
+                for cls in ("type_b", "type_c", "final_y", "final_w")}
+        only["initial_w_drop"] = set(verb_classes.vcp.W_DROP) | {
+            "-".join(r) for r, c in self.class_tags.items()
+            if c == "initial_w_drop" and verb_classes.w_drop_shape(r)}
+        for cp in self.compiled_patterns:
+            cls = cp["source"].replace("verb_class_paradigms.", "")
+            if cls in only:
+                cp["only_roots"] = only[cls]
 
         # Initialize generation engine for lemma synthesis
         self.engine = InterdigitationEngine(renderer=geez_config.render_unit)
@@ -269,12 +254,11 @@ class GeezMorphologicalAnalyzer:
         # Load dictionary index
         self.lexicon: Dict[str, List[Dict[str, Any]]] = {}
         self.root_index: Dict[str, List[Dict[str, Any]]] = {}
-        self.inferred_root_index: Dict[str, List[Dict[str, Any]]] = {}
         self.high_conf_roots: Set[str] = set()
         self.root_canonical_lemma: Dict[str, str] = {}
         self.root_verb_class: Dict[str, str] = {}
 
-        self.root_fixes = verb_classes.root_fixes(dataset_dir) if verb_classes else {}
+        self.root_fixes = verb_classes.root_fixes(dataset_dir)
         with open(dictionary_path, "r", encoding="utf-8") as f:
             for line in f:
                 entry = json.loads(line)
@@ -292,19 +276,14 @@ class GeezMorphologicalAnalyzer:
                             self.lexicon.setdefault(alt_hw, []).append(entry)
 
                 # Index by consonantal root (with the Kidane Wold root fixes)
-                root = (verb_classes.entry_root(entry, self.root_fixes) if verb_classes
-                        else entry.get("inferred_root") or entry.get("root"))
+                root = verb_classes.entry_root(entry, self.root_fixes)
                 cleaned_root = root.split("(")[0].strip().replace("-", "") if root else ""
                 if cleaned_root:  # never index an empty or blank root
                     self.root_index.setdefault(cleaned_root, []).append(entry)
-                    self.inferred_root_index.setdefault(cleaned_root, []).append(entry)
 
                     conf = entry.get("root_confidence")
                     if conf == "high":
                         self.high_conf_roots.add(cleaned_root)
-                    elif conf == "medium" and cleaned_root not in self.high_conf_roots:
-                        # If no high exists yet, keep medium
-                        pass
 
                     # Cache canonical lemma
                     if cleaned_root not in self.root_canonical_lemma:
@@ -494,7 +473,7 @@ class GeezMorphologicalAnalyzer:
 
                                 for rk in root_keys:
                                     key = "".join(rk)
-                                    if key not in self.high_conf_roots and key not in self.inferred_root_index:
+                                    if key not in self.high_conf_roots and key not in self.root_index:
                                         continue
                                     headword_hit = cleaned in self.lexicon or stem_core in self.lexicon
                                     candidates.append({
@@ -708,7 +687,7 @@ class GeezMorphologicalAnalyzer:
             except Exception:
                 lemma = cleaned
 
-        lex_entries = self.inferred_root_index.get(key, [])
+        lex_entries = self.root_index.get(key, [])
         lex_entry = lex_entries[0] if lex_entries else None
         root_str = "-".join(cons)
 

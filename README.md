@@ -7,11 +7,9 @@ Morphological analysis and generation for Classical Ge'ez verbs: a root-and-patt
 ```
 geez-morphology/
 ├── engine.py                     root-and-pattern interdigitation (language-agnostic)
-├── pattern_learner.py            learns templates from (root, form) data
 ├── geez_config.py                Ge'ez script, vowels, transliteration, to_ethiopic_root()
 ├── patterns_triliteral.json      triliteral templates
 ├── patterns_quadriliteral.json   quadriliteral templates
-├── patterns_rejected.json        templates removed in review (kept for reference)
 ├── verb_class_paradigms.py       checked paradigms: Type B, Type C, Type D, final-w, final-y, initial-w
 ├── verb_classes.py               class lookup and paradigm rows for generator and analyzer
 ├── kidane_wold_triples.py        parses Kidane Wold verb triples; rewrites three dataset lexicon files
@@ -31,7 +29,7 @@ geez-morphology/
     └── grammar_rules.md          the language decisions behind the data, with sources
 ```
 
-Not in git: `.venv/`, `byt5_morphology_model/`, `checkpoints*/`, logs, `.env`.
+Not in git: `.venv/`, `byt5_morphology_model/`, `checkpoints*/`, logs.
 
 ## Setup
 

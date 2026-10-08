@@ -68,18 +68,6 @@ DEFAULT_OUTPUT_DIR = os.path.join(SCRIPT_DIR, "byt5_morphology_model")
 EXPORT_FILES = {"train": "train_pairs.jsonl", "eval": "eval_pairs_synthetic.jsonl"}
 
 
-def load_env_file(path: str) -> None:
-    """Read KEY=VALUE lines from a local .env (git-ignored) without overriding the environment."""
-    if not os.path.exists(path):
-        return
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                k, v = line.split("=", 1)
-                os.environ.setdefault(k.strip(), v.strip().strip("'\""))
-
-
 # ----------------------------------------------------------------------------- data
 
 def gold_train_file(dataset_dir: str) -> Optional[str]:
@@ -258,7 +246,6 @@ def parse_args(argv=None):
     p.add_argument("--resume_from", default=None,
                    help="checkpoint-N folder, or a folder of them, to resume from when output_dir has none")
     p.add_argument("--sample_limit", type=int, default=0, help="Use N synthetic pairs (0 = all, the default)")
-    p.add_argument("--full", action="store_true", help="Same as --sample_limit 0 (kept for old commands)")
     p.add_argument("--batch_size", type=int, default=16, help="Per-device batch size")
     p.add_argument("--grad_accum", type=int, default=1,
                    help="Gradient accumulation steps; effective batch = batch_size x grad_accum x devices")
@@ -277,8 +264,6 @@ def parse_args(argv=None):
                    help="Write the loaded pairs to this folder (train_pairs.jsonl, eval_pairs_synthetic.jsonl)")
     p.add_argument("--no_test_inference", action="store_true", help="Skip the sample predictions after training")
     args = p.parse_args(argv)
-    if args.full:
-        args.sample_limit = 0
     if args.grad_accum < 1 or args.batch_size < 1:
         p.error("--batch_size and --grad_accum must be >= 1")
     return args
@@ -286,7 +271,6 @@ def parse_args(argv=None):
 
 def main(argv=None) -> int:
     args = parse_args(argv)
-    load_env_file(os.path.join(SCRIPT_DIR, ".env"))
     args.dataset_dir = os.path.abspath(args.dataset_dir)
     args.output_dir = os.path.abspath(args.output_dir)
 

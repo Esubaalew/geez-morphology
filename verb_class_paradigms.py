@@ -279,19 +279,6 @@ CLASSES = {"type_b": type_b, "type_c": type_c, "final_y": final_y,
            # the written shape types; used only for roots whose Kidane Wold triple is written this way.
            "type_c_o": type_c_o, "type_c_e": type_c_e, "quad_c": quad_c}
 
-# Ambiguities the analyzer and label merge must respect
-NOTES = """
-- Type C: imperfect == subjunctive in writing (ይባርክ). Keep both labels on one surface.
-- Type B perfect is written exactly like Type A (ቀደሰ); class must come from the lexicon,
-  not the surface. Only the imperfect (ይቄድስ, 5th order on C1) shows it.
-- ተለወ imperfect 3ms ይተሉ looks like a strong 3mp (ይቀትሉ pattern). Analyzer must try
-  final-w root t-l-w before reading -ሉ as a 3mp ending.
-- ሰትየ 2fs imperfect ትሰቲ == 2ms ትሰቲ (no separate -i in writing).
-- Not every final-y verb is a-type: verbs like በከየ (imperf ይበኪ, subj ይብኪ) differ in the
-  subjunctive. Only use final_y() for roots tagged like ሰትየ.
-- initial_w_drop applies only to W_DROP. Skip other I-w subjunctives until checked.
-"""
-
 
 def check():
     bad = 0
@@ -307,11 +294,3 @@ def check():
     n = sum(len(t) for t in EXPECTED.values())
     print(f"{n - bad}/{n} tense tables match")
     return bad == 0
-
-
-def test_paradigms():
-    assert check()
-
-
-if __name__ == "__main__":
-    check()

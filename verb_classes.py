@@ -344,13 +344,6 @@ def class_tags(dataset_dir: str, exclude=()) -> Tuple[Dict[Tuple[str, ...], str]
     return tags, counts
 
 
-def class_sources(dataset_dir: str, exclude=()) -> Dict[Tuple[str, ...], str]:
-    """{root: where its class tag came from}, for the roots class_tags() returns:
-    "class lemma", "merho_ges train" or "kidane_wold triple"."""
-    tags, source, _ = _tags_and_sources(dataset_dir, exclude)
-    return {cons: source.get(cons, "?") for cons in tags}
-
-
 def _tags_and_sources(dataset_dir: str, exclude=()):
     tags: Dict[Tuple[str, ...], str] = {}
     source: Dict[Tuple[str, ...], str] = {}
