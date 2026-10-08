@@ -127,9 +127,24 @@ def root_fixes(dataset_dir: str) -> Dict[int, str]:
     return fixes
 
 
+# Values that are not roots: an unsettled root is null, but older files wrote placeholders.
+ROOT_PLACEHOLDERS = {"check", "null", "none"}
+
+
+def usable_root(value):
+    """value if it is a root string; None for null, an empty string or a placeholder (CHECK, "null", "None")."""
+    if not isinstance(value, str) or not value.strip() or value.strip().lower() in ROOT_PLACEHOLDERS:
+        return None
+    return value
+
+
 def entry_root(entry: dict, fixes: Dict[int, str]):
-    """Root of a dictionary entry, with the triple/restoration fix applied."""
-    return fixes.get(entry.get("id")) or entry.get("inferred_root") or entry.get("root")
+    """Root of a dictionary entry, with the triple/restoration fix applied: the fix, else inferred_root,
+    else root. A null, empty or placeholder value is skipped; None when no source gives a root."""
+    for value in (fixes.get(entry.get("id")), entry.get("inferred_root"), entry.get("root")):
+        if usable_root(value):
+            return value
+    return None
 
 
 def triple_classes(dataset_dir: str) -> Tuple[Dict[Tuple[str, ...], str], int]:
