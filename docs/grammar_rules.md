@@ -113,7 +113,7 @@ default rules below.
   exceptions.
 - **q-n-S and g-n-h2:** the generator makes the expected forms (q-n-S present ይቀንጽ), but a line whose
   form is a gold val or test form is left out, so those lines are not in the synthetic data.
-- **w-kh-T** is off the allow-list until its triple is read against the scan.
+- **w-kh-T** is off the allow-list until its triple is read against the printed page.
 
 ### 4.2 Final-y past stem
 
