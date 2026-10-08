@@ -61,7 +61,7 @@ TRIPLE_OTHER_CLASSES = ("type_a", "hollow", "type_b_final_w", "final_y_other",
                         "initial_w_drop_other", "quadriliteral")
 TRIPLES_FILE = os.path.join("data", "lexicon", "kidane_wold_verb_triples.jsonl")
 ROOT_FIXES_FILE = os.path.join("data", "lexicon", "kidane_wold_root_fixes.jsonl")
-GOLD_TRAIN_FILE = os.path.join("data", "paradigms", "merho_ges_gold_train.jsonl")   # corrected gold train
+GOLD_TRAIN_FILE = os.path.join("data", "paradigms", "merho_ges_gold_train.jsonl")
 MAIN_CLASS_NAMES = ("ቀተለ", "ቀደሰ", "ባረከ")
 WEAK = ("w", "y")
 # Amharic-only letters: ሸ ቸ ኘ ዠ have consonant symbols
@@ -311,9 +311,8 @@ def _tags_and_sources(dataset_dir: str, exclude=()):
         tags[root_of_lemma(lemma)] = cls
         source[root_of_lemma(lemma)] = "class lemma"
     conflicts = set()
-    # The CORRECTED gold train file (the page-checked corrections written in; only train
-    # records): no tag comes from the gold train split as extracted, whose records include one that now
-    # sits in test.
+    # Merho Ges class names from the gold train file as written (train records only; the maintainer 2026-10-06
+    # 15:14, ).
     path = os.path.join(dataset_dir, GOLD_TRAIN_FILE)
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:

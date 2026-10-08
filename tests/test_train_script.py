@@ -18,10 +18,12 @@ def _dataset(tmp, n_syn=20, gold_name="merho_ges_gold_train.jsonl"):
                 "root": "q-t-l", "tense": "present", "person": "3", "gender": "m",
                 "number": "s", "stem": "basic"}}, ensure_ascii=False) + "\n")
     if gold_name:
-        rec = {"root": "ቀ-ተ-ለ", "stem": "causative_intensive", "table_data": [
-            {"geez_form": "አስተቀተለ / አስተቀተለ፡", "tense": "past", "person": "3", "gender": "m", "number": "s"},
-            {"geez_form": "ያስተቅትል", "tense": "jussive", "person": "3", "gender": "m", "number": "s"},
-            {"geez_form": "አንጸብረቀ", "tense": "past", "person": "3", "gender": "m", "number": "s"},
+        rec = {"record_id": "aaaaaaaaaaaa", "root": "ቀ-ተ-ለ", "stem": "basic", "table_data": [
+            {"geez_form": "አስተቀተለ / አስተቀተለ፡", "tense": "past", "person": "3", "gender": "m", "number": "s",
+             "stem": "aste"},
+            {"geez_form": "ያስተቅትል", "tense": "subjunctive", "person": "3", "gender": "m", "number": "s",
+             "stem": "aste"},
+            {"geez_form": "ቀተለ", "tense": "past", "person": "3", "gender": "m", "number": "s"},
             {"geez_form": "", "tense": "past"}]}
         with open(os.path.join(para, gold_name), "w", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -36,17 +38,9 @@ def test_load_counts_and_targets():
         syn = [s for s in samples if not s["is_gold"]][0]
         assert syn["target_text"] == "root: ቀ-ተ-ለ | tense: present | person: 3 | gender: m | number: s | stem: basic"
         targets = sorted(s["target_text"] for s in gold)
-        assert sum("stem: aste" in t for t in targets) == 3          # አስተ- forms only
-        assert sum("stem: causative_intensive" in t for t in targets) == 1   # አንጸብረቀ keeps its label
-        assert not any("jussive" in t for t in targets)
-        assert any("tense: subjunctive" in t for t in targets)
-
-
-def test_no_fallback_to_the_old_train_name():
-    """Only data/paradigms/merho_ges_gold_train.jsonl is read: a file under the old tense_filled name is not."""
-    with tempfile.TemporaryDirectory() as tmp:
-        samples = T.load_data(_dataset(tmp, gold_name="merho_ges_gold_train_tense_filled.jsonl"))
-        assert sum(s["is_gold"] for s in samples) == 0
+        assert sum("stem: aste" in t for t in targets) == 3          # the row's own stem
+        assert sum("stem: basic" in t for t in targets) == 1         # the record's stem
+        assert sum("tense: subjunctive" in t for t in targets) == 1
 
 
 def test_sample_limit_and_determinism():

@@ -11,7 +11,6 @@
 import json
 import os
 import sys
-import tempfile
 
 import pytest
 
@@ -70,19 +69,6 @@ def test_analyzer_reads_4th_order_variant_like_1st_order(analyzer, variant, stan
     # real ending (ሰምዓ is the 3fp perfect as well as a spelling of ሰምዐ).
     readings = [(x.root_string, x.tense, x.person, x.gender, x.number) for x in analyzer.analyze(variant)]
     assert top(analyzer, standard) in readings
-
-
-def test_eval_exclusion_keys_are_normalized():
-    import evaluate_gold
-    with tempfile.NamedTemporaryFile("w", suffix=".jsonl", delete=False, encoding="utf-8") as f:
-        f.write(json.dumps({"split": "test", "exclude_from_verb_scoring": True, "form": "ሰምዓ", "root": "s-m-a2"},
-                           ensure_ascii=False) + "\n")
-        path = f.name
-    try:
-        ex = evaluate_gold.load_exclusions(path)
-    finally:
-        os.unlink(path)
-    assert ("ሰምዐ", "s-m-a2") in ex
 
 
 # ---- 2. middle-guttural rule ----------------------------------------------

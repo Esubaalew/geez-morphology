@@ -4,17 +4,13 @@
 Input text:  "analyze: <surface form>"
 Target text: "root: <ሀ-ለ-መ> | tense: <t> | person: <p> | gender: <g> | number: <n> | stem: <s>"
 
-Data (read from --dataset_dir, the geez-dataset checkout):
+Data (read from --dataset_dir, the geez-dataset checkout), as written:
   data/paradigms/synthetic_morphology_train.jsonl        synthetic pairs
       (only this file: the lines held out for the gold val/test roots, data/synthetic/, are never read)
-  data/paradigms/merho_ges_gold_train.jsonl              Merho Ges gold-train paradigms (corrected in place;
-      the uncorrected extracted files were deleted and tense_filled renamed to this name, 2026-10-06 )
-Gold files corrected in place (data/paradigms/merho_ges_gold_flagged_rows.tsv present): the gold pairs
-are read as written, leaving out the pairs in merho_ges_gold_flagged_rows.tsv (gold_filters.file_pairs).
-Gold files as extracted (older dataset checkouts): roots and labels are corrected at load time from
-<dataset>/data/corrections/ and the page corrections (gold_filters.py). Either way the synthetic root
-fix (ተ-ረ-ጰ -> ተ-ረ-ፐ) applies at load time. The tables are required unless --allow_missing_corrections.
-All gold-train pairs go to training. The eval split is 10% of the synthetic pairs
+  data/paradigms/merho_ges_gold_train.jsonl              Merho Ges gold-train paradigms
+The gold pairs are read by gold_filters.load_gold_split: the rows listed in
+data/paradigms/merho_ges_gold_flagged_rows.tsv and rows with no root do not load. Nothing is
+corrected at load time. All gold-train pairs go to training. The eval split is 10% of the synthetic pairs
 (seed 42), so eval loss never includes gold rows. The held-out gold test file is
 not read here; use evaluate_gold.py for that.
 
@@ -50,14 +46,13 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 
 from geez_config import to_ethiopic_root  # one shared definition
-import gold_filters  # load-time root corrections (data/corrections/), shared with evaluate_gold.py
+import gold_filters  # reads the gold files; shared with evaluate_gold.py
 
 MODEL_NAME = "google/byt5-small"
 SEED = 42
 EVAL_FRACTION = 0.1
 SYNTHETIC_FILE = os.path.join("data", "paradigms", "synthetic_morphology_train.jsonl")
-GOLD_FILES = (os.path.join("data", "paradigms", "merho_ges_gold_train.jsonl"),)   # no fallback name
-ASTE_FORM = gold_filters.ASTE_FORM   # አስተቀተለ, ያስተቀትል, ኢያስተ... (shared with evaluate_gold.py)
+GOLD_TRAIN_FILE = os.path.join("data", "paradigms", gold_filters.gold_file_name("train"))
 CHECKPOINT_RE = re.compile(r"^checkpoint-(\d+)$")
 
 
@@ -76,20 +71,15 @@ def load_env_file(path: str) -> None:
 # ----------------------------------------------------------------------------- data
 
 def gold_train_file(dataset_dir: str) -> Optional[str]:
-    for rel in GOLD_FILES:
-        path = os.path.join(dataset_dir, rel)
-        if os.path.exists(path):
-            return path
-    return None
+    path = os.path.join(dataset_dir, GOLD_TRAIN_FILE)
+    return path if os.path.exists(path) else None
 
 
-def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None,
-              corrections: Optional["gold_filters.Corrections"] = None) -> List[Dict]:
+def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None) -> List[Dict]:
     """Synthetic pairs (optionally a uniform sample of `limit`) plus all gold-train pairs, shuffled with seed 42.
-    Roots are corrected through gold_filters; `stats` (a Counter) receives the counts."""
+    `stats` (a Counter) receives the gold load counts."""
     import collections
     stats = stats if stats is not None else collections.Counter()
-    corrections = corrections or gold_filters.Corrections.from_dataset(dataset_dir)
     train_file = os.path.join(dataset_dir, SYNTHETIC_FILE)
     if not os.path.exists(train_file):
         raise FileNotFoundError(f"Training data not found at: {train_file}")
@@ -108,9 +98,7 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None,
 
     samples = []
     for line in selected_lines:
-        raw = json.loads(line)
-        d, changed = corrections.synthetic_record(raw)
-        stats["synthetic pairs fixed"] += changed
+        d = json.loads(line)
         feat = d.get("features", {})
         surface = d.get("surface_form", "")
         eth_root = to_ethiopic_root(feat.get("root", ""))
@@ -118,12 +106,11 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None,
                   f"gender: {feat.get('gender', '')} | number: {feat.get('number', '')} | stem: {feat.get('stem', '')}")
         samples.append({"input_text": f"analyze: {surface}", "target_text": target, "is_gold": False})
 
-    # Merho Ges gold-train pairs: roots and labels as gold_filters.gold_pairs gives them (root tables,
-    # then the page corrections); targets in gold_filters.target_text (verbs and nominals).
+    # Merho Ges gold-train pairs as written (gold_filters.load_gold_split); targets in
+    # gold_filters.target_text (verbs and nominals).
     gold_file = gold_train_file(dataset_dir)
     if gold_file:
-        with open(gold_file, "r", encoding="utf-8") as f_gold:
-            pairs = corrections.gold_pairs([json.loads(line) for line in f_gold], "train", stats)
+        pairs = gold_filters.load_gold_split(dataset_dir, "train", stats)
         for p in pairs:
             samples.append({"input_text": f"analyze: {p['form']}", "target_text": gold_filters.target_text(p),
                             "is_gold": True})
@@ -261,11 +248,6 @@ def parse_args(argv=None):
     p.add_argument("--num_workers", type=int, default=0, help="DataLoader workers")
     p.add_argument("--device", choices=["auto", "cuda", "mps", "cpu"], default="auto")
     p.add_argument("--load_only", action="store_true", help="Load and split the data, print counts, exit")
-    p.add_argument("--allow_missing_corrections", action="store_true",
-                   help="Train even if <dataset>/data/corrections/ is missing (roots then only get 1st-order letters and the guard)")
-    p.add_argument("--page_corrections", default=gold_filters.PAGE_DIR,
-                   help="Folder with the page-checked corrections (sources/, keys/; default: gold_corrections)")
-    p.add_argument("--no_page_corrections", action="store_true", help="Do not apply the page corrections")
     p.add_argument("--export_dir", default=None,
                    help="Write the loaded train and eval pairs (train.jsonl, eval.jsonl) to this folder")
     p.add_argument("--no_test_inference", action="store_true", help="Skip the sample predictions after training")
@@ -284,34 +266,14 @@ def main(argv=None) -> int:
     args.output_dir = os.path.abspath(args.output_dir)
 
     import collections
-    page_dir = None if args.no_page_corrections else args.page_corrections
-    if page_dir and not os.path.isdir(os.path.join(page_dir, "sources")):
-        print(f"[!] Page corrections not found: {page_dir}/sources")
-        return 1
-    corrections = gold_filters.Corrections.from_dataset(args.dataset_dir, required=not args.allow_missing_corrections,
-                                                        page_dir=page_dir)
     load_stats = collections.Counter()
-    samples = load_data(args.dataset_dir, limit=args.sample_limit, stats=load_stats, corrections=corrections)
+    samples = load_data(args.dataset_dir, limit=args.sample_limit, stats=load_stats)
     train_samples, eval_samples, n_syn, n_gold = split_samples(samples)
     if args.max_eval_samples and args.max_eval_samples < len(eval_samples):
         eval_samples = eval_samples[:args.max_eval_samples]
-    print(f"Gold loading: {corrections.describe()}")
-    print(f"Corrections: {corrections.folder}" + ("" if corrections.present else "  [!] tables missing"))
-    for name, sha in sorted(corrections.sha256.items()):
-        print(f"  {name}  sha256 {sha}")
     print("Gold-train load counts:")
-    for line in gold_filters.format_stats({k: v for k, v in load_stats.items() if k.split(" ")[0] in ("records", "pairs")}):
-        print(line)
-    if corrections.page is not None:
-        page = corrections.page
-        print(f"Page corrections: {page.folder}/sources  ({sum(page.rows.values())} rows -> {len(page.entries)} pairs; "
-              f"{len(page.problems)} rows not applied, {len(page.conflicts)} pairs with disagreeing sources)")
-        for k, v in sorted(load_stats.items()):
-            if k.startswith("page "):
-                print(f"  {k:62s} {v:6d}")
-    print(f"Synthetic pairs fixed at load: {load_stats['synthetic pairs fixed']}")
-    print(f"Gold variants dropped (notes or extra words, read as in evaluate_gold.py): "
-          f"{load_stats['gold variants dropped: notes or extra words (not one Ethiopic word)']}")
+    for k, v in sorted(load_stats.items()):
+        print(f"  {k}: {v}")
     print(f"Synthetic pairs: {n_syn}. Gold-train pairs: {n_gold}.")
     print(f"Train: {len(train_samples)} pairs ({n_gold} gold). Eval: {len(eval_samples)} synthetic pairs.")
     if args.export_dir:
@@ -370,8 +332,10 @@ def main(argv=None) -> int:
     print(f"Optimizer steps: {total_steps}. Warmup: {warmup_steps}. Save every {args.save_steps}.")
 
     os.makedirs(args.output_dir, exist_ok=True)
+    flagged = os.path.join(args.dataset_dir, gold_filters.PARADIGMS_DIR, gold_filters.FLAGGED_ROWS_FILE)
     data_files = {"synthetic": os.path.join(args.dataset_dir, SYNTHETIC_FILE),
-                  "gold_train": gold_train_file(args.dataset_dir)}
+                  "gold_train": gold_train_file(args.dataset_dir),
+                  "gold_flagged_rows": flagged if os.path.exists(flagged) else None}
     run_info = {
         "started": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         "model_repo": git_commit(SCRIPT_DIR),
@@ -379,9 +343,6 @@ def main(argv=None) -> int:
         "data_sha256": {k: (sha256_file(v) if v else None) for k, v in data_files.items()},
         "data_files": data_files,
         "counts": {"synthetic": n_syn, "gold_train": n_gold, "train": len(train_samples), "eval": len(eval_samples)},
-        "corrections_dir": corrections.folder,
-        "gold_loading": corrections.describe(),
-        "corrections_sha256": corrections.sha256,
         "load_counts": dict(sorted(load_stats.items())),
         "device": device, "n_devices": n_devices, "precision": "fp32",
         "optimizer_steps": total_steps, "warmup_steps": warmup_steps,

@@ -189,16 +189,3 @@ def test_template_matcher_guttural(analyzer):
 def test_no_amharic_as_stem(analyzer):
     stems = {r.stem for r in analyzer.analyze("አስትረስኩ")}
     assert "causative_intensive" not in stems
-
-
-# ---------------------------------------------------------------- 7. evaluation
-def test_eval_aste_mapping_and_exclusions():
-    import evaluate_gold as E
-    assert E.ASTE_FORM.match("ያስተሰነግል") and E.ASTE_FORM.match("አስተሰነገለ")
-    assert not E.ASTE_FORM.match("አንጸብረቀ") and not E.ASTE_FORM.match("አቅየዐየዐ")
-    path = os.path.join(os.path.dirname(HERE), "geez-dataset-v1", "data", "corrections", "gold_proposals_2026-10-05.jsonl")
-    if not os.path.exists(path):
-        pytest.skip("proposals not written")
-    ex = E.load_exclusions(path)
-    assert ("ብሕትው", "b-ḥ-t-w") in ex          # not a verb
-    assert ("ይሰናአሉ", "ሰ-ነ-አ-ለ (s-n-'-l)") not in ex   # correct as is (C)

@@ -13,8 +13,8 @@ generator's order. The paired analyze file is split on the same lines.
 
 Gold val/test roots: for every row of merho_ges_gold_val.jsonl and merho_ges_gold_test.jsonl, the row's
 root and the record's root, each "/" alternative, in the 1st order (geez_config.first_order_root); only
-roots of Ethiopic letters. A synthetic line is held out when its root as written, or as the trainer
-reads it after data/corrections/synthetic_root_corrections.tsv, is one of them.
+roots of Ethiopic letters. A synthetic line is held out when its root, written in Ethiopic letters of
+the 1st order, is one of them.
 
 Usage:
   python synthetic_heldout.py --full_dir <generator output dir> --dataset_dir <dataset repo> [--write | --check]
@@ -56,26 +56,15 @@ def gold_eval_roots(dataset_dir):
     return dict(roots)
 
 
-def line_roots(d, synthetic_table):
-    """1st-order Ethiopic roots of a synthetic line: as written, and as the trainer reads it."""
+def line_root(d):
+    """The root of a synthetic line in 1st-order Ethiopic letters (q-t-l -> ቀ-ተ-ለ)."""
     feats = d.get("features") or d.get("analysis") or {}
-    raw = feats.get("root") or ""
-    out = {geez_config.first_order_root(geez_config.to_ethiopic_root(raw))}
-    if raw in synthetic_table:
-        out.add(geez_config.first_order_root(geez_config.to_ethiopic_root(synthetic_table[raw])))
-    return out
-
-
-def synthetic_table(dataset_dir):
-    """data/corrections/synthetic_root_corrections.tsv as the trainer reads it ({} if absent)."""
-    import gold_filters
-    return dict(gold_filters.Corrections.from_dataset(dataset_dir).synthetic)
+    return geez_config.first_order_root(geez_config.to_ethiopic_root(feats.get("root") or ""))
 
 
 def split(full_dir, dataset_dir):
     """-> (train lines, analyze lines, held-out train lines, held-out analyze lines, Counter((split, root)))."""
     roots = gold_eval_roots(dataset_dir)
-    table = synthetic_table(dataset_dir)
     tr, an, htr, han = [], [], [], []
     moved = collections.Counter()
     with open(os.path.join(full_dir, TRAIN), encoding="utf-8") as ft, open(os.path.join(full_dir, ANALYZE), encoding="utf-8") as fa:
@@ -83,11 +72,10 @@ def split(full_dir, dataset_dir):
             d, a = json.loads(lt), json.loads(la)
             if d.get("surface_form") != a.get("surface_form") or d.get("features") != a.get("analysis"):
                 sys.exit(f"[!] {TRAIN} and {ANALYZE} differ at line {n}: not a mirror pair")
-            hit = sorted(r for r in line_roots(d, table) if r in roots)
-            if hit:
+            r = line_root(d)
+            if r in roots:
                 htr.append(lt); han.append(la)
-                for r in hit[:1]:
-                    moved[("+".join(sorted(roots[r])), r)] += 1
+                moved[("+".join(sorted(roots[r])), r)] += 1
             else:
                 tr.append(lt); an.append(la)
     return tr, an, htr, han, moved

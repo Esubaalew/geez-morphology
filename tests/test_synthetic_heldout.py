@@ -16,7 +16,6 @@ def _line(root, form, tense="past"):
 
 def _setup(tmp):
     os.makedirs(os.path.join(tmp, "ds", "data", "paradigms"))
-    os.makedirs(os.path.join(tmp, "ds", "data", "corrections"))
     os.makedirs(os.path.join(tmp, "full"))
     val = {"root": "ሰ-መ-ዐ", "table_data": [{"geez_form": "ሰምዐ"}]}
     test = {"root": "", "table_data": [{"geez_form": "ቀተለ", "root": "ቀ-ተ-ለ / ቀ-ጠ-ለ"}]}

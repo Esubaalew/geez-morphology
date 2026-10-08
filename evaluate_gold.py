@@ -14,13 +14,13 @@ What is scored (no hidden misses):
     skipped and counted.
   - A field counts only where the gold row has a value; empty gold tense or
     person is reported as "unlabeled", not scored as wrong.
-  - Labels come from gold_filters.gold_pairs,
-    the same pairs the trainer sees. A page row may relabel a form as a noun or adjective:
+  - Pairs and labels come from gold_filters.file_pairs: the gold file as written, without the
+    rows listed in merho_ges_gold_flagged_rows.tsv (the same reader the trainer uses).
       verbs     root, type, stem, tense, person, gender, number (+ object where gold has one)
       nominals  root, type, number (+ gender where gold has one); no stem/tense/person
     "exact" = every field the gold pair labels. A system that only answers verbs (the hybrid
     rule engine) predicts type "verb", so its nominal "type" and "exact" are wrong by design.
-  - jussive and subjunctive are one label (subjunctive) on both sides.
+  - A predicted "jussive" is read as "subjunctive" (the gold files use subjunctive only).
   - Roots are compared as consonant sequences, whatever script the gold uses
     (Ethiopic, q-t-l symbols, or ṭ-y-b transliteration).
   - Results are broken down by verb class, tense, and (hybrid) by which tier answered.
@@ -37,13 +37,10 @@ if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 import geez_config
-import gold_filters  # load-time root corrections, shared with train_byt5_morphology.py
+import gold_filters  # reads the gold files; shared with train_byt5_morphology.py
 
 FIELDS = ["root", "type", "stem", "tense", "person", "gender", "number", "object"]
 TENSE_ALIASES = {"jussive": "subjunctive"}
-# Merho Ges "causative_intensive" = አስተ- forms (synthetic stem "aste") plus
-# reduplicated causatives (አንጸብረቀ). Only the አስተ- forms are scored as "aste".
-ASTE_FORM = gold_filters.ASTE_FORM
 CLASS_ORDER = ["Type A", "Type B", "Type C", "hollow", "initial-weak",
                "final-weak", "quadriliteral", "unknown"]
 
@@ -103,7 +100,7 @@ def verb_class(rec):
     where w/y sits in the root, else Type A.
     """
     pc = rec.get("paradigm_class") or ""
-    keys = gold_root_keys(rec.get("canonical_root") or rec.get("root"))
+    keys = gold_root_keys(rec.get("root"))
     root = max(keys, key=len) if keys else ()
     weak = ("w", "y")
     if "ባረከ" in pc:
@@ -132,56 +129,25 @@ def verb_class(rec):
     return "unknown"
 
 
-is_single_ethiopic_word = gold_filters.is_single_ethiopic_word
-
-
-def load_exclusions(path):
-    """(form, gold root) pairs that a relabel-proposals file marks as not verbs
-    or unusable (exclude_from_verb_scoring); test split only."""
-    out = set()
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            r = json.loads(line)
-            if r.get("split") == "test" and r.get("exclude_from_verb_scoring"):
-                out.add((geez_config.normalize_guttural_4th(r["form"]), r.get("root")))
-    return out
-
-
-def load_gold_test_pairs(test_file, exclude=None, corrections=None, stats=None):
-    """Scored pairs of a gold file's verb_conjugation records. With `corrections`
-    (gold_filters.Corrections) they are exactly the pairs the trainer builds for that split
-    (gold_filters.gold_pairs: root tables, excluded forms, page corrections); without, the file as written.
-    Returns (pairs, skipped variants, records)."""
-    excluded = 0
+def load_gold_test_pairs(test_file, stats=None):
+    """Scored pairs of a gold file's verb_conjugation records, read as written (gold_filters.file_pairs),
+    without the rows in merho_ges_gold_flagged_rows.tsv next to the file. Returns (pairs, records)."""
     stats = stats if stats is not None else defaultdict(int)
-    with open(test_file, "r", encoding="utf-8") as f:
-        recs = [r for r in map(json.loads, f) if r.get("category") == "verb_conjugation"]
-    if corrections is not None:
-        gold = corrections.gold_pairs(recs, gold_filters.split_of(test_file), stats)
-    else:
-        gold = gold_filters.plain_pairs(recs)
-    skipped = [v for r in recs for row in r.get("table_data", [])
-               for v in gold_filters.clean_variants(row.get("geez_form"))[1]]
+    name = os.path.basename(test_file)
+    split = next((s for s in gold_filters.SPLITS if name == gold_filters.gold_file_name(s)), None)
+    dataset_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(test_file))))
+    recs = [r for r in gold_filters.read_records(test_file) if r.get("category") == "verb_conjugation"]
+    gold = gold_filters.file_pairs(recs, split, gold_filters.read_flagged_rows(dataset_dir), stats)
     pairs = []
     for p in gold:
-        rec = p["record"]
-        # proposals name the root as extracted; fixed records keep it in root_as_extracted
-        if exclude and (geez_config.normalize_guttural_4th(p["form"]), p["root_as_extracted"]) in exclude:
-            excluded += 1
-            continue
-        # canonical_root (where the gold has one) unless the page corrections set this pair's root
-        root = p["root"] if p.get("root_from_page") else (rec.get("canonical_root") or p["root"])
         pairs.append({
             "surface": p["form"],
-            "root_keys": gold_root_keys(root),
+            "root_keys": gold_root_keys(p["root"]),
             "root_raw": p["root"],
-            "root_as_extracted": p["root_as_extracted"],
-            "verb_class": verb_class(rec) if p["type"] == "verb" else None,
+            "verb_class": verb_class(p["record"]) if p["type"] == "verb" else None,
             **normalize_row(p),
         })
-    if exclude is not None:
-        print(f"Excluded by --exclude_proposed: {excluded} scored variants")
-    return pairs, skipped, len({p["record_id"] for p in gold})
+    return pairs, len({p["record_id"] for p in gold})
 
 
 class ByT5System:
@@ -273,53 +239,23 @@ def main():
                     help="Must be the split whose *_train.jsonl the model saw (train_byt5_morphology.py injects data/paradigms/merho_ges_gold_train.jsonl)")
     ap.add_argument("--limit", type=int, default=0, help="Random sample of N pairs (0 = all, the default)")
     ap.add_argument("--out_json", default=None, help="Write the metrics table to this JSON file")
-    ap.add_argument("--exclude_proposed", nargs="?", default=None,
-                    const=os.path.normpath(os.path.join(SCRIPT_DIR, "..", "geez-dataset-v1", "data", "corrections",
-                                                         "gold_proposals_2026-10-05.jsonl")),
-                    help="Leave out gold rows the relabel proposals mark exclude_from_verb_scoring "
-                         "(not verbs, or unusable until re-read from the scan). Default file: "
-                         "../geez-dataset-v1/data/corrections/gold_proposals_2026-10-05.jsonl. The gold file is not changed.")
-    ap.add_argument("--no_corrections", action="store_true",
-                    help="Score the gold file as written (no data/corrections tables; the pre-2026-10-05 numbers)")
-    ap.add_argument("--corrections_dir", default=None,
-                    help="Default: <dataset>/data/corrections next to the test file")
-    ap.add_argument("--page_corrections", default=gold_filters.PAGE_DIR,
-                    help="Folder with the page-checked corrections (sources/, keys/; default: gold_corrections)")
-    ap.add_argument("--no_page_corrections", action="store_true", help="Do not apply the page corrections")
     ap.add_argument("--export_pairs", default=None, help="Write the scored pairs to this JSONL file")
     args = ap.parse_args()
 
     if not os.path.exists(args.test_file):
         sys.exit(f"[!] Test file not found: {args.test_file}")
 
-    exclude = load_exclusions(args.exclude_proposed) if args.exclude_proposed else None
-    corrections, stats = None, defaultdict(int)
-    if not args.no_corrections:
-        corrections = gold_filters.Corrections(args.corrections_dir or os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(args.test_file)))),
-            gold_filters.CORRECTIONS_DIR), required=True,
-            page_dir=None if args.no_page_corrections else args.page_corrections)
-        print(f"Gold loading: {corrections.describe()}")
-        print(f"Corrections: {corrections.folder}")
-        for name, sha in sorted(corrections.sha256.items()):
-            print(f"  {name}  sha256 {sha}")
-    pairs, skipped, records = load_gold_test_pairs(args.test_file, exclude, corrections, stats)
-    if corrections is not None:
-        print("Load counts (records/pairs as the trainer counts variants):")
-        for line in gold_filters.format_stats({k: v for k, v in stats.items() if k.split(" ")[0] in ("records", "pairs")}):
-            print(line)
-        print(f"Excluded scored variants (gold_excluded_records.tsv): "
-              f"{stats['pairs excluded: pending (relabel proposals)']}")
-        for k, v in sorted(stats.items()):
-            if k.startswith("page "):
-                print(f"  {k:62s} {v:6d}")
+    stats = defaultdict(int)
+    pairs, records = load_gold_test_pairs(args.test_file, stats)
+    for k, v in sorted(stats.items()):
+        print(f"  {k}: {v}")
     if args.export_pairs:
         with open(args.export_pairs, "w", encoding="utf-8") as f:
             for p in pairs:
                 f.write(json.dumps({k: (sorted("-".join(x) for x in v) if k == "root_keys" else v)
                                     for k, v in p.items()}, ensure_ascii=False) + "\n")
     print(f"Gold file: {args.test_file}")
-    print(f"verb_conjugation records: {records}; scored variants: {len(pairs)}; skipped non-word variants: {len(skipped)} {skipped[:8]}")
+    print(f"verb_conjugation records: {records}; scored pairs: {len(pairs)}")
     if args.limit and args.limit < len(pairs):
         import random
         pairs = random.Random(42).sample(pairs, args.limit)
