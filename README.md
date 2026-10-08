@@ -1,6 +1,6 @@
 # geez-morphology
 
-Morphological analysis and generation for Classical Ge'ez verbs: a root-and-pattern rule engine, a hybrid analyzer, a synthetic data generator, and ByT5 fine-tuning. The data lives in the companion repo **geez-dataset**, checked out next to this one as `../geez-dataset-v1`.
+Morphological analysis and generation for Classical Ge'ez verbs: a root-and-pattern rule engine, a hybrid analyzer, a synthetic data generator, and ByT5 fine-tuning. The data lives in the companion repo [geez-dataset](https://github.com/Esubaalew/geez-dataset). The scripts look for it in `--dataset_dir`, else in `$GEEZ_DATASET_DIR`, else in `../geez-dataset` next to this repo.
 
 ## Layout
 
@@ -18,14 +18,16 @@ geez-morphology/
 ├── analyzer.py                   HybridAnalyzer: fast path -> pattern matcher -> ByT5 fallback
 ├── cli.py                        analyze / lemmatize / generate / lookup
 ├── generate_synthetic_fixed.py   writes the synthetic training data
+├── gold_filters.py               reads the gold files of a geez-dataset checkout (trainer and evaluation)
+├── synthetic_heldout.py          moves synthetic lines with a gold val/test root out of the training file
 ├── train_byt5_morphology.py      ByT5 fine-tuning (resumable)
-├── evaluate_gold.py              scores a system on the Merho Ges gold test set
+├── evaluate_gold.py              scores a system on the Merho Ges gold val and test splits
 ├── tests/                        unit and regression tests
 └── docs/
     └── grammar_rules.md          the language decisions behind the data, with sources
 ```
 
-Not in git: `.venv/`, `checkpoints*/`, logs, `.env`.
+Not in git: `.venv/`, `byt5_morphology_model/`, `checkpoints*/`, logs, `.env`.
 
 ## Setup
 
@@ -51,34 +53,55 @@ python cli.py lookup ቀተለ
 python generate_synthetic_fixed.py
 ```
 
-Writes `../geez-dataset-v1/output/` (not in git) and copies the synthetic files to `../geez-dataset-v1/data/paradigms/`. The training file holds 210,348 pairs (sha256 `f9b52cd4f4edb`); 6,629 pairs whose roots are gold val/test roots are held out in `../geez-dataset-v1/data/synthetic/`. Class and tense counts are in the dataset README.
+Writes `<dataset>/output/` (not in git), copies the synthetic files to `<dataset>/data/paradigms/`, and moves the lines whose root is a gold val or test root to `<dataset>/data/synthetic/`. Line counts are in the dataset README. The files in the dataset were generated with the test file of dataset commit c7bc587; the docstring of `generate_synthetic_fixed.py` shows how to reproduce them.
 
 ## Test
 
 ```bash
-python -m pytest tests/
+GEEZ_DATASET_DIR=/path/to/geez-dataset python -m pytest tests/
 ```
 
-## Train
+Without a dataset checkout the tests that need one are skipped. `tests/test_dataset_checkout.py` checks that the loader gives the same pair counts as the dataset's `scripts/check_dataset.py`, that no flagged row loads, that a root is in one gold split only, and that no synthetic training line has a gold val or test root.
+
+## Train and evaluate from a dataset checkout
 
 ```bash
-python train_byt5_morphology.py
+git clone https://github.com/Esubaalew/geez-dataset ../geez-dataset
+(cd ../geez-dataset && python scripts/check_dataset.py)   # prints the pairs that load
+
+python train_byt5_morphology.py --dataset_dir ../geez-dataset --load_only     # counts only, no training
+python train_byt5_morphology.py --dataset_dir ../geez-dataset                 # train
+python evaluate_gold.py --dataset_dir ../geez-dataset --system byt5 \
+    --out_json gold_eval_byt5.json --predictions_out gold_eval_byt5_predictions.jsonl
 ```
 
-- Reads `data/paradigms/synthetic_morphology_train.jsonl` and the Merho Ges gold-train tables (3,322 pairs). All gold pairs go to training; eval is 10% of the synthetic pairs (seed 42).
-- ByT5-small, fp32, lr 3e-4, 3% warmup, 3 epochs, batch 16. Device: cuda, then mps, then cpu.
-- Saves a checkpoint every 1000 steps (keeps 2) in `--output_dir` (default `checkpoints_full/`), resumes from the latest one automatically, and saves before exiting on SIGTERM. `run_info.json` records the git commits, data sha256 and arguments.
-- Other machines: `--dataset_dir /path/to/geez-dataset --output_dir /path/out`; `--resume_from` points at an earlier run's checkpoints; `--batch_size 8 --grad_accum 2` keeps the effective batch at 16.
-- Dry run: `python train_byt5_morphology.py --max_steps 5 --sample_limit 200 --max_eval_samples 32 --output_dir /tmp/dry_run`
+What the trainer reads, as written (nothing is corrected at load time):
 
-## Evaluate
+- `data/paradigms/synthetic_morphology_train.jsonl`, all lines. 10% of them (seed 42) are the eval split for the loss; gold rows never go there.
+- `data/paradigms/merho_ges_gold_train.jsonl`, through `gold_filters.load_gold_split`: one pair per form of each table row. Rows listed in `data/paradigms/merho_ges_gold_flagged_rows.tsv` and rows with no root do not load. A malformed root or a form that is not one Ge'ez word stops the run; `check_dataset.py` would report it too. On dataset commit 6d856e6 this gives 8,187 train pairs (val 1,165, test 1,553).
+- The files under `data/synthetic/` are never read.
 
-```bash
-python evaluate_gold.py --system hybrid --no_neural                      # rules only
-python evaluate_gold.py --system byt5 --model_dir checkpoints_full       # trained model
+Training: ByT5-small, fp32, lr 3e-4, 3% warmup, 3 epochs, batch 16. Device: cuda, then mps, then cpu. Everything goes to `--output_dir` (default `byt5_morphology_model/`):
+
+```
+byt5_morphology_model/
+├── checkpoint-<step>/     saved every 1000 steps, the last two kept; a rerun resumes from the latest
+├── run_info.json          git commits of both repos, data sha256, pair counts, arguments
+└── config.json, model.safetensors, tokenizer files
+                           the final model, written when training finishes
 ```
 
-Rules-only result on the Merho Ges test split: exact match 193/377 (51.2%), root 248/394. With the proposed gold relabels excluded (`--exclude_proposed`): 193/360.
+On SIGTERM or Ctrl-C the trainer saves a checkpoint and stops; the same command resumes. `--resume_from` points at another run's checkpoints, and `--batch_size 8 --grad_accum 2` keeps the effective batch at 16. A dry run on CPU: `python train_byt5_morphology.py --dataset_dir ../geez-dataset --device cpu --max_steps 3 --sample_limit 64 --max_eval_samples 8 --batch_size 4 --output_dir /tmp/byt5_dry_run`.
+
+`evaluate_gold.py` scores every pair of the gold val and test files (`--split val test`), read by the same loader. It loads the final model from `--model_dir` (default `byt5_morphology_model/`), or the latest `checkpoint-<step>` when the run did not finish. It ends with the root accuracy per split:
+
+```
+Root accuracy (exact match):
+  val    43.0% (501/1165)
+  test   39.7% (617/1553)
+```
+
+A root counts as correct only when it equals the gold root letter for letter (`ቅ-ት-ል` for `ቀ-ተ-ለ` is wrong). The numbers above are the rules-only analyzer (`--system hybrid --no_neural`) on dataset 6d856e6; it does not predict nouns and adjectives, so their type and exact match are always wrong. The full table also gives type, stem, tense, person, gender, number, object and exact match, by type, verb class, tense and tier. `--predictions_out` writes one line per pair with the gold labels, the prediction and the fields it got right.
 
 ## Rules
 
