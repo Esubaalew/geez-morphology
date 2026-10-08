@@ -194,7 +194,7 @@ def test_initial_w_kept_w_k_k(cells):
 
 
 def test_initial_w_other_roots_unchanged(cells):
-    assert one(cells, "w-h2-n", "present", "3ms") == _w(("y", "I"), ("w", "a"), ("h2", "I"), ("n", "I"))
+    assert one(cells, "w-h2-f", "present", "3ms") == _w(("y", "I"), ("w", "a"), ("h2", "I"), ("f", "I"))
 
 
 def test_quadriliteral_d_w_r_h1_not_contracted(cells):

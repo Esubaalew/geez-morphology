@@ -39,8 +39,8 @@ GENERATION = [
     (('q', 'w', 'm'), 'past', 'ቆመ'),
     (('q', 'w', 'm'), 'present', 'ይቀውም'),
     (('q', 'w', 'm'), 'subjunctive', 'ይቁም'),
-    pytest.param(('m', 'w', 't'), 'past', 'ሞተ', marks=pytest.mark.xfail(reason='m-w-t has no dictionary entry, so no synthetic forms are generated')),
-    pytest.param(('m', 'w', 't'), 'subjunctive', 'ይሙት', marks=pytest.mark.xfail(reason='m-w-t has no dictionary entry, so no synthetic forms are generated')),
+    (('m', 'w', 't'), 'past', 'ሞተ'),
+    (('m', 'w', 't'), 'subjunctive', 'ይሙት'),
     # hollow y
     (('s2', 'y', 'm'), 'past', 'ሤመ'),
     (('s2', 'y', 'm'), 'subjunctive', 'ይሢም'),

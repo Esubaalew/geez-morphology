@@ -37,7 +37,7 @@ reproducing the files needs no git history of the dataset:
   python generate_synthetic_data.py --dataset_dir <dataset>
 
 Two more committed files in data/ limit the output; the generator stops if either is missing:
-  data/synthetic_roots_allowed_v4.txt  the only roots it conjugates: roots with a dictionary verb
+  data/synthetic_roots_allowed_v5.txt  the only roots it conjugates: roots with a dictionary verb
       entry, a gold root or a Kidane Wold verb triple, plus a few roots checked by hand (the file
       header records how the list was made).
   data/heldout_gold_forms.tsv       every gold val/test form of dataset commit 6183c24; a line
@@ -230,7 +230,7 @@ def read_held_out_roots_file(path: str = HELD_OUT_ROOTS_FILE) -> set:
 # Roots the generator may conjugate, one per line as the "root" feature writes them ("h2-s-t"); "#" lines are
 # notes; the file's header records how the list was made. Checked in
 # tests/test_synthetic_allowed_roots_and_blocked_forms.py.
-ALLOWED_ROOTS_FILE = os.path.join(BASE_DIR, "data", "synthetic_roots_allowed_v4.txt")
+ALLOWED_ROOTS_FILE = os.path.join(BASE_DIR, "data", "synthetic_roots_allowed_v5.txt")
 # Every gold val/test form of dataset commit 6183c24 (column geez_form; "#" lines are notes).
 BLOCKED_FORMS_FILE = os.path.join(BASE_DIR, "data", "heldout_gold_forms.tsv")
 

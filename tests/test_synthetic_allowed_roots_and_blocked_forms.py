@@ -1,6 +1,6 @@
 """The two files that limit the synthetic data.
 
-- data/synthetic_roots_allowed_v4.txt: the only roots the generator conjugates (roots with a dictionary
+- data/synthetic_roots_allowed_v5.txt: the only roots the generator conjugates (roots with a dictionary
   verb entry, a gold root or a Kidane Wold verb triple, plus 8 roots kept by hand: m-h2-l, m-s-l, S-w-t, b-y-S,
   f-r-S, h2-r-g, m-s-k, w-k-a2; m-kh-l is left out). The generator stops if the file is missing.
 - data/heldout_gold_forms.tsv: every gold val/test form of dataset commit 6183c24. A synthetic line
@@ -29,7 +29,7 @@ import geez_script  # noqa: E402
 import split_heldout_synthetic as H  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
-ALLOWED_SHA256 = "c198ab17acc44534bcdc916b9500526eeeb3d7be7dae7e043620c289d0a602ae"
+ALLOWED_SHA256 = "84fc1851d7d731eadaa0aaca179ee003be717114af410a50168659dd6df58fc1"
 BLOCKED_SHA256 = "5c046ce68762d3e18d3510377b3a5bcb45ddded6fdd3c9c24df17dea1b594f4e"
 TRILITERAL = ["q-t-l", "g-b-r", "n-g-r", "s-b-r", "k-t-b", "d-m-r", "f-t-l", "m-s-l"]
 QUADRILITERAL = ["d-n-g-s", "s-n-b-t", "t-r-g-m", "m-s-k-r", "q-n-d-l", "b-r-b-r"]
@@ -51,9 +51,9 @@ def test_files_are_unchanged():
     assert _sha(gen.BLOCKED_FORMS_FILE) == BLOCKED_SHA256
 
 
-def test_allow_list_has_1271_roots():
+def test_allow_list_has_1234_roots():
     roots = gen.read_allowed_roots_file()
-    assert len(roots) == 1271
+    assert len(roots) == 1234
     # roots kept by hand without dictionary, gold or triple evidence
     restored = ["m-h2-l", "m-s-l", "S-w-t", "b-y-S", "f-r-S", "h2-r-g", "m-s-k", "w-k-a2"]
     assert {tuple(r.split("-")) for r in restored} <= roots
@@ -66,9 +66,9 @@ def test_allow_list_has_1271_roots():
     for r in ["a2-g-l", "a2-g-t", "a2-m-S2", "a2-z-r", "b-S2-a2", "g-f-a2", "gw-d-a2", "m-a2-a2", "r-s-a2", "s2-a2-l", "s2-r-a2",
               "S-w-a2", "a2-s2-r", "kh-d-r", "h2-q-f", "s-m-k", "a-s-r", "m-h2-S"]:
         assert tuple(r.split("-")) in roots, r
-    assert os.path.basename(gen.ALLOWED_ROOTS_FILE) == "synthetic_roots_allowed_v4.txt"
+    assert os.path.basename(gen.ALLOWED_ROOTS_FILE) == "synthetic_roots_allowed_v5.txt"
     assert [f for f in os.listdir(os.path.join(ROOT, "data")) if f.startswith("synthetic_roots_allowed")] == \
-        ["synthetic_roots_allowed_v4.txt"]
+        ["synthetic_roots_allowed_v5.txt"]
     assert all(len(r) in (3, 4) for r in roots)
 
 

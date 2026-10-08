@@ -22,7 +22,7 @@ geez-morphology/
 ├── evaluate_gold.py              scores a system on the Merho Ges gold val and test splits
 ├── data/
 │   ├── heldout_test_roots.txt           gold test roots left out of the synthetic data
-│   ├── synthetic_roots_allowed_v4.txt   the only roots the generator conjugates
+│   ├── synthetic_roots_allowed_v5.txt   the only roots the generator conjugates
 │   └── heldout_gold_forms.tsv           gold val/test forms the generator never writes
 ├── tests/                        unit and regression tests
 └── docs/
@@ -83,7 +83,7 @@ The generator leaves out the roots listed in `data/heldout_test_roots.txt`: the 
 
 Two more files in `data/` limit the output, and the generator stops if either is missing:
 
-- `data/synthetic_roots_allowed_v4.txt`: the roots it may conjugate, one per line (1,271 roots, 74 of them gold val or test roots). A root is on the list when it has a verb entry in the dictionary, a root in the gold files, or a Kidane Wold verb triple. Eight roots without such evidence were checked by hand and kept (m-h2-l, m-s-l, S-w-t, b-y-S, f-r-S, h2-r-g, m-s-k, w-k-a2). Some roots with such evidence are left out (misreadings and spelling twins). The file header records how the list was made and gives the hashes.
+- `data/synthetic_roots_allowed_v5.txt`: the roots it may conjugate, one per line (1,234 roots, 75 of them gold val or test roots). A root is on the list when it has a verb entry in the dictionary, a root in the gold files, or a Kidane Wold verb triple. Eight roots without such evidence were checked by hand and kept (m-h2-l, m-s-l, S-w-t, b-y-S, f-r-S, h2-r-g, m-s-k, w-k-a2). Some roots with such evidence are left out (misreadings and spelling twins). The file header records how the list was made and gives the hashes.
 - `data/heldout_gold_forms.tsv`: every gold val and test form at dataset commit 6183c24 (2,939 rows, 2,832 distinct forms, rows with no root included), keyed by split, record_id, row and spelling. A synthetic line whose form equals one of them is not written; the root's other lines stay as they were. The run log lists the dropped lines by root (`BLOCKED_GOLD_FORMS_JSON`).
 
 `python split_heldout_synthetic.py --full_dir <generator output> --dataset_dir <dataset> --check` compares the split with the dataset files and fails when any synthetic line in the dataset has a gold val or test form, computed from the current gold files.

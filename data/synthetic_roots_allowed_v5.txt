@@ -1,17 +1,12 @@
-# Roots the synthetic verb generator may conjugate. generate_synthetic_fixed.py reads this file and stops if it is missing.
+# Roots the synthetic verb generator may conjugate. generate_synthetic_data.py reads this file and stops if it is missing.
 # One root per line, written as the generator writes the "root" feature (h2-s-t is ሐ-ሰ-ተ). Lines starting with # are notes.
-# Rule: conjugate only roots that have a dictionary verb entry, a gold root,
-# or a Kidane Wold verb triple, or that the maintainers restore (RESTORE).
-# Made from: the 2,148 roots in the generator output (allow-list switched off) on geez-dataset 3da90415abfaa68effd0f9d6e7021d485a41663c
-#   (dictionary with the Kidane Wold root decisions and the kw tables rebuilt on it; generate_synthetic_fixed.py at geez-morphology-model
-#   ab7a166; synthetic_morphology_train.jsonl sha256 11925452f629f103403592dbcf57a85037a81b900fccc3e5104301c1bd25c1a1), kept when they have such evidence and are not ruled
-#   DROP (146) or EXCLUDE_NO_VERB (742) in the exception table; its 8 RESTORE
-#   roots stay on the list: S-w-t, b-y-S, f-r-S, h2-r-g, m-h2-l, m-s-k, m-s-l, w-k-a2.
-#   v4 = v3 (the root list + the exception table (50a5253b) + the exception table (45cb2ef2)
-#   + triple_check_exceptions.tsv (19c24527: w-kh-T off, CHECK) + the root check (q-y-a off) + the root check (qh-h2-m off, a phantom root).
-#   Against synthetic_roots_allowed_6183c24_v3.txt (1,130 roots): 183 roots enter, 42 leave.
-# 1,271 roots, sorted. 74 of them are gold val/test roots; synthetic_heldout.py moves their lines to data/synthetic/ in the dataset.
-S-T-f
+# A root is on the list when it has a dictionary verb entry, a gold root or a Kidane Wold verb triple and was not left out by hand
+# after checking; 8 roots without such evidence are kept by hand: S-w-t, b-y-S, f-r-S, h2-r-g, m-h2-l, m-s-k, m-s-l, w-k-a2.
+# Built on geez-dataset 0d5f10a04b883e5892e6223a2d0fad9a0480da5a: the roots of the generator's output on that dataset with this list
+# switched off (every root allowed; 2,118 roots, synthetic_morphology_train.jsonl sha256 9ffb3fac3b6791bef5acaa52dd18320cf9dadbc35adc36c70c71a3af26afc0a1), kept as above.
+# The synthetic files are then made with: python generate_synthetic_data.py --dataset_dir <dataset>
+# 1,234 roots, sorted. 75 of them are gold val/test roots; split_heldout_synthetic.py moves their lines to data/synthetic/
+# in the dataset, so the training file has no gold val/test root.
 S-a-n
 S-a2-T
 S-a2-l
@@ -55,7 +50,6 @@ S-n-r
 S-n-s2
 S-r-b
 S-s2-b
-S-s2-l
 S-s2-q
 S-w-a2
 S-w-b
@@ -69,6 +63,7 @@ S-y-h2
 S-y-l
 S-y-q
 S2-r-f
+S2-r-r
 S2-r-s
 T-a-w-a
 T-a2-m
@@ -83,8 +78,11 @@ T-f-h2
 T-f-l
 T-f-r
 T-g-a2
+T-h1-r
 T-h2-l
 T-h2-n
+T-h2-r
+T-l-a2
 T-l-s
 T-n-b-r
 T-q-a2
@@ -96,13 +94,14 @@ T-q-s
 T-r-a
 T-r-q
 T-r-z
-T-s-l
 T-w-a2
+T-w-m
 T-w-q
 T-y-f
 T-y-q
 T-y-r
 T-y-s
+T-y-t
 a-T-r-q
 a-b-b
 a-b-d
@@ -117,7 +116,6 @@ a-d-w
 a-f-r
 a-f-w
 a-g-r
-a-g-s
 a-h2-r-s
 a-k-l
 a-k-s
@@ -143,12 +141,10 @@ a-n-m
 a-n-q
 a-n-r
 a-n-s
-a-n-s2
+a-n-s-s
 a-n-z
-a-p-a
 a-q-d-m
 a-q-m
-a-qh-a
 a-r-a-m
 a-r-b
 a-r-f
@@ -245,6 +241,7 @@ b-kh2-h2
 b-kh2-kh
 b-kh2-r
 b-l-a2
+b-l-h2
 b-l-kh
 b-l-n
 b-q-h2
@@ -267,6 +264,7 @@ b-y-n
 b-y-t
 b-y-z
 b-z-kh
+b-z-z
 d-a-kh
 d-a-m
 d-b-d-b
@@ -275,8 +273,6 @@ d-b-q
 d-b-r
 d-b-s
 d-d-q
-d-f-g
-d-f-kh
 d-f-kh2
 d-f-n
 d-f-r
@@ -287,11 +283,11 @@ d-g-m
 d-g-n
 d-g-r
 d-gw-S
+d-h1-m-m
 d-h2-l
 d-kh-S2
 d-kh-T
 d-kh-f
-d-kh-m
 d-kh-n
 d-kh-r
 d-kh2-a2
@@ -311,6 +307,7 @@ d-n-g
 d-n-gw
 d-n-k
 d-n-kh
+d-n-n
 d-n-q
 d-n-s
 d-n-z
@@ -326,6 +323,7 @@ d-w-l
 d-w-r-h1
 d-y-b
 d-y-kh
+d-y-n
 d-y-q
 f-S-h2
 f-S2-m
@@ -335,7 +333,6 @@ f-a-m
 f-a-t
 f-d-f-d
 f-d-l
-f-g-a
 f-g-a2
 f-g-g
 f-g-r
@@ -407,7 +404,6 @@ g-m-m
 g-m-n
 g-m-s
 g-m-s2
-g-n-S
 g-n-b
 g-n-f
 g-n-h2
@@ -415,7 +411,9 @@ g-n-s2
 g-n-s2-s
 g-n-z
 g-r-d
+g-r-h1
 g-r-m
+g-r-r
 g-r-s2
 g-s2-S
 g-s2-s
@@ -447,6 +445,7 @@ h1-y-s2
 h2-S-S
 h2-S-b
 h2-S-r
+h2-S2-n
 h2-T-b
 h2-b-b
 h2-b-l
@@ -465,8 +464,6 @@ h2-g-f
 h2-g-m
 h2-g-r
 h2-g-z
-h2-k-r
-h2-kh-t
 h2-l-b
 h2-l-f
 h2-l-g
@@ -474,6 +471,7 @@ h2-l-m
 h2-l-q
 h2-l-s
 h2-l-z
+h2-m-S
 h2-m-d
 h2-m-g
 h2-m-h2
@@ -519,12 +517,12 @@ h2-s2-f
 h2-s2-m
 h2-s2-r
 h2-t-f
+h2-t-t
 h2-w-l
 h2-w-n
 h2-w-r
 h2-w-z
 h2-y-S
-h2-y-n
 h2-y-q
 h2-y-r
 h2-y-s
@@ -532,6 +530,7 @@ h2-z-a
 h2-z-b
 h2-z-h2-z
 h2-z-l
+h2-z-r
 k-b-d
 k-b-l
 k-b-s
@@ -568,8 +567,11 @@ k-y-h2-k
 k-y-s
 kh-S-d
 kh-S-r
+kh-S2-b
 kh-T-T
 kh-T-a
+kh-b-r
+kh-d-g
 kh-d-r
 kh-f-n
 kh-f-r
@@ -605,12 +607,12 @@ l-T-h2
 l-a-k
 l-a2-h2
 l-b-h2
-l-b-s2
 l-b-t
 l-f-q
 l-f-y
 l-g-m
 l-gw-m
+l-h1-b
 l-h2-f
 l-h2-h2
 l-h2-kh2
@@ -620,13 +622,12 @@ l-h2-q
 l-k-a
 l-k-m
 l-k-s
+l-kh-l-kh
 l-l-a2
 l-m-a
 l-m-d
 l-m-l
-l-n-k
 l-n-l
-l-q-T
 l-q-d
 l-q-h2
 l-q-q
@@ -636,7 +637,6 @@ l-r-s
 l-s-d
 l-s-h2
 l-s-n
-l-s2-b
 l-t-h2
 l-t-m
 l-w-h2
@@ -656,7 +656,6 @@ m-a2-l
 m-a2-r
 m-a2-z
 m-b-l
-m-f-r
 m-f-t
 m-g-b
 m-g-l
@@ -700,9 +699,9 @@ m-t-h1
 m-t-q
 m-t-r
 m-w-q
+m-w-t
 m-y-T
 m-y-n
-m-y-z
 m-z-r
 n-S-f
 n-S-h2
@@ -715,7 +714,6 @@ n-T-r
 n-a-d
 n-a-s
 n-a-s2
-n-a-z
 n-a2-l
 n-a2-r
 n-a2-s
@@ -755,14 +753,12 @@ n-g-s2
 n-gw-T
 n-h1-b
 n-k-a2
-n-k-f
 n-k-r
 n-k-r-k
 n-k-t
 n-kh-l
 n-kh-r
 n-l-a2
-n-l-h2
 n-m-r
 n-m-s
 n-q-S
@@ -777,7 +773,6 @@ n-q-t
 n-q-w
 n-q-z
 n-qh-r
-n-r-S
 n-r-a
 n-r-f
 n-r-m
@@ -791,20 +786,15 @@ n-s-kh
 n-s-n
 n-s-q
 n-s-r
-n-s-s2-S
 n-s2-S
 n-s2-a
 n-s2-b
 n-s2-f
-n-s2-g
 n-s2-k
-n-s2-kh
 n-s2-l
 n-s2-l-s
 n-s2-n
-n-s2-r
 n-s2-s
-n-s2-z-s2
 n-t-a2
 n-t-f
 n-t-g
@@ -820,16 +810,15 @@ n-z-f
 n-z-g
 n-z-l
 n-z-r
-n-z-s2
 n-z-z
 p-f-q
-p-f-r
 p-q-h2
 q-S-a2
 q-S-b
 q-S-l
 q-S-r
 q-T-b
+q-T-f
 q-T-n
 q-T-q-T
 q-b-a
@@ -843,11 +832,13 @@ q-h2-m
 q-h2-q-h2
 q-l-a2
 q-l-b
+q-l-l
 q-l-m
 q-l-q-l
 q-l-s
 q-l-w
 q-m-T
+q-m-h2
 q-m-l
 q-m-r
 q-m-s
@@ -858,7 +849,6 @@ q-r-S
 q-r-S2
 q-r-a
 q-r-a2
-q-r-f
 q-r-h2
 q-r-l
 q-r-m
@@ -877,7 +867,6 @@ q-w-a2
 q-w-l
 q-w-m
 q-y-d
-qh-S-b
 qh-T-T
 qh-T-a2
 qh-T-b
@@ -889,7 +878,6 @@ qh-l-S
 qh-l-b
 qh-l-f
 qh-l-h2
-qh-l-l
 qh-l-m
 qh-l-s
 qh-l-z
@@ -903,21 +891,16 @@ qh-n-T
 qh-n-a
 qh-n-a2
 qh-n-qh-n
-qh-n-t
 qh-qh-a2
-qh-r-a
-qh-r-b
+qh-r-f
 qh-r-h2
-qh-r-n
 qh-r-qh-r
 qh-s-l
 qh-s2-T
 qh-s2-f
-qh-t-l
 qh-w-m
 qh-y-a
 qh-y-h2
-qh-y-m
 qh-y-r
 qh-y-s
 r-T-b
@@ -965,13 +948,13 @@ r-y-m
 r-z-m
 s-S-r
 s-T-d
-s-T-q
 s-T-r
 s-T-s2
 s-a-b
 s-a-l
 s-a-n
 s-a-s2
+s-a2-l
 s-a2-m
 s-a2-n
 s-a2-r
@@ -987,6 +970,7 @@ s-b-q
 s-b-r
 s-b-s2
 s-b-y
+s-d-d
 s-d-q
 s-d-r
 s-d-s
@@ -1009,7 +993,6 @@ s-h2-t
 s-k-a
 s-k-a2
 s-k-b
-s-k-kh
 s-k-l
 s-k-m
 s-k-r
@@ -1030,8 +1013,6 @@ s-n-a
 s-n-b
 s-n-f
 s-n-f-s
-s-n-g
-s-n-h2
 s-n-q
 s-n-r
 s-n-t
@@ -1052,27 +1033,22 @@ s-r-h2
 s-r-kh
 s-r-kh2
 s-r-q
+s-r-r
 s-r-s
 s-r-t
 s-r-w
 s-r-z
 s-s2-T
 s-s2-b
-s-s2-f
 s-s2-l
-s-s2-n
 s-s2-q
 s-s2-r
 s-t-a
 s-t-a2
 s-t-f
 s-t-l
-s-t-m-T
-s-t-n-l
 s-t-q-r
 s-t-r-q
-s-t-s2-g
-s-t-s2-r
 s-t-y
 s-w-T
 s-w-a2
@@ -1080,9 +1056,7 @@ s-w-d
 s-w-l
 s-w-q
 s-w-r
-s-w-s
 s-y-a
-s-y-d
 s-y-f
 s-y-h2
 s-y-l
@@ -1091,7 +1065,6 @@ s-y-r
 s-y-t
 s2-T-a
 s2-a-b
-s2-a-k
 s2-a-m
 s2-a-n
 s2-a2-l
@@ -1104,19 +1077,18 @@ s2-b-s
 s2-b-y-l
 s2-g-a2
 s2-g-n
+s2-h1-l
 s2-h2-S
 s2-h2-T
 s2-h2-b
-s2-h2-l
 s2-k-t
+s2-kh-t
 s2-l-T
 s2-l-a2
-s2-l-b
 s2-l-l
 s2-l-m
 s2-l-s
 s2-l-s2
-s2-l-s2-l
 s2-m-a
 s2-m-a2
 s2-m-n
@@ -1128,19 +1100,14 @@ s2-r-b
 s2-r-k
 s2-r-m
 s2-r-n
-s2-r-r
-s2-s-b
-s2-s-r
+s2-r-q
 s2-t-r
 s2-w-T
 s2-w-q
-s2-w-s
 s2-y-T
 s2-y-m
 s2-y-q
 s2-y-r
-s2-y-s
-s2-y-t
 t-T-r
 t-a-m
 t-b-kh
@@ -1152,15 +1119,14 @@ t-g-r
 t-g-z-r
 t-h2-S
 t-h2-l
+t-h2-t
 t-k-S
-t-k-s2
 t-k-t
 t-k-z
 t-l-m
 t-l-s
 t-l-w
 t-m-h1
-t-m-s2-r
 t-n-a
 t-n-g-d
 t-n-t-g
@@ -1168,31 +1134,27 @@ t-p-s
 t-r-f
 t-r-p2
 t-s-a2
+t-s-h2
 t-s2-h2
-t-s2-l
 t-s2-m
 t-s2-t
 t-y-f-n
 t-y-h1
-t-y-s2
 w-S-h2
 w-S2-a
 w-S2-f
+w-S2-kh
 w-T-T
 w-T-h2
 w-T-n
 w-T-s
-w-T-s2
 w-a2-l
 w-a2-r
 w-f-r
 w-f-s2
-w-g-T
 w-g-a
 w-g-r
-w-h2-a
 w-h2-f
-w-h2-n
 w-k-a
 w-k-a2
 w-k-h2
@@ -1209,10 +1171,8 @@ w-q-r
 w-q-s2
 w-r-a
 w-r-d
-w-r-n
 w-r-q
 w-r-s
-w-r-s2
 w-r-z
 w-s-b
 w-s-d
@@ -1247,7 +1207,6 @@ y-p-h2
 y-q-s
 y-r-g
 y-r-s
-y-s-t
 y-t-r
 z-b-T
 z-b-h2
@@ -1262,6 +1221,8 @@ z-g-h2
 z-g-n
 z-gw-l
 z-h1-l
+z-h2-b
+z-h2-l
 z-h2-q
 z-k-r
 z-kh-n
@@ -1280,5 +1241,3 @@ z-n-s2
 z-r-S2
 z-r-a
 z-r-f
-z-r-kh
-z-s2-b

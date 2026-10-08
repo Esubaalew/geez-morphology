@@ -29,14 +29,14 @@ DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-da
 SYNTH = os.path.join(DATASET, "data", "paradigms", "synthetic_morphology_train.jsonl")
 
 
-# Roots off the allow-list (data/synthetic_roots_allowed_v4.txt: no dictionary verb entry, gold root or Kidane Wold
+# Roots off the allow-list (data/synthetic_roots_allowed_v5.txt: no dictionary verb entry, gold root or Kidane Wold
 # triple, or left out by hand) have no synthetic lines; their cases are skipped.
 ALLOWED = {"-".join(r) for r in gen.read_allowed_roots_file()}
 
 
 def need_allowed(root):
     if root not in ALLOWED:
-        pytest.skip(f"{root} is not on data/synthetic_roots_allowed_v4.txt: no synthetic lines")
+        pytest.skip(f"{root} is not on data/synthetic_roots_allowed_v5.txt: no synthetic lines")
 
 
 @pytest.fixture(scope="module")
@@ -200,4 +200,4 @@ def test_derived_stems_unchanged(synth, root, tense, per, stem, expect):
 
 
 def test_initial_weak_unchanged(synth):
-    assert form(synth, "w-h2-n", "present", "3ms") == "ይወሕን"
+    assert form(synth, "w-h2-f", "present", "3ms") == "ይወሕፍ"
