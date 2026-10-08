@@ -32,6 +32,7 @@ GOLD_BACKED = [
 IN_GOLD_TRAIN = (14308, 'በድር', '5079fde4e60a', 4)
 CONFLICTING = (7296, 7299, 'ልሳነ')   # two entries, one headword, two roots
 GOLD_VAL_ROOT = (13734, 'እባብ', '53b646b8537c', 'አ-በ-በ')
+FOLDED_GOLD_TEST = (6265, 'ዐጽቅ', 'ዐ-ጸ-ቀ', '65a6fc2e9310', 'አጽቅ')   # headword, root, gold test record, its form
 
 
 # ---------------------------------------------------------------- a small dataset folder
@@ -328,3 +329,35 @@ def test_entries_left_out_by_word_lists_and_shape():
     assert entries[3900]["headword_geez"] in D.read_words_without_root() and D.names_greek_source(entries[3900])
     assert not D.names_greek_source(entries[10783]) and "(" in entries[10783]["amharic_definition"]
     assert not {"3900", "9199", "3524"} & ids and "10783" in ids
+
+
+def test_dictionary_pair_dropped_when_its_folded_form_is_a_folded_gold_form():
+    """Entry 6265's headword is not a gold form, but folded with geez_script.fold_spelling it equals a folded gold
+    test form; drop_gold_forms_up_to_spelling drops it and keeps a pair whose folded form is no gold form."""
+    i, form, root, test_id, gold_form = FOLDED_GOLD_TEST
+    assert form != gold_form and geez_script.fold_spelling(form) == geez_script.fold_spelling(gold_form)
+    folded_gold = {geez_script.fold_spelling(gold_form): [(gold_form, "test", test_id)]}
+    pair = {"form": form, "root": root, "record_id": str(i)}
+    other = {"form": root.replace("-", ""), "root": root, "record_id": "0"}
+    stats = collections.Counter()
+    assert D.drop_gold_forms_up_to_spelling([pair, other], folded_gold, stats) == [other]
+    assert stats == {D.GOLD_FORM_UP_TO_SPELLING: 1}
+
+
+def test_checkout_drops_the_folded_gold_form_from_train_only_after_the_split():
+    """In the checkout, entry 6265 loads (its raw form is no gold form) and the split puts its root in train;
+    dictionary_train_eval drops it from train after the split, so eval keeps the same pairs and no train or eval
+    pair has a folded gold val/test form."""
+    _need_dataset()
+    i, form, root, test_id, gold_form = FOLDED_GOLD_TEST
+    test = {r["record_id"]: r for r in D.read_records(D.gold_file_path(DATASET_DIR, "test"))}
+    assert gold_form in {v for row in test[test_id]["table_data"] for v in H.form_variants(row.get("geez_form") or "")}
+    pairs, (train, evals) = _checkout_pairs()
+    assert [(p["form"], p["root"]) for p in train if p["record_id"] == str(i)] == [(form, root)]
+    stats = collections.Counter()
+    train2, evals2 = D.dictionary_train_eval(DATASET_DIR, pairs, stats)
+    assert evals2 == evals
+    assert train2 == [p for p in train if p["record_id"] != str(i)]
+    assert stats == {D.GOLD_FORM_UP_TO_SPELLING: 1}
+    folded = H.gold_eval_forms_folded(DATASET_DIR)
+    assert [p for p in train2 + evals2 if geez_script.fold_spelling(p["form"]) in folded] == []

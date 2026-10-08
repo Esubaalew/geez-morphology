@@ -28,7 +28,9 @@ not read here; use evaluate_gold.py for that.
 The dictionary pairs are read by dataset_loader.load_dictionary_pairs (its docstring lists what is left out);
 dataset_loader.split_dictionary_pairs holds out whole roots for 10% of them (seed 42) as a second eval
 slice, dictionary_nominal (logged as eval_dictionary_nominal_loss next to the synthetic eval_loss), and the
-rest go to training. --no_dictionary_pairs leaves the dictionary out.
+rest go to training. After the split, a pair whose form is a gold val/test form up to spelling
+(geez_script.fold_spelling) is dropped from either side (dataset_loader.dictionary_train_eval).
+--no_dictionary_pairs leaves the dictionary out.
 --root_accuracy_rows N also generates the root of up to N gold val pairs at each evaluation and logs the share
 that match the gold root exactly (eval_root_accuracy); --metric_for_best_model root_accuracy then keeps and
 loads the best checkpoint by it. When training finishes, the final model's root-only replies on the
@@ -161,14 +163,19 @@ def root_only_sample(pair: Dict, source: str, single_prefix: bool = False) -> Di
 
 def load_dictionary_samples(dataset_dir: str, stats: Optional[Dict] = None, single_prefix: bool = False):
     """(train, eval) samples of the Kidane Wold noun and adjective pairs (dataset_loader.load_dictionary_pairs),
-    split by root with dataset_loader.split_dictionary_pairs. Both are empty when the dictionary file is missing."""
+    split by root with dataset_loader.split_dictionary_pairs, then without the pairs whose form is a gold val/test
+    form up to spelling (dataset_loader.dictionary_train_eval). Both are empty when the dictionary file is missing."""
     path = os.path.join(dataset_dir, dataset_loader.KIDANE_WOLD_FILE)
     if not os.path.exists(path):
         print(f"[!] No dictionary file at {path}; no dictionary pairs.")
         return [], []
+    stats = stats if stats is not None else collections.Counter()
     pairs = dataset_loader.load_dictionary_pairs(dataset_dir, stats)
-    train, evals = dataset_loader.split_dictionary_pairs(pairs)
+    train, evals = dataset_loader.dictionary_train_eval(dataset_dir, pairs, stats)
     print(f"Read {len(pairs)} dictionary noun and adjective pairs from {path}")
+    if stats[dataset_loader.GOLD_FORM_UP_TO_SPELLING_EVAL]:
+        print(f"[!] {stats[dataset_loader.GOLD_FORM_UP_TO_SPELLING_EVAL]} dictionary_nominal eval pair(s) dropped: "
+              "the form is a gold val/test form up to spelling.")
 
     return ([root_only_sample(p, "dictionary", single_prefix) for p in train],
             [root_only_sample(p, "dictionary", single_prefix) for p in evals])

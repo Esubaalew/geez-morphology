@@ -212,6 +212,10 @@ ROOT_RADICALS_KEPT = (3, 4)
 CITATION_NUMBER = "s"
 DICTIONARY_EVAL_FRACTION = 0.1
 DICTIONARY_SPLIT_SEED = 42
+# Stats keys of a pair or word left out because its form, folded with geez_script.fold_spelling, is a folded gold
+# val/test form (split_heldout_synthetic.gold_eval_forms_folded).
+GOLD_FORM_UP_TO_SPELLING = "not loaded: form is a gold val/test form up to spelling"
+GOLD_FORM_UP_TO_SPELLING_EVAL = "not loaded (eval slice): form is a gold val/test form up to spelling"
 # Words with no root (particles, pronouns, names, loanwords), one per line in column "word"; label "none".
 # They are left out of the dictionary pairs and trained on as root-only pairs (load_words_without_root).
 WORDS_WITHOUT_ROOT_FILE = os.path.join(SCRIPT_DIR, "data", "closed_class_words_without_root.tsv")
@@ -273,13 +277,16 @@ def read_words_without_root(path=WORDS_WITHOUT_ROOT_FILE):
 def load_words_without_root(dataset_dir, stats=None, path=WORDS_WITHOUT_ROOT_FILE):
     """Root-only pairs of the words in the words-without-root file, in file order, each with root NO_ROOT
     (target "root: none"). A word is left out when it is a gold val/test form (or in the synthetic generator's
-    blocked forms file), or a form of the gold train file whose row has a root. Rows of the gold train file
-    that have no root are not read as pairs (load_gold_split), so they do not count here."""
+    blocked forms file), a gold val/test form up to spelling (folded with geez_script.fold_spelling and looked up
+    in split_heldout_synthetic.gold_eval_forms_folded, the rule that drops near-duplicate synthetic lines), or a
+    form of the gold train file whose row has a root. Rows of the gold train file that have no root are not read
+    as pairs (load_gold_split), so they do not count here."""
     import generate_synthetic_data
     import split_heldout_synthetic
 
     stats = stats if stats is not None else collections.Counter()
     eval_forms = split_heldout_synthetic.gold_eval_forms(dataset_dir) | generate_synthetic_data.read_blocked_forms_file()
+    folded_eval_forms = split_heldout_synthetic.gold_eval_forms_folded(dataset_dir)
     gold_train = gold_file_path(dataset_dir, "train")
     gold_train_forms = {p["form"] for p in load_gold_split(dataset_dir, "train")} if os.path.exists(gold_train) else set()
     out = []
@@ -290,6 +297,9 @@ def load_words_without_root(dataset_dir, stats=None, path=WORDS_WITHOUT_ROOT_FIL
             raise ValueError(f"{path}: {word!r} is not one Ge'ez word")
         if word in eval_forms:
             stats["not loaded: form is a gold val/test form"] += 1
+            continue
+        if geez_script.fold_spelling(word) in folded_eval_forms:
+            stats[GOLD_FORM_UP_TO_SPELLING] += 1
             continue
         if word in gold_train_forms:
             stats["not loaded: form has a root in the gold train file"] += 1
@@ -366,6 +376,9 @@ def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_
 
     `stats` (a Counter) gets "loaded" and one "not loaded: <reason>" count per pair left out, at the first step
     it fails; words of `forms` are counted under "forms: ...".
+
+    A pair whose form is a gold val/test form only up to spelling is not left out here, so that the split by
+    root (split_dictionary_pairs) does not depend on it: dictionary_train_eval drops it after the split.
     """
     import generate_synthetic_data
     import split_heldout_synthetic
@@ -488,6 +501,33 @@ def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_
         out.append(pair)
     stats["headwords with conflicting roots"] = sum(1 for r in roots_of_form.values() if len(r) > 1)
     return out
+
+
+def drop_gold_forms_up_to_spelling(pairs, folded_eval_forms, stats=None, reason=None):
+    """The pairs, in order, without those whose form folded with geez_script.fold_spelling is a key of
+    folded_eval_forms (split_heldout_synthetic.gold_eval_forms_folded): the rule that drops near-duplicate
+    synthetic lines. `stats` gets one `reason` count (default GOLD_FORM_UP_TO_SPELLING) per pair dropped."""
+    stats = stats if stats is not None else collections.Counter()
+    kept = []
+    for p in pairs:
+        if geez_script.fold_spelling(p["form"]) in folded_eval_forms:
+            stats[reason or GOLD_FORM_UP_TO_SPELLING] += 1
+        else:
+            kept.append(p)
+    return kept
+
+
+def dictionary_train_eval(dataset_dir, pairs, stats=None):
+    """(train, eval) of the dictionary pairs: split_dictionary_pairs on all the pairs, then a pair whose form is a
+    gold val/test form up to spelling is dropped from either side (drop_gold_forms_up_to_spelling). The split
+    comes first, so dropping a pair does not move other roots between train and eval. A pair dropped from eval
+    is counted under GOLD_FORM_UP_TO_SPELLING_EVAL."""
+    import split_heldout_synthetic
+
+    train, evals = split_dictionary_pairs(pairs)
+    folded_eval_forms = split_heldout_synthetic.gold_eval_forms_folded(dataset_dir)
+    return (drop_gold_forms_up_to_spelling(train, folded_eval_forms, stats),
+            drop_gold_forms_up_to_spelling(evals, folded_eval_forms, stats, GOLD_FORM_UP_TO_SPELLING_EVAL))
 
 
 def split_dictionary_pairs(pairs, fraction=DICTIONARY_EVAL_FRACTION, seed=DICTIONARY_SPLIT_SEED):
