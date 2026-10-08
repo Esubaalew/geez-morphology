@@ -19,6 +19,7 @@ sys.path.insert(0, HERE)
 
 import geez_config  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
+import generate_synthetic_fixed as gen  # noqa: E402
 import verb_classes  # noqa: E402
 
 DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)
@@ -26,6 +27,16 @@ SYNTH = os.path.join(DATASET, "data", "paradigms", "synthetic_morphology_train.j
 # the generator's output is the training file plus the lines held out for the gold val/test roots (14:35)
 HELD = os.path.join(DATASET, "data", "synthetic", "synthetic_forms_for_val_test_roots.jsonl")
 GUTT = {"a", "a2", "h1", "h2", "kh"}
+
+
+# Roots off the allow-list (data/synthetic_roots_allowed_6183c24.txt, 2026-10-08: no dictionary verb entry, gold
+# root or Kidane Wold triple) have no synthetic lines any more; their cases are skipped.
+ALLOWED = {"-".join(r) for r in gen.read_allowed_roots_file()}
+
+
+def need_allowed(root):
+    if root not in ALLOWED:
+        pytest.skip(f"{root} is not on data/synthetic_roots_allowed_6183c24.txt: no synthetic lines")
 
 
 # ---- 1. spelling variants -------------------------------------------------
@@ -119,6 +130,7 @@ def form(synth, root, tense, per, stem="basic"):
     ("l-h1-k", "subjunctive", "3ms", "ይልሀክ"),
 ])
 def test_generated_middle_guttural_forms(synth, root, tense, per, expect):
+    need_allowed(root)
     assert form(synth, root, tense, per) == expect
 
 
@@ -132,6 +144,7 @@ def test_generated_middle_guttural_forms(synth, root, tense, per, expect):
     ("m-h2-l", "present", "3ms", "causative", "ያመሕል"),
 ])
 def test_excluded_roots_and_derived_stems_unchanged(synth, root, tense, per, stem, expect):
+    need_allowed(root)
     assert form(synth, root, tense, per, stem) == expect
 
 
@@ -153,5 +166,5 @@ def test_no_doubled_guttural_present_in_changed_roots(synth):
             bad.append(r["surface_form"])
         if f["tense"] in ("subjunctive", "imperative") and dec[j][1] != "a":
             bad.append(r["surface_form"])
-    assert len(seen) == 155     # + f-a-m (ፈ-አ-መ): Type A since its Type C tag no longer comes from the extracted gold train
+    assert len(seen) == 84      # 155 before the 2026-10-08 allow-list; the other 71 roots have no verb evidence
     assert bad == []

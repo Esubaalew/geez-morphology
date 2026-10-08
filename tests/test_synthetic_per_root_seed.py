@@ -31,6 +31,11 @@ def _dataset(folder):
     with open(os.path.join(folder, "dictionary.jsonl"), "w", encoding="utf-8") as f:
         for i, r in enumerate(TRILITERAL + QUADRILITERAL, 1):
             f.write(json.dumps({"id": i, "inferred_root": r}) + "\n")
+    # the fixture's own allow-list (all its roots) and an empty blocked-forms file
+    with open(os.path.join(folder, "allowed_roots.txt"), "w", encoding="utf-8") as f:
+        f.write("# fixture\n" + "\n".join(TRILITERAL + QUADRILITERAL) + "\n")
+    with open(os.path.join(folder, "blocked_forms.tsv"), "w", encoding="utf-8") as f:
+        f.write("# fixture\ngeez_form\tsplit\trecord_id\trow\tvariant\n")
 
 
 def _generate(ds, out, tag=None):
@@ -48,7 +53,9 @@ def _generate(ds, out, tag=None):
         verb_classes.class_tags = with_tag
     try:
         with contextlib.redirect_stdout(io.StringIO()):
-            gen.generate_extended_dataset(dataset_dir=ds, output_dir=out)
+            gen.generate_extended_dataset(dataset_dir=ds, output_dir=out,
+                                          allowed_roots_file=os.path.join(ds, "allowed_roots.txt"),
+                                          blocked_forms_file=os.path.join(ds, "blocked_forms.tsv"))
     finally:
         verb_classes.class_tags = original
         engine_module.NON_HOLLOW.clear()

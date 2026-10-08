@@ -19,7 +19,13 @@ the 1st order, is one of them.
 Usage:
   python synthetic_heldout.py --full_dir <generator output dir> --dataset_dir <dataset repo> [--write | --check]
     --write   write the four files into the dataset repo
-    --check   compare what the split gives with the four files in the dataset repo (exit 1 if different)
+    --check   compare what the split gives with the four files in the dataset repo, and count the lines of the
+              four files whose surface form is a gold val or test form (exit 1 if the files differ or any
+              such line is found)
+
+Gold val/test forms: every form of every row of merho_ges_gold_val.jsonl and merho_ges_gold_test.jsonl, rows
+with no root included; a cell gives its "/"-spellings with "(...)" notes dropped, as scripts/check_dataset.py
+reads it. The generator leaves these forms out (data/heldout_gold_forms_6183c24.tsv), so the count must be 0.
   The generator calls split_into_dataset() itself when it mirrors into the dataset (generate_synthetic_fixed.py).
 """
 import argparse
@@ -54,6 +60,44 @@ def gold_eval_roots(dataset_dir):
                             continue
                         roots[geez_config.first_order_root(alt)].add(split)
     return dict(roots)
+
+
+def form_variants(cell):
+    """The "/"-spellings of a geez_form cell: "(...)" notes dropped, edge punctuation stripped
+    (the same rule as the dataset's scripts/check_dataset.py)."""
+    out = []
+    for v in re.sub(r"\([^)]*\)", " ", cell or "").split("/"):
+        v = v.strip(" :፡።()[]፣,")
+        if v:
+            out.append(v)
+    return out
+
+
+def gold_eval_forms(dataset_dir):
+    """Every form of every row of the current gold val/test files (rows with no root included)."""
+    forms = set()
+    for name in GOLD_EVAL.values():
+        with open(os.path.join(dataset_dir, "data", "paradigms", name), encoding="utf-8") as f:
+            for line in f:
+                for row in json.loads(line).get("table_data", []):
+                    forms.update(form_variants(row.get("geez_form") or ""))
+    return forms
+
+
+def gold_form_lines(dataset_dir):
+    """{dataset synthetic file: [(line number, root, surface form)]} for lines whose surface form is a gold val/test form."""
+    forms = gold_eval_forms(dataset_dir)
+    found = {}
+    for p in targets(dataset_dir):
+        if not os.path.exists(p):
+            continue
+        with open(p, encoding="utf-8") as f:
+            for n, line in enumerate(f, 1):
+                d = json.loads(line)
+                if d.get("surface_form") in forms:
+                    feats = d.get("features") or d.get("analysis") or {}
+                    found.setdefault(os.path.relpath(p, dataset_dir), []).append((n, feats.get("root"), d["surface_form"]))
+    return found
 
 
 def line_root(d):
@@ -121,9 +165,13 @@ def main():
             f.write("split\troot\tlines\n")
             for (s, r), n in sorted(moved.items(), key=lambda kv: (kv[0][0], -kv[1], kv[0][1])):
                 f.write(f"{s}\t{r}\t{n}\n")
+    found = gold_form_lines(args.dataset_dir)
+    n_found = sum(len(v) for v in found.values())
+    print(f"lines whose surface form is a gold val/test form: {n_found}"
+          + "".join(f"\n[!] {p}: {len(v)} lines, e.g. line {v[0][0]} root {v[0][1]}" for p, v in sorted(found.items())))
     if args.check:
         print("split == dataset files" if not differ else f"[!] differ: {differ}")
-        sys.exit(1 if differ else 0)
+        sys.exit(1 if differ or n_found else 0)
 
 
 if __name__ == "__main__":

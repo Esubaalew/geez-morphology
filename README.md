@@ -23,7 +23,9 @@ geez-morphology/
 ├── train_byt5_morphology.py      ByT5 fine-tuning (resumable)
 ├── evaluate_gold.py              scores a system on the Merho Ges gold val and test splits
 ├── data/
-│   └── heldout_test_roots_c7bc587.txt   gold test roots left out of the synthetic data
+│   ├── heldout_test_roots_c7bc587.txt   gold test roots left out of the synthetic data
+│   ├── synthetic_roots_allowed_6183c24.txt   the only roots the generator conjugates
+│   └── heldout_gold_forms_6183c24.tsv   gold val/test forms the generator never writes
 ├── tests/                        unit and regression tests
 └── docs/
     └── grammar_rules.md          the language decisions behind the data, with sources
@@ -60,6 +62,13 @@ python generate_synthetic_fixed.py --dataset_dir ../geez-dataset
 Writes `<dataset>/output/` (not in git), copies the synthetic files to `<dataset>/data/paradigms/`, and moves the lines whose root is a gold val or test root to `<dataset>/data/synthetic/`. Line counts are in the dataset README.
 
 The generator leaves out the roots listed in `data/heldout_test_roots_c7bc587.txt`: the 185 roots of the gold test file at dataset commit c7bc587 (`data/paradigms/merho_ges_gold_test.jsonl`, the file as extracted), one per line. The synthetic files in the dataset were generated without these roots. The list is committed here, so the generator does not need the dataset's git history (a shallow or fresh clone works). sha256 of the file: `8a6b64053cddd0d54301acc4142e3aa9e2b25cc88bb6334ce5a05dd061b7c88d` (checked by `tests/test_heldout_roots_file.py`). `--test_file <gold test file>` leaves out the roots of another test file instead.
+
+Two more files in `data/` limit the output, and the generator stops if either is missing:
+
+- `data/synthetic_roots_allowed_6183c24.txt`: the roots it may conjugate, one per line (1,128 roots). A root is on the list when it has a verb entry in the dictionary, a root in the gold files, or a Kidane Wold verb triple. The list is the roots of the 6d5297a output minus the 879 roots that `the root list` (sha256 `c0c3b40f...`) marks DROP or EXCLUDE_NO_VERB; the file header gives the full hashes.
+- `data/heldout_gold_forms_6183c24.tsv`: every gold val and test form at dataset commit 6183c24 (2,939 rows, 2,832 distinct forms, rows with no root included), keyed by split, record_id, row and spelling. A synthetic line whose form equals one of them is not written; the root's other lines stay as they were. The run log lists the dropped lines by root (`BLOCKED_GOLD_FORMS_JSON`).
+
+`python synthetic_heldout.py --full_dir <generator output> --dataset_dir <dataset> --check` compares the split with the dataset files and fails when any synthetic line in the dataset has a gold val or test form, computed from the current gold files.
 
 ## Test
 

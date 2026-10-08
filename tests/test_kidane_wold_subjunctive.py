@@ -18,10 +18,21 @@ sys.path.insert(0, HERE)
 
 import geez_config  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
+import generate_synthetic_fixed as gen  # noqa: E402
 import verb_classes  # noqa: E402
 
 DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)
 SYNTH = os.path.join(DATASET, "data", "paradigms", "synthetic_morphology_train.jsonl")
+
+
+# Roots off the allow-list (data/synthetic_roots_allowed_6183c24.txt, 2026-10-08: no dictionary verb entry, gold
+# root or Kidane Wold triple) have no synthetic lines any more; their cases are skipped.
+ALLOWED = {"-".join(r) for r in gen.read_allowed_roots_file()}
+
+
+def need_allowed(root):
+    if root not in ALLOWED:
+        pytest.skip(f"{root} is not on data/synthetic_roots_allowed_6183c24.txt: no synthetic lines")
 
 
 @pytest.fixture(scope="module")
@@ -93,6 +104,7 @@ def test_type_d_consistent(synth, root):
 @pytest.mark.parametrize("root,pres", [("a-a-l", "የአእል"), ("a-a-n", "የአእን"), ("a-kh-s", "የአኅስ"),
                                        ("a-kh-z", "የአኅዝ"), ("h1-kh-t", "የሀኅት"), ("h2-kh-t", "የሐኅት")])
 def test_doubly_guttural_present(synth, root, pres):
+    need_allowed(root)
     assert form(synth, root, "present", "3ms") == pres
     r = tuple(root.split("-"))
     rows = [x["surface_form"] for x in synth if x["features"]["root"] == root
@@ -105,6 +117,7 @@ def test_doubly_guttural_present(synth, root, pres):
     ("m-h2-l", "present", "3ms", "causative", "ያመሕል"),
 ])
 def test_derived_stems_unchanged(synth, root, tense, per, stem, expect):
+    need_allowed(root)
     assert form(synth, root, tense, per, stem) == expect
 
 

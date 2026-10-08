@@ -33,6 +33,15 @@ commit c7bc587 (544271a before the dataset history was rewritten). Its test root
 current test file's. They are frozen in data/heldout_test_roots_c7bc587.txt (in this repo), so
 reproducing the files needs no git history of the dataset:
   python generate_synthetic_fixed.py --dataset_dir <dataset>
+
+Two more committed files in data/ limit the output; the
+generator stops if either is missing:
+  data/synthetic_roots_allowed_6183c24.txt  the only roots it conjugates: roots with a dictionary verb
+      entry, a gold root or a Kidane Wold verb triple (all roots of the 6d5297a output minus the ones
+      the root list rules DROP or EXCLUDE_NO_VERB).
+  data/heldout_gold_forms_6183c24.tsv       every gold val/test form of dataset commit 6183c24; a line
+      whose surface form is one of them is not written. The rest of that root's lines are made as if
+      the line were there, so no other line changes.
 """
 
 import os
@@ -217,6 +226,62 @@ def read_held_out_roots_file(path: str = HELD_OUT_ROOTS_FILE) -> set:
     return roots
 
 
+# Roots the generator may conjugate, one per line as the "root" feature writes them ("h2-s-t"); "#" lines are
+# notes. Made from the root list (see the file's header). Checked in
+# tests/test_synthetic_allowed_roots_and_blocked_forms.py.
+ALLOWED_ROOTS_FILE = os.path.join(BASE_DIR, "data", "synthetic_roots_allowed_6183c24.txt")
+# Every gold val/test form of dataset commit 6183c24 (column geez_form; "#" lines are notes).
+BLOCKED_FORMS_FILE = os.path.join(BASE_DIR, "data", "heldout_gold_forms_6183c24.tsv")
+
+
+def read_allowed_roots_file(path: str = ALLOWED_ROOTS_FILE) -> set:
+    """Roots of the allow-list file as consonant-symbol tuples. Raises FileNotFoundError when the file is
+    missing and ValueError on a line that is not a root of known consonant symbols."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"allow-list of synthetic roots not found: {path} "
+                                "(the generator conjugates only the roots listed there)")
+    roots = set()
+    with open(path, encoding="utf-8") as f:
+        for n, line in enumerate(f, 1):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = tuple(line.split("-"))
+            if len(parts) not in (2, 3, 4, 5) or not all(p in geez_config.CONSONANTS for p in parts):
+                raise ValueError(f"{path} line {n}: {line!r} is not a root of consonant symbols")
+            roots.add(parts)
+    if not roots:
+        raise ValueError(f"{path}: no roots")
+    return roots
+
+
+def read_blocked_forms_file(path: str = BLOCKED_FORMS_FILE) -> set:
+    """Forms (column geez_form) of the blocked gold forms file. Raises FileNotFoundError when it is missing."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"gold val/test forms file not found: {path} "
+                                "(the generator leaves out every synthetic line with one of these forms)")
+    forms = set()
+    header = None
+    with open(path, encoding="utf-8") as f:
+        for n, line in enumerate(f, 1):
+            line = line.rstrip("\n")
+            if not line or line.startswith("#"):
+                continue
+            cells = line.split("\t")
+            if header is None:
+                header = cells
+                if "geez_form" not in header:
+                    raise ValueError(f"{path} line {n}: no geez_form column in the header")
+                col = header.index("geez_form")
+                continue
+            if not cells[col]:
+                raise ValueError(f"{path} line {n}: empty geez_form")
+            forms.add(cells[col])
+    if header is None:
+        raise ValueError(f"{path}: no header line")
+    return forms
+
+
 def load_held_out_roots(test_file: Optional[str]) -> set:
     """Roots of a gold test file (each record's root, every "/" alternative), as consonant-symbol tuples."""
     roots = set()
@@ -271,7 +336,12 @@ def generate_extended_dataset(
     held_out: Optional[set] = None,
     mirror_dir: Optional[str] = None,
     split_heldout: bool = False,
+    allowed_roots_file: str = ALLOWED_ROOTS_FILE,
+    blocked_forms_file: str = BLOCKED_FORMS_FILE,
 ):
+    # Both files are read first: a missing file stops the run before anything is written.
+    allowed_roots = read_allowed_roots_file(allowed_roots_file)
+    blocked_forms = read_blocked_forms_file(blocked_forms_file)
     if dataset_dir is None:
         dataset_dir = dataset_loader.default_dataset_dir()
     if output_dir is None:
@@ -344,6 +414,16 @@ def generate_extended_dataset(
     n_tri, n_quad = len(triliteral_roots), len(quadriliteral_roots)
     triliteral_roots = sorted(r for r in triliteral_roots if r not in held_out)
     quadriliteral_roots = sorted(r for r in quadriliteral_roots if r not in held_out)
+    # Allow-list (2026-10-08): only roots with verb evidence. Filtered after the held-out step; every draw
+    # is per root (root_rng), so the kept roots' lines are the same as without the filter.
+    n_tri_before_allow, n_quad_before_allow = len(triliteral_roots), len(quadriliteral_roots)
+    allowed_not_found = allowed_roots - set(triliteral_roots) - set(quadriliteral_roots)
+    triliteral_roots = [r for r in triliteral_roots if r in allowed_roots]
+    quadriliteral_roots = [r for r in quadriliteral_roots if r in allowed_roots]
+    print(f"Allow-list {os.path.basename(allowed_roots_file)}: {len(allowed_roots)} roots; left out "
+          f"{n_tri_before_allow - len(triliteral_roots)} triliteral, {n_quad_before_allow - len(quadriliteral_roots)} "
+          f"quadriliteral roots not on it; {len(allowed_not_found)} listed roots not among the generator's roots"
+          + (f" {sorted('-'.join(r) for r in allowed_not_found)}" if allowed_not_found else ""))
 
     print(f"Roots added from checked lists / class tags: {len(added_roots)}")
     print(f"Held-out gold test roots removed: {n_tri - len(triliteral_roots)} triliteral, "
@@ -402,6 +482,7 @@ def generate_extended_dataset(
     skipped_objects = 0
     duplicates_dropped = 0
     unassigned_forms = 0
+    blocked_lines = {}          # root -> {form: lines} left out because the form is a gold val/test form
     final_roots_skipped = {}
     class_counts = {}
 
@@ -418,6 +499,12 @@ def generate_extended_dataset(
                 duplicates_dropped += 1
                 return False
             seen.add(key)
+            if form in blocked_forms:
+                # A gold val/test form: not written. Returns True so the root's counts and augmentation
+                # picks stay as if it were written; only this line is missing from the files.
+                per_root = blocked_lines.setdefault(feat["root"], {})
+                per_root[form] = per_root.get(form, 0) + 1
+                return True
             f_train.write(json.dumps({"features": feat, "surface_form": form}, ensure_ascii=False) + "\n")
             f_analyze.write(json.dumps({"surface_form": form, "analysis": feat}, ensure_ascii=False) + "\n")
             return True
@@ -683,6 +770,7 @@ def generate_extended_dataset(
             print(f"  [✓] Phase 4 Negative Prefix Pairs: {total_negatives:,} pairs")
 
     total_pairs = total_base + total_quads + total_objects + total_negatives
+    n_blocked = sum(sum(v.values()) for v in blocked_lines.values())
     print("\n============================================================")
     print("EXTENDED SYNTHETIC MORPHOLOGY GENERATION COMPLETE")
     print("============================================================")
@@ -690,7 +778,9 @@ def generate_extended_dataset(
     print(f"Quadriliteral Verbs:  {total_quads:8,}")
     print(f"Object Pronouns:      {total_objects:8,}")
     print(f"Negative Forms (ኢ-):  {total_negatives:8,}")
-    print(f"Total Output Pairs:   {total_pairs:8,}")
+    print(f"Total pairs made:     {total_pairs:8,}")
+    print(f"Left out (gold form): {n_blocked:8,}  (surface form is a gold val/test form, {os.path.basename(blocked_forms_file)})")
+    print(f"Total Output Pairs:   {total_pairs - n_blocked:8,}")
     print(f"Engine failures:      {failed_forms:8,}")
     print(f"Duplicate pairs dropped (jussive = subjunctive): {duplicates_dropped:,}")
     print(f"Forms with unassigned code points skipped (labiovelar + u/o): {unassigned_forms:,}")
@@ -720,6 +810,11 @@ def generate_extended_dataset(
     print("DROPS_JSON " + json.dumps({
         "amharic_only": amharic_dropped, "amharic_raw_letters": amharic_raw,
         "doubly_weak": doubly_weak_dropped, "quad_final_weak": quad_final_weak_dropped},
+        ensure_ascii=False))
+    print(f"Gold val/test forms left out: {n_blocked} lines, {sum(len(v) for v in blocked_lines.values())} forms, "
+          f"{len(blocked_lines)} roots {sorted(blocked_lines)}")
+    print("BLOCKED_GOLD_FORMS_JSON " + json.dumps(
+        {r: {"lines": sum(v.values()), "forms": dict(sorted(v.items()))} for r, v in sorted(blocked_lines.items())},
         ensure_ascii=False))
     print(f"Type A roots by subjunctive/imperative shape: {subj_used}")
     print(f"Present forms given the guttural prefix (የ/ተ/አ/ነ): {gutt_present:,}")
