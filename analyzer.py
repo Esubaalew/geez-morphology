@@ -886,21 +886,25 @@ NEURAL_FIELDS = ("root", "tense", "person", "gender", "number", "stem")   # verb
 NEURAL_NOMINAL_FIELDS = ("root", "type", "number")                       # + optional gender
 NOMINAL_TYPES = ("noun", "adjective")
 NO_VALUE = ("", "none", "null")
+ROOT_ONLY = dataset_loader.ROOT_ONLY_TASK   # type of a root-only reply
 
 
 def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
-    """Strict parse of a ByT5 prediction in one of the two training target shapes
+    """Strict parse of a ByT5 prediction in one of the three training target shapes
     (dataset_loader.target_text):
 
       verb     "root: ቀ-ተ-ለ | tense: present | person: 3 | gender: m | number: s | stem: basic"
                with an optional " | object: 3ms" at the end;
       nominal  "root: ቀ-ተ-ለ | type: noun | gender: m | number: s" (gender optional).
+      root only "root: <root>", or "root: none" for a word without root.
 
     Each key appears at most once; the keys must be exactly one shape's (no others). The root
     must be non-empty and made only of Ethiopic letters (hyphens and spaces between them are
-    allowed). Empty values and "None" mean "no value" for the other fields. Returns a dict with
-    root, type ("verb", "noun" or "adjective"), tense, person, gender, number, stem, object and
-    "root_consonants" (fields a shape does not have are None), or None for any other text."""
+    allowed); only the root-only shape may have "none" (or another NO_VALUE word) as its root.
+    Empty values and "None" mean "no value" for the other fields. Returns a dict with root (None
+    for "root: none"), type ("verb", "noun", "adjective" or ROOT_ONLY), tense, person, gender,
+    number, stem, object and "root_consonants" (fields a shape does not have are None; no
+    consonants for "root: none"), or None for any other text."""
     if not isinstance(text, str) or not text.strip():
         return None
     out: Dict[str, Any] = {}
@@ -913,14 +917,18 @@ def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
             return None
         out[k] = v
     keys = set(out)
-    if keys - {"object"} == set(NEURAL_FIELDS):
+    if keys == {"root"}:
+        out["type"] = ROOT_ONLY
+        if out["root"].lower() in NO_VALUE[1:]:
+            out["root"] = None
+    elif keys - {"object"} == set(NEURAL_FIELDS):
         out["type"] = "verb"
     elif keys - {"gender"} == set(NEURAL_NOMINAL_FIELDS) and out["type"] in NOMINAL_TYPES:
         pass
     else:
         return None
-    letters = out["root"].replace("-", "").replace(" ", "")
-    if not letters:
+    letters = (out["root"] or "").replace("-", "").replace(" ", "")
+    if not letters and out["root"] is not None:
         return None
     cons = []
     for ch in letters:
@@ -994,8 +1002,8 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
             pred_text = self._tokenizer.decode(out[0], skip_special_tokens=True)
             
             parsed = parse_neural_output(pred_text)
-            if parsed is None:
-                return []   # malformed output: no answer rather than a partial one
+            if parsed is None or parsed["root"] is None:
+                return []   # malformed output, or no root: no answer rather than a partial one
             root_cons = parsed["root_consonants"]
             root_tuple = tuple(root_cons)
             root_str = "-".join(root_cons)
@@ -1022,7 +1030,7 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
                 pattern_spec="neural:byt5_fallback",
                 lexicon_entry=None,
                 object=parsed["object"],
-                pos=None if parsed["type"] == "verb" else parsed["type"],
+                pos=parsed["type"] if parsed["type"] in NOMINAL_TYPES else None,
             )
             return [analysis]
         except Exception:

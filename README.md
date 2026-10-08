@@ -20,6 +20,7 @@ geez-morphology/
 ├── split_heldout_synthetic.py    moves synthetic lines with a gold val/test root out of the training file
 ├── train_byt5_morphology.py      ByT5 fine-tuning (resumable)
 ├── evaluate_gold.py              scores a system on the Merho Ges gold val and test splits
+├── predict_roots.py              word<TAB>root for each word of a file, with the trained model
 ├── data/
 │   ├── heldout_test_roots.txt           gold test roots left out of the synthetic data
 │   ├── synthetic_roots_allowed_v5.txt   the only roots the generator conjugates
@@ -115,6 +116,7 @@ python train_byt5_morphology.py --dataset_dir ../geez-dataset --load_only     # 
 python train_byt5_morphology.py --dataset_dir ../geez-dataset                 # train
 python evaluate_gold.py --dataset_dir ../geez-dataset --system byt5 \
     --out_json gold_eval_byt5.json --predictions_out gold_eval_byt5_predictions.jsonl
+python predict_roots.py words.txt --output roots.tsv                          # root of each word ("none": no root)
 ```
 
 What the trainer reads, as written (nothing is corrected at load time):

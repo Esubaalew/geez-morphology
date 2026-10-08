@@ -154,19 +154,22 @@ def test_export_row_keeps_the_old_shape_for_full_analysis():
 def test_root_accuracy_helpers():
     assert T.root_in_output("root: a-b-c | tense: past") == "a-b-c"
     assert T.root_in_output("root: a-b-c") == "a-b-c" and T.root_in_output("tense: past") == ""
-    pairs = [{"form": "x", "root": "a-b-c"}, {"form": "y", "root": "d-e-f"}, {"form": "z", "root": "g-h-i"}]
+    items = [("analyze: x", "a-b-c"), ("analyze: y", "d-e-f"), ("root: z", "g-h-i")]
     answers = {"analyze: x": "root: a-b-c | tense: past", "analyze: y": "root: d-e | tense: past",
-               "analyze: z": "root: g-h-i"}
+               "root: z": "root: g-h-i"}
     seen = []
 
     def predict(texts):
         seen.append(len(texts))
         return [answers[t] for t in texts]
-    assert T.root_accuracy(predict, pairs, 2) == pytest.approx(2 / 3) and seen == [2, 1]
+    assert T.root_accuracy(predict, items, 2) == pytest.approx(2 / 3) and seen == [2, 1]
     assert T.root_accuracy(predict, [], 2) == 0.0
+    samples = [{"input_text": "root: z", "target_text": "root: g-h-i"}]
+    assert T.sample_items(samples) == [("root: z", "g-h-i")]
     with tempfile.TemporaryDirectory() as tmp:
         _dataset(tmp)
-        assert len(T.root_accuracy_pairs(tmp, 1000)) == 1 and T.root_accuracy_pairs(tmp, 0) == []
+        items = T.root_accuracy_items(tmp, 1000)
+        assert len(items) == 1 and items[0][0].startswith("analyze: ") and T.root_accuracy_items(tmp, 0) == []
 
 
 def test_parse_args_new_flags():

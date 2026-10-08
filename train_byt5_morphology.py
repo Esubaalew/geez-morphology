@@ -31,7 +31,8 @@ slice, dictionary_nominal (logged as eval_dictionary_nominal_loss next to the sy
 rest go to training. --no_dictionary_pairs leaves the dictionary out.
 --root_accuracy_rows N also generates the root of up to N gold val pairs at each evaluation and logs the share
 that match the gold root exactly (eval_root_accuracy); --metric_for_best_model root_accuracy then keeps and
-loads the best checkpoint by it.
+loads the best checkpoint by it. When training finishes, the final model's root-only replies on the
+dictionary_nominal slice are scored the same way (final_dictionary_nominal_root_accuracy in run_info.json).
 
 The script picks the device (cuda, then mps, then cpu), trains in fp32 (ByT5
 is unstable in fp16), saves a checkpoint every --save_steps and keeps the last
@@ -214,26 +215,32 @@ def root_in_output(text: str) -> str:
     return m.group(1).strip() if m else ""
 
 
-def root_accuracy_pairs(dataset_dir: str, n: int) -> List[Dict]:
-    """Up to n gold val pairs (a seeded sample in file order when there are more) for eval_root_accuracy."""
+def root_accuracy_items(dataset_dir: str, n: int) -> List[tuple]:
+    """(input text, gold root) of up to n gold val pairs (a seeded sample in file order when there are more),
+    with the full-analysis prefix, for eval_root_accuracy."""
     if n <= 0 or not os.path.exists(dataset_loader.gold_file_path(dataset_dir, "val")):
         return []
     pairs = dataset_loader.load_gold_split(dataset_dir, "val")
     if n < len(pairs):
         keep = sorted(random.Random(SEED).sample(range(len(pairs)), n))
         pairs = [pairs[i] for i in keep]
-    return pairs
+    return [(dataset_loader.input_text(p["form"]), p["root"]) for p in pairs]
 
 
-def root_accuracy(predict, pairs: List[Dict], batch_size: int) -> float:
-    """Share of `pairs` whose generated root (root_in_output) equals the gold root exactly. `predict` maps a list
-    of input texts (full-analysis prefix) to the list of generated texts."""
+def sample_items(samples: List[Dict]) -> List[tuple]:
+    """(input text, gold root) of training-format samples, e.g. the dictionary_nominal slice."""
+    return [(s["input_text"], root_in_output(s["target_text"])) for s in samples]
+
+
+def root_accuracy(predict, items: List[tuple], batch_size: int) -> float:
+    """Share of `items` ((input text, gold root)) whose generated root (root_in_output) equals the gold root
+    exactly. `predict` maps a list of input texts to the list of generated texts."""
     hits = 0
-    for i in range(0, len(pairs), batch_size):
-        batch = pairs[i:i + batch_size]
-        outputs = predict([dataset_loader.input_text(p["form"]) for p in batch])
-        hits += sum(root_in_output(o) == p["root"] for o, p in zip(outputs, batch))
-    return hits / len(pairs) if pairs else 0.0
+    for i in range(0, len(items), batch_size):
+        batch = items[i:i + batch_size]
+        outputs = predict([text for text, _ in batch])
+        hits += sum(root_in_output(o) == root for o, (_, root) in zip(outputs, batch))
+    return hits / len(items) if items else 0.0
 
 
 # ----------------------------------------------------------------------------- run helpers
@@ -437,9 +444,9 @@ def main(argv=None) -> int:
           f"Prefixes: {'analyze: for every task' if args.single_prefix else 'one per task'}.")
     print(f"Train: {len(train_samples)} pairs (" + ", ".join(f"{k} {v}" for k, v in train_by_source.items()) + "). "
           f"Eval: {len(eval_samples)} synthetic pairs; {DICTIONARY_EVAL_NAME}: {len(dictionary_eval)} pairs.")
-    root_pairs = root_accuracy_pairs(args.dataset_dir, args.root_accuracy_rows)
+    root_items = root_accuracy_items(args.dataset_dir, args.root_accuracy_rows)
     if args.root_accuracy_rows:
-        print(f"Root accuracy at each evaluation: {len(root_pairs)} gold val pairs.")
+        print(f"Root accuracy at each evaluation: {len(root_items)} gold val pairs.")
     if args.export_dir:
         os.makedirs(args.export_dir, exist_ok=True)
         for name, rows in (("train", train_samples), ("eval", eval_samples), ("eval_dictionary", dictionary_eval)):
@@ -514,7 +521,7 @@ def main(argv=None) -> int:
         "counts": {"synthetic": n_syn, "gold_train": n_gold, "dictionary_train": len(dictionary_train),
                    "words_without_root": len(without_root), "train": len(train_samples),
                    "train_by_source": train_by_source, "eval": len(eval_samples),
-                   "eval_" + DICTIONARY_EVAL_NAME: len(dictionary_eval), "root_accuracy_pairs": len(root_pairs)},
+                   "eval_" + DICTIONARY_EVAL_NAME: len(dictionary_eval), "root_accuracy_pairs": len(root_items)},
         "load_counts": dict(sorted(load_stats.items())),
         "dictionary_load_counts": dict(sorted(dictionary_stats.items())),
         "words_without_root_load_counts": dict(sorted(without_root_stats.items())),
@@ -584,9 +591,9 @@ def main(argv=None) -> int:
             if eval_dataset is None and metric_key_prefix == "eval" and dictionary_eval:
                 metrics.update(super().evaluate(GeezDataset(dictionary_eval, tokenizer), ignore_keys,
                                                 f"eval_{DICTIONARY_EVAL_NAME}", **kwargs))
-            if eval_dataset is None and metric_key_prefix == "eval" and root_pairs:
+            if eval_dataset is None and metric_key_prefix == "eval" and root_items:
                 start = time.time()
-                extra = {"eval_root_accuracy": root_accuracy(predict, root_pairs, args.batch_size)}
+                extra = {"eval_root_accuracy": root_accuracy(predict, root_items, args.batch_size)}
                 extra["eval_root_accuracy_seconds"] = round(time.time() - start, 2)
                 self.log(extra)
                 metrics.update(extra)
@@ -614,6 +621,11 @@ def main(argv=None) -> int:
     trainer.save_model(args.output_dir)   # final weights + tokenizer at the top of output_dir
     run_info["finished"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     run_info["global_step"] = trainer.state.global_step
+    if dictionary_eval:
+        # Root-only replies of the final model on the dictionary_nominal slice, exact root match.
+        run_info["final_" + DICTIONARY_EVAL_NAME + "_root_accuracy"] = acc = \
+            root_accuracy(predict, sample_items(dictionary_eval), args.batch_size)
+        print(f"Root accuracy on {DICTIONARY_EVAL_NAME} ({len(dictionary_eval)} pairs): {acc:.4f}")
     with open(os.path.join(args.output_dir, "run_info.json"), "w", encoding="utf-8") as f:
         json.dump(run_info, f, ensure_ascii=False, indent=2)
     print(f"Training finished at step {trainer.state.global_step}. Output: {args.output_dir}")

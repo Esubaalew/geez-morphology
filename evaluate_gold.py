@@ -44,12 +44,15 @@ CLASS_ORDER = ["Type A", "Type B", "Type C", "hollow", "initial-weak",
 
 
 def parse_prediction(pred_str):
-    """'root: ቀ-ተ-ለ | tense: past | ...' -> dict."""
+    """A reply in the verb or nominal shape, or a root-only reply ('root: <root>') -> dict. A root that is a
+    no-value word ('root: none') becomes None."""
     out = {}
     for p in pred_str.split("|"):
         if ":" in p:
             k, v = p.split(":", 1)
             out[k.strip()] = v.strip()
+    if "root" in out:
+        out["root"] = clean_label(out["root"])
     return out
 
 
