@@ -20,9 +20,9 @@ import pytest
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
-import geez_config  # noqa: E402
+import geez_script  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
-import generate_synthetic_fixed as gen  # noqa: E402
+import generate_synthetic_data as gen  # noqa: E402
 import verb_classes  # noqa: E402
 
 DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)
@@ -57,7 +57,7 @@ def form(synth, root, tense, per, stem="basic"):
 
 
 def middle_order(surface, root):
-    dec = [geez_config.decompose_char(ch) for ch in surface]
+    dec = [geez_script.decompose_char(ch) for ch in surface]
     js = [n for n in range(1, len(dec)) if dec[n][0] == root[2] and dec[n - 1][0] == root[1]]
     return dec[js[-1] - 1][1] if js else None
 
@@ -93,7 +93,7 @@ def test_S_h2_f_all_persons(synth):
         t, s = r["features"]["tense"], r["surface_form"]
         if t == "present":
             assert middle_order(s, root) == "I", s
-            assert geez_config.decompose_char(s[1])[1] == "I" or s.startswith("ኢ"), s   # ይጽ-, not ይጸ-
+            assert geez_script.decompose_char(s[1])[1] == "I" or s.startswith("ኢ"), s   # ይጽ-, not ይጸ-
         elif t in ("subjunctive", "imperative"):
             assert middle_order(s, root) == "a", s
 
@@ -110,7 +110,7 @@ def test_type_d_consistent(synth, root):
 
 def _w(*units):
     """Ethiopic word from (consonant symbol, vowel) units, so the test types no Ge'ez letters."""
-    return "".join(geez_config.render_unit(c, v) for c, v in units)
+    return "".join(geez_script.render_unit(c, v) for c, v in units)
 
 
 @pytest.mark.parametrize("root", ["s-a-l"])   # qh-h2-m left the allow-list (the update, phantom root)

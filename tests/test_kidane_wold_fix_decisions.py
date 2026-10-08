@@ -3,7 +3,7 @@
 A row of the previous fixes file with new_root null means "root unknown, don't guess" (entry 7546). A rebuild
 writes that entry's row with new_root null and the decision's root_notes; if the rebuild finds no row for the
 entry, the previous row is kept as it is. root_notes of a previous row are kept on the rebuilt row.
-Headwords are built from root symbols with geez_config, never typed.
+Headwords are built from root symbols with geez_script, never typed.
 """
 import json
 import os
@@ -14,7 +14,7 @@ import pytest
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-import geez_config as gc  # noqa: E402
+import geez_script as gc  # noqa: E402
 import kidane_wold_triples as kw  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 

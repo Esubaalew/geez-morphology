@@ -1,10 +1,10 @@
-"""geez_config.first_order_root."""
+"""geez_script.first_order_root."""
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-import geez_config as gc
+import geez_script as gc
 
 
 def test_first_order_examples():

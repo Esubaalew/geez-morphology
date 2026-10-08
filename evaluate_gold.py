@@ -33,7 +33,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-import geez_config
+import geez_script
 import dataset_loader  # reads the gold files; shared with train_byt5_morphology.py
 from train_byt5_morphology import DEFAULT_OUTPUT_DIR as DEFAULT_MODEL_DIR, model_to_load
 
@@ -56,7 +56,7 @@ def parse_prediction(pred_str):
 def root_matches(predicted, gold):
     """Exact root match. The prediction is written in Ethiopic letters first (q-t-l -> ቀ-ተ-ለ);
     the letters themselves are compared as they are."""
-    return bool(predicted) and geez_config.to_ethiopic_root(predicted.strip()) == gold
+    return bool(predicted) and geez_script.to_ethiopic_root(predicted.strip()) == gold
 
 
 def clean_label(v):
@@ -86,7 +86,7 @@ def verb_class(rec):
     where w/y sits in the root, else Type A.
     """
     pc = rec.get("paradigm_class") or ""
-    root = geez_config.root_symbols(rec.get("root") or "")
+    root = geez_script.root_symbols(rec.get("root") or "")
     weak = ("w", "y")
     if "ባረከ" in pc:
         return "Type C"

@@ -26,7 +26,7 @@ import json
 import os
 from typing import Dict, List, Tuple
 
-import geez_config
+import geez_script
 import verb_class_paradigms as vcp
 
 TENSE_OF = {"perfect": "past", "imperfect": "present",
@@ -63,7 +63,7 @@ GOLD_TRAIN_FILE = os.path.join("data", "paradigms", "merho_ges_gold_train.jsonl"
 MAIN_CLASS_NAMES = ("ቀተለ", "ቀደሰ", "ባረከ")
 WEAK = ("w", "y")
 # Amharic-only letters: ሸ ቸ ኘ ዠ have consonant symbols
-# in geez_config; ኸ ጀ ጨ have none, so roots with them never decompose.
+# in geez_script; ኸ ጀ ጨ have none, so roots with them never decompose.
 AMHARIC_ONLY = ("sh", "ch", "ny", "zh")
 AMHARIC_ONLY_LETTERS = "ሸቸኘኸዠጀጨ"
 
@@ -78,17 +78,17 @@ def weak_count(cons) -> int:
 
 
 def root_of_lemma(lemma: str) -> Tuple[str, ...]:
-    return tuple(geez_config.decompose_char(ch)[0] for ch in lemma)
+    return tuple(geez_script.decompose_char(ch)[0] for ch in lemma)
 
 
 def class_fits_root(cls: str, cons: Tuple[str, ...]) -> bool:
     """The checked templates assume strong radicals except where the class says otherwise."""
     if cls == "type_d":
         return (len(cons) == 3 and cons[1] in GUTTURALS and not set(cons) & set(WEAK)
-                and all(c in geez_config.CONSONANTS for c in cons))
+                and all(c in geez_script.CONSONANTS for c in cons))
     if cls == "quad_c":
-        return len(cons) == 4 and all(c in geez_config.CONSONANTS and c not in WEAK for c in cons)
-    if len(cons) != 3 or not all(c in geez_config.CONSONANTS for c in cons):
+        return len(cons) == 4 and all(c in geez_script.CONSONANTS and c not in WEAK for c in cons)
+    if len(cons) != 3 or not all(c in geez_script.CONSONANTS for c in cons):
         return False
     weak = [c in WEAK for c in cons]
     if cls in ("type_b", "type_c", "type_c_o", "type_c_e"):
@@ -172,7 +172,7 @@ def triple_classes(dataset_dir: str) -> Tuple[Dict[Tuple[str, ...], str], int]:
 
 def _units(word):
     """[(consonant, vowel)] for an Ethiopic word, or None if a letter is unknown."""
-    units = [geez_config.decompose_char(ch) for ch in word or ""]
+    units = [geez_script.decompose_char(ch) for ch in word or ""]
     return None if not units or None in units else units
 
 
@@ -365,7 +365,7 @@ def _tags_and_sources(dataset_dir: str, exclude=()):
                 if len(named) != 1 or len(mains) > 1:
                     continue
                 cls = named.pop()
-                cons = geez_config.root_symbols((rec.get("root") or "").split("/")[0])
+                cons = geez_script.root_symbols((rec.get("root") or "").split("/")[0])
                 if not class_fits_root(cls, cons):
                     continue
                 if tags.get(cons, cls) != cls:
@@ -422,7 +422,7 @@ RULED_CLASS_TAGS = {("T", "y", "r"): "type_b", ("r", "y", "S2"): "type_b", ("w",
 Y_PAST_C2_FIRST = {("l", "f", "y"), ("l", "q", "y"), ("m", "l", "y"), ("s", "t", "y"), ("a", "b", "y")}
 Y_PAST_C2_FIRST_PENDING = {("m", "s", "y"), ("s", "b", "y")}
 _GUTT_PREFIX = {geezconfig_c: geezconfig_v for geezconfig_c, geezconfig_v in
-                ((geez_config.render_unit(c, "I"), geez_config.render_unit(c, "a")) for c in ("y", "t", "a", "n"))}
+                ((geez_script.render_unit(c, "I"), geez_script.render_unit(c, "a")) for c in ("y", "t", "a", "n"))}
 
 
 def _triples(dataset_dir: str):
@@ -528,7 +528,7 @@ def paradigm_rows(cons: Tuple[str, ...], cls: str, orders: dict = None) -> List[
     Type C imperfect and subjunctive are written the same (ይባርክ); both rows
     are kept, so that surface carries both labels.
     """
-    letters = [geez_config.render_unit(c, "a") for c in cons]
+    letters = [geez_script.render_unit(c, "a") for c in cons]
     if cls == "type_d":
         tables = vcp.type_d(letters, orders)
     elif cls == "type_b" and orders:
@@ -576,7 +576,7 @@ def _spec_from_pair(fa: str, fb: str, ra) -> str:
         if ca == cb:
             parts.append(f"[{ca}]")
             continue
-        cons, vowel = geez_config.decompose_char(ca)
+        cons, vowel = geez_script.decompose_char(ca)
         if cons not in ra:
             return None
         parts.append(f"C{ra.index(cons)}{vowel}")
@@ -618,7 +618,7 @@ def class_patterns() -> List[dict]:
                 if ca == cb:
                     parts.append(f"[{ca}]")
                     continue
-                cons, vowel = geez_config.decompose_char(ca)
+                cons, vowel = geez_script.decompose_char(ca)
                 if cons not in ra:
                     ok = False
                     break

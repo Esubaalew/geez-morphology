@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Hold out the synthetic lines whose root is a gold val or test root.
 
-The generator (generate_synthetic_fixed.py) writes the full synthetic pair of files. This one split step
+The generator (generate_synthetic_data.py) writes the full synthetic pair of files. This one split step
 moves every line whose root is a root of the current gold val or test file out of the training file into
 a separate held-out file in data/synthetic/; nothing is deleted, the lines move, both files keep the
 generator's order. The paired analyze file is split on the same lines.
@@ -12,7 +12,7 @@ generator's order. The paired analyze file is split on the same lines.
   data/synthetic/synthetic_forms_for_val_test_roots_analyze.jsonl    their analyze mirror
 
 Gold val/test roots: for every row of merho_ges_gold_val.jsonl and merho_ges_gold_test.jsonl, the row's
-root and the record's root, each "/" alternative, in the 1st order (geez_config.first_order_root); only
+root and the record's root, each "/" alternative, in the 1st order (geez_script.first_order_root); only
 roots of Ethiopic letters. A synthetic line is held out when its root, written in Ethiopic letters of
 the 1st order, is one of them.
 
@@ -25,8 +25,8 @@ Usage:
 
 Gold val/test forms: every form of every row of merho_ges_gold_val.jsonl and merho_ges_gold_test.jsonl, rows
 with no root included; a cell gives its "/"-spellings with "(...)" notes dropped, as scripts/check_dataset.py
-reads it. The generator leaves these forms out (data/heldout_gold_forms_6183c24.tsv), so the count must be 0.
-  The generator calls split_into_dataset() itself when it mirrors into the dataset (generate_synthetic_fixed.py).
+reads it. The generator leaves these forms out (data/heldout_gold_forms.tsv), so the count must be 0.
+  The generator calls split_into_dataset() itself when it mirrors into the dataset (generate_synthetic_data.py).
 """
 import argparse
 import collections
@@ -35,7 +35,7 @@ import os
 import re
 import sys
 
-import geez_config
+import geez_script
 
 TRAIN, ANALYZE = "synthetic_morphology_train.jsonl", "synthetic_morphology_analyze.jsonl"
 HELDOUT_DIR = os.path.join("data", "synthetic")
@@ -58,7 +58,7 @@ def gold_eval_roots(dataset_dir):
                         alt = alt.strip()
                         if not ETHIOPIC_ROOT.fullmatch(alt):
                             continue
-                        roots[geez_config.first_order_root(alt)].add(split)
+                        roots[geez_script.first_order_root(alt)].add(split)
     return dict(roots)
 
 
@@ -103,7 +103,7 @@ def gold_form_lines(dataset_dir):
 def line_root(d):
     """The root of a synthetic line in 1st-order Ethiopic letters (q-t-l -> ቀ-ተ-ለ)."""
     feats = d.get("features") or d.get("analysis") or {}
-    return geez_config.first_order_root(geez_config.to_ethiopic_root(feats.get("root") or ""))
+    return geez_script.first_order_root(geez_script.to_ethiopic_root(feats.get("root") or ""))
 
 
 def split(full_dir, dataset_dir):

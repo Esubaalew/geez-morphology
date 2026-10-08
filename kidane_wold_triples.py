@@ -42,7 +42,7 @@ import json
 import os
 import re
 
-import geez_config as gc
+import geez_script as gc
 
 PAR = re.compile(r"\(([^()]*)\)")
 SEP = re.compile(r"[\s፡።፣፤፥፦፧፨,.\-÷]+")

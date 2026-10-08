@@ -9,7 +9,7 @@ import json
 
 from analyzer import GeezMorphologicalAnalyzer
 from engine import InterdigitationEngine, slots_from_spec
-import geez_config
+import geez_script
 import dataset_loader
 
 
@@ -64,7 +64,7 @@ VERB_TYPE_CHOICES = TEMPLATE_CLASSES + ("quadriliteral",) + TABLE_CLASSES
 
 
 def cmd_generate(args):
-    engine = InterdigitationEngine(renderer=geez_config.render_unit)
+    engine = InterdigitationEngine(renderer=geez_script.render_unit)
     
     # Load patterns
     import os
@@ -83,7 +83,7 @@ def cmd_generate(args):
         cons = tuple(args.root.split("-"))
     elif len(args.root) in (3, 4):
         # Decompose if Ethiopic characters
-        units = geez_config.decompose_string(args.root)
+        units = geez_script.decompose_string(args.root)
         cons = tuple(c for c, v in units if c is not None)
     else:
         cons = tuple(args.root)

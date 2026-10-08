@@ -17,14 +17,14 @@ import pytest
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
-import geez_config  # noqa: E402
+import geez_script  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 import verb_classes  # noqa: E402
 from engine import InterdigitationEngine, slots_from_spec  # noqa: E402
 
 DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)
 SYNTH = os.path.join(DATASET, "data", "paradigms", "synthetic_morphology_train.jsonl")
-ENG = InterdigitationEngine(renderer=geez_config.render_unit)
+ENG = InterdigitationEngine(renderer=geez_script.render_unit)
 
 
 def patterns():
@@ -61,7 +61,7 @@ def test_no_amharic_as_prefix_or_old_stem_name():
 # ---------------------------------------------------------------- 1, 4 helpers
 def test_amharic_letters_and_weak_count():
     for ch in "ሸቸኘዠ":
-        cons, _ = geez_config.decompose_char(ch)
+        cons, _ = geez_script.decompose_char(ch)
         assert verb_classes.has_amharic_letter(("b", cons, "r"))
     assert not verb_classes.has_amharic_letter(("q", "t", "l"))
     assert set("ሸቸኘኸዠጀጨ") == set(verb_classes.AMHARIC_ONLY_LETTERS)

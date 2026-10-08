@@ -18,7 +18,7 @@ synthetic_morphology_analyze.jsonl (the same lines keyed by surface form). They 
 
 Roots of the gold test split are left out (see --keep_test_roots), so the
 gold score measures unseen roots. By default these are the 185 roots in
-data/heldout_test_roots_c7bc587.txt (see below); --test_file takes them from a
+data/heldout_test_roots.txt (see below); --test_file takes them from a
 gold test file instead. By default the generator writes into the dataset folder: output goes to
 <dataset>/output and is copied to <dataset>/data/paradigms (what train_byt5_morphology.py reads).
 After the copy, split_heldout_synthetic.py moves every line whose root is a root of the
@@ -32,9 +32,9 @@ sha256("<SEED>:<purpose>:<root>") (root_rng). A change to one root (its class ta
 changes only that root's lines; every other root's lines stay identical and in the same order.
 The synthetic files in the dataset were generated with the gold test file as extracted, dataset
 commit c7bc587. Its test roots differ from the
-current test file's. They are frozen in data/heldout_test_roots_c7bc587.txt (in this repo), so
+current test file's. They are frozen in data/heldout_test_roots.txt (in this repo), so
 reproducing the files needs no git history of the dataset:
-  python generate_synthetic_fixed.py --dataset_dir <dataset>
+  python generate_synthetic_data.py --dataset_dir <dataset>
 
 Two more committed files in data/ limit the output; the
 generator stops if either is missing:
@@ -42,7 +42,7 @@ generator stops if either is missing:
       entry, a gold root or a Kidane Wold verb triple, or restored by the maintainers (the roots of this
       generator's output on geez-dataset 3da9041 with the list switched off that have such evidence, minus the ones
       the exception table rules DROP or EXCLUDE_NO_VERB; its RESTORE rows stay).
-  data/heldout_gold_forms_6183c24.tsv       every gold val/test form of dataset commit 6183c24; a line
+  data/heldout_gold_forms.tsv       every gold val/test form of dataset commit 6183c24; a line
       whose surface form is one of them is not written. The rest of that root's lines are made as if
       the line were there, so no other line changes.
 """
@@ -61,7 +61,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-import geez_config
+import geez_script
 import dataset_loader  # default_dataset_dir()
 import verb_class_paradigms as vcp
 import verb_classes
@@ -116,7 +116,7 @@ def attach_object_pronoun(surface: str, obj_suffix: str) -> Optional[str]:
     if not surface:
         return None
 
-    units = geez_config.decompose_string(surface)
+    units = geez_script.decompose_string(surface)
     if not units:
         return None
     last_cons, last_vowel = units[-1]
@@ -125,13 +125,13 @@ def attach_object_pronoun(surface: str, obj_suffix: str) -> Optional[str]:
     # Final 1st order (-a) or 6th order (no vowel): ቀተለ, ቀተልከ, ይቀትል, ቀተለት.
     if last_vowel in ("a", "I"):
         if obj_suffix == "ዎ":
-            return surface[:-1] + geez_config.render_unit(last_cons, "o")          # ቀተሎ
+            return surface[:-1] + geez_script.render_unit(last_cons, "o")          # ቀተሎ
         if obj_suffix == "ሃ":
-            return surface[:-1] + geez_config.render_unit(last_cons, "A")          # ቀተላ, ይቀትላ
+            return surface[:-1] + geez_script.render_unit(last_cons, "A")          # ቀተላ, ይቀትላ
         if obj_suffix in ("ሆሙ", "ሆን"):
-            return surface[:-1] + geez_config.render_unit(last_cons, "o") + obj_suffix[1:]  # ቀተሎሙ
+            return surface[:-1] + geez_script.render_unit(last_cons, "o") + obj_suffix[1:]  # ቀተሎሙ
         if last_vowel == "I":
-            return surface[:-1] + geez_config.render_unit(last_cons, "a") + obj_suffix  # ይቀትለኒ
+            return surface[:-1] + geez_script.render_unit(last_cons, "a") + obj_suffix  # ይቀትለኒ
         return surface + obj_suffix                                                # ቀተለኒ
 
     if third and last_vowel == "u":
@@ -214,7 +214,7 @@ def guttural_prefix(spec: str) -> str:
 
 # The gold test roots of dataset commit c7bc587, one root per line (made with load_held_out_roots
 # from that commit's merho_ges_gold_test.jsonl). The sha256 is checked in tests/test_heldout_roots_file.py.
-HELD_OUT_ROOTS_FILE = os.path.join(BASE_DIR, "data", "heldout_test_roots_c7bc587.txt")
+HELD_OUT_ROOTS_FILE = os.path.join(BASE_DIR, "data", "heldout_test_roots.txt")
 
 
 def read_held_out_roots_file(path: str = HELD_OUT_ROOTS_FILE) -> set:
@@ -225,7 +225,7 @@ def read_held_out_roots_file(path: str = HELD_OUT_ROOTS_FILE) -> set:
         for line in f:
             line = line.strip()
             if line and not line.startswith("#"):
-                roots.add(geez_config.root_symbols(line))
+                roots.add(geez_script.root_symbols(line))
     return roots
 
 
@@ -234,7 +234,7 @@ def read_held_out_roots_file(path: str = HELD_OUT_ROOTS_FILE) -> set:
 # tests/test_synthetic_allowed_roots_and_blocked_forms.py.
 ALLOWED_ROOTS_FILE = os.path.join(BASE_DIR, "data", "synthetic_roots_allowed_v4.txt")
 # Every gold val/test form of dataset commit 6183c24 (column geez_form; "#" lines are notes).
-BLOCKED_FORMS_FILE = os.path.join(BASE_DIR, "data", "heldout_gold_forms_6183c24.tsv")
+BLOCKED_FORMS_FILE = os.path.join(BASE_DIR, "data", "heldout_gold_forms.tsv")
 
 
 def read_allowed_roots_file(path: str = ALLOWED_ROOTS_FILE) -> set:
@@ -250,7 +250,7 @@ def read_allowed_roots_file(path: str = ALLOWED_ROOTS_FILE) -> set:
             if not line or line.startswith("#"):
                 continue
             parts = tuple(line.split("-"))
-            if len(parts) not in (2, 3, 4, 5) or not all(p in geez_config.CONSONANTS for p in parts):
+            if len(parts) not in (2, 3, 4, 5) or not all(p in geez_script.CONSONANTS for p in parts):
                 raise ValueError(f"{path} line {n}: {line!r} is not a root of consonant symbols")
             roots.add(parts)
     if not roots:
@@ -294,7 +294,7 @@ def load_held_out_roots(test_file: Optional[str]) -> set:
         for line in f:
             rec = json.loads(line)
             for alt in (rec.get("canonical_root") or rec.get("root") or "").split("/"):
-                cons = geez_config.root_symbols(alt)
+                cons = geez_script.root_symbols(alt)
                 if cons:
                     roots.add(cons)
     return roots
@@ -355,7 +355,7 @@ def generate_extended_dataset(
     out_analyze = os.path.join(output_dir, "synthetic_morphology_analyze.jsonl")
 
     dictionary, patterns_data = load_dictionary_and_patterns(dataset_dir)
-    engine = InterdigitationEngine(renderer=geez_config.render_unit)
+    engine = InterdigitationEngine(renderer=geez_script.render_unit)
 
     print(f"Loaded {len(dictionary)} dictionary entries and {len(patterns_data)} triliteral patterns.")
 
@@ -373,7 +373,7 @@ def generate_extended_dataset(
             # Every radical must be a consonant symbol the renderer knows.
             # Otherwise every template fails for the root (n-'-s, Ethiopic
             # "roots" from the raw root field): skip it and report it.
-            if len(parts) in (3, 4) and not all(p in geez_config.CONSONANTS for p in parts):
+            if len(parts) in (3, 4) and not all(p in geez_script.CONSONANTS for p in parts):
                 skipped_roots.add("-".join(parts))
                 continue
             if len(parts) == 3:
@@ -386,7 +386,7 @@ def generate_extended_dataset(
     # Roots named by the checked lists are attested verbs even where the
     # dictionary's root inference missed them (ወለደ has no inferred root).
     added_roots = {r for r in ({tuple(r.split("-")) for r in vcp.W_DROP} | set(class_of))
-                   if len(r) == 3 and all(c in geez_config.CONSONANTS for c in r)}
+                   if len(r) == 3 and all(c in geez_script.CONSONANTS for c in r)}
     added_roots -= triliteral_roots
     triliteral_roots |= added_roots
 
@@ -897,7 +897,7 @@ if __name__ == "__main__":
                              "<dataset>/data/paradigms and do not split off the held-out lines")
     parser.add_argument("--test_file", default=None,
                         help="Leave out the roots of this gold test file instead of the frozen list "
-                             "data/heldout_test_roots_c7bc587.txt (the default)")
+                             "data/heldout_test_roots.txt (the default)")
     parser.add_argument("--no_heldout_split", action="store_true",
                         help="Do not move the lines with a gold val/test root to <dataset>/data/synthetic/ after the copy")
     args = parser.parse_args()

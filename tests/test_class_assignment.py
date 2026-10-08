@@ -5,7 +5,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import geez_config as gc  # noqa: E402
+import geez_script as gc  # noqa: E402
 import verb_class_paradigms as vcp  # noqa: E402
 from engine import InterdigitationEngine, slots_from_spec  # noqa: E402
 
@@ -67,7 +67,7 @@ def test_type_d_from_triple():                       # ጽሕቀ ፡ ይጽሕ�
 
 
 def test_guttural_present_prefix():                  # የኀፍር, ተኀፍር, አኀፍር, ነኀፍር; subjunctive keeps ይ
-    from generate_synthetic_fixed import guttural_prefix
+    from generate_synthetic_data import guttural_prefix
     root = ("kh", "f", "r")
     assert ENGINE.generate(root, slots_from_spec(guttural_prefix("[ይ]-C0a-C1I-C2I"))) == "የኀፍር"
     assert ENGINE.generate(root, slots_from_spec(guttural_prefix("[ን]-C0a-C1I-C2I"))) == "ነኀፍር"

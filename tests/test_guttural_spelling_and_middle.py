@@ -17,9 +17,9 @@ import pytest
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
-import geez_config  # noqa: E402
+import geez_script  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
-import generate_synthetic_fixed as gen  # noqa: E402
+import generate_synthetic_data as gen  # noqa: E402
 import verb_classes  # noqa: E402
 
 DATASET = DATASET_DIR   # --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)
@@ -43,18 +43,18 @@ def need_allowed(root):
 
 @pytest.mark.parametrize("fourth,first", [("ዓ", "ዐ"), ("ሓ", "ሐ"), ("ኃ", "ኀ"), ("ሃ", "ሀ"), ("ኣ", "አ")])
 def test_normalize_guttural_4th_pairs(fourth, first):
-    assert geez_config.normalize_guttural_4th(fourth) == first
-    assert geez_config.gutturals_equal(fourth, first)
+    assert geez_script.normalize_guttural_4th(fourth) == first
+    assert geez_script.gutturals_equal(fourth, first)
 
 
 def test_normalize_touches_only_the_five_gutturals():
     for ch in "ባላማሳቃናጣፋዳጋዛካታ":                   # 4th order of non-gutturals
-        assert geez_config.normalize_guttural_4th(ch) == ch
+        assert geez_script.normalize_guttural_4th(ch) == ch
     for ch in "ሐሑሒሔሕሖዐዑዒዔዕዖ":                       # other orders untouched
-        assert geez_config.normalize_guttural_4th(ch) == ch
-    assert geez_config.normalize_guttural_4th("ሰምዓ") == "ሰምዐ"
-    assert geez_config.normalize_guttural_4th("ኣምላክ") == "አምላክ"
-    assert not geez_config.gutturals_equal("ባ", "በ")
+        assert geez_script.normalize_guttural_4th(ch) == ch
+    assert geez_script.normalize_guttural_4th("ሰምዓ") == "ሰምዐ"
+    assert geez_script.normalize_guttural_4th("ኣምላክ") == "አምላክ"
+    assert not geez_script.gutturals_equal("ባ", "በ")
 
 
 @pytest.fixture(scope="module")
@@ -157,7 +157,7 @@ def test_no_doubled_guttural_present_in_changed_roots(synth):
         if (len(root) != 3 or f.get("verb_type") != "strong_A" or root[1] not in GUTT or root[0] in GUTT
                 or root in kw or f.get("stem") != "basic"):
             continue
-        dec = [geez_config.decompose_char(ch) for ch in r["surface_form"]]
+        dec = [geez_script.decompose_char(ch) for ch in r["surface_form"]]
         i = next((k for k, (c, v) in enumerate(dec) if c == root[0]), None)
         j = next((k for k in range(i + 1, len(dec)) if dec[k][0] == root[1]), None) if i is not None else None
         assert i is not None and j is not None, r
@@ -168,5 +168,5 @@ def test_no_doubled_guttural_present_in_changed_roots(synth):
             bad.append(r["surface_form"])
     assert len(seen) == 71      # 155 before the 2026-10-08 allow-list; 85 with the v3 list; 72 after the kw rebuild; 71 without
     #                             qh-h2-m (the update, phantom root off the list) (the update:
-    #                             roots with their own corrected triple are not counted here, see test_kidane_wold_subjunctive PATCH_ROOTS)
+    #                             roots with their own corrected triple are not counted here, see test_kidane_wold_subjunctive.py PATCH_ROOTS)
     assert bad == []

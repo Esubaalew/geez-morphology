@@ -55,7 +55,7 @@ from typing import Dict, List, Optional
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 
-from geez_config import to_ethiopic_root  # one shared definition
+from geez_script import to_ethiopic_root  # one shared definition
 import dataset_loader  # reads the gold files; shared with evaluate_gold.py
 
 MODEL_NAME = "google/byt5-small"

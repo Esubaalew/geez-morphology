@@ -11,7 +11,7 @@ import json
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple, Any, Set
 
-import geez_config
+import geez_script
 import dataset_loader  # default_dataset_dir(): --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset
 from train_byt5_morphology import DEFAULT_OUTPUT_DIR as DEFAULT_MODEL_DIR, model_to_load
 from engine import InterdigitationEngine, slots_from_spec, Pattern
@@ -80,11 +80,11 @@ def normalize_inferred_root(root_str: str) -> str:
             out.append(LATIN[p])
             continue
         # Ethiopic syllable or multi-char Latin token already a symbol
-        if p in geez_config.CONSONANTS:
+        if p in geez_script.CONSONANTS:
             out.append(p)
             continue
         if all(ord(ch) >= 0x1200 for ch in p):
-            units = geez_config.decompose_string(p)
+            units = geez_script.decompose_string(p)
             for c, _v in units:
                 if c:
                     out.append(c)
@@ -247,7 +247,7 @@ class GeezMorphologicalAnalyzer:
                 cp["only_roots"] = only[cls]
 
         # Initialize generation engine for lemma synthesis
-        self.engine = InterdigitationEngine(renderer=geez_config.render_unit)
+        self.engine = InterdigitationEngine(renderer=geez_script.render_unit)
         self.lemma_spec = slots_from_spec("C0a-C1a-C2a")
         self.lemma_spec_biliteral = slots_from_spec("C0a-C1a")
 
@@ -268,10 +268,10 @@ class GeezMorphologicalAnalyzer:
                     
                     # Also index 1st-order lemma if headword is 6th-order (e.g. ቀተል -> ቀተለ)
                     if len(hw) >= 3 and (hw.endswith("ል") or any(hw.endswith(c) for c in ["ር", "ም", "ስ", "ቅ", "ብ", "ት", "ክ"])):
-                        units = geez_config.decompose_string(hw)
+                        units = geez_script.decompose_string(hw)
                         if units and units[-1][1] == "I":
                             alt_chars = list(hw)
-                            alt_chars[-1] = geez_config.render_unit(units[-1][0], "a")
+                            alt_chars[-1] = geez_script.render_unit(units[-1][0], "a")
                             alt_hw = "".join(alt_chars)
                             self.lexicon.setdefault(alt_hw, []).append(entry)
 
@@ -289,10 +289,10 @@ class GeezMorphologicalAnalyzer:
                     if cleaned_root not in self.root_canonical_lemma:
                         if entry.get("pos") == "verb" or entry.get("verb_class"):
                             if hw:
-                                units = geez_config.decompose_string(hw)
+                                units = geez_script.decompose_string(hw)
                                 if units and units[-1][1] == "I":
                                     alt = list(hw)
-                                    alt[-1] = geez_config.render_unit(units[-1][0], "a")
+                                    alt[-1] = geez_script.render_unit(units[-1][0], "a")
                                     self.root_canonical_lemma[cleaned_root] = "".join(alt)
                                 else:
                                     self.root_canonical_lemma[cleaned_root] = hw
@@ -304,19 +304,19 @@ class GeezMorphologicalAnalyzer:
         if len(surface) != len(expanded):
             return None
 
-        units = geez_config.decompose_string(surface)
+        units = geez_script.decompose_string(surface)
         root_map = {}
         for i in range(len(surface)):
             ch = surface[i]
             c, v = units[i]
             slot = expanded[i]
             if slot[0] == "F":
-                if ch != slot[1] and not (self._loose_gutturals and geez_config.gutturals_equal(ch, slot[1])):
+                if ch != slot[1] and not (self._loose_gutturals and geez_script.gutturals_equal(ch, slot[1])):
                     return None
             elif slot[0] == "R":
                 slot_idx = slot[1]
                 slot_v = slot[2]
-                if v != slot_v and not (self._loose_gutturals and c in geez_config.GUTTURAL_SYMBOLS
+                if v != slot_v and not (self._loose_gutturals and c in geez_script.GUTTURAL_SYMBOLS
                                         and {v, slot_v} == {"a", "A"}):
                     return None
                 if slot_idx in root_map and root_map[slot_idx] != c:
@@ -413,15 +413,15 @@ class GeezMorphologicalAnalyzer:
                             rem_obj = rem_obj + "ከ"
                         if len(rem_obj) < 2:
                             continue
-                        prev_cons, prev_vowel = geez_config.decompose_char(rem_obj[-1])
+                        prev_cons, prev_vowel = geez_script.decompose_char(rem_obj[-1])
                         # Before a 3rd-person object, a subject -u/-i may drop to
                         # sixth order: ቀተልክዎ = ቀተልኩዎ, ቀተልክዮ = ቀተልኪዮ, ቀተልዎ = ቀተሉዎ.
                         # Restore the vowel so the subject is read as usual.
                         if s_obj in after_u and prev_vowel == "I" and prev_cons:
-                            rem_obj = rem_obj[:-1] + geez_config.render_unit(prev_cons, "u")
+                            rem_obj = rem_obj[:-1] + geez_script.render_unit(prev_cons, "u")
                             prev_vowel = "u"
                         if s_obj in after_i and prev_vowel == "I" and prev_cons:
-                            rem_obj = rem_obj[:-1] + geez_config.render_unit(prev_cons, "i")
+                            rem_obj = rem_obj[:-1] + geez_script.render_unit(prev_cons, "i")
                             prev_vowel = "i"
                         if s_obj in after_u and prev_vowel != "u":
                             continue
@@ -445,7 +445,7 @@ class GeezMorphologicalAnalyzer:
                                 # ሙ/ን only attach to the fused -o object reading.
                                 fused_readings = [r for r in fused_readings if r[2] == "3ms"]
                             for stem_core, fused_subj, fused_obj in fused_readings:
-                                dec = geez_config.decompose_string(stem_core)
+                                dec = geez_script.decompose_string(stem_core)
                                 cons = tuple(c for c, v in dec if c is not None)
                                 final_w = bool(fused_subj and fused_subj.get("final_w"))
                                 affix_count = (
@@ -535,11 +535,11 @@ class GeezMorphologicalAnalyzer:
         if not stem:
             return readings
         last = stem[-1]
-        c, v = geez_config.decompose_char(last)
+        c, v = geez_script.decompose_char(last)
         if c is None:
             return readings
         # Rebuild stem with last syllable in 1st order (ä/a) for root extraction
-        base_last = geez_config.render_unit(c, "a")
+        base_last = geez_script.render_unit(c, "a")
         core = stem[:-1] + base_last
         if v in ("u", "A", "o") and len(stem) >= 2:
             readings = []
@@ -875,7 +875,7 @@ class GeezMorphologicalAnalyzer:
         """Direct lookup in the dictionary (Kidane Wold entries plus modern entries)."""
         results = self.lexicon.get(word_or_lemma, [])
         if not results:
-            units = geez_config.decompose_string(word_or_lemma)
+            units = geez_script.decompose_string(word_or_lemma)
             cons = "".join(c for c, v in units if c is not None)
             if cons and cons in self.root_index:
                 results = self.root_index[cons]
@@ -924,7 +924,7 @@ def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
         return None
     cons = []
     for ch in letters:
-        dec = geez_config.decompose_char(ch)
+        dec = geez_script.decompose_char(ch)
         if not dec or not dec[0]:
             return None
         cons.append(dec[0])
@@ -1045,10 +1045,10 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
         # accept either order on a guttural radical.
         word = word.strip().strip("፡።፣፤፥፦")
         results = self._rules_analyze(word, lookup_dictionary)
-        norm = geez_config.normalize_guttural_4th(word)
+        norm = geez_script.normalize_guttural_4th(word)
         if norm != word:
             results = self._merge(results, self._rules_analyze(norm, lookup_dictionary))
-        if any(c in geez_config.GUTTURAL_SYMBOLS for c, _ in geez_config.decompose_string(norm)):
+        if any(c in geez_script.GUTTURAL_SYMBOLS for c, _ in geez_script.decompose_string(norm)):
             self._loose_gutturals = True
             try:
                 loose = self._pattern_analyze(norm, self.compiled_patterns, lookup_dictionary)

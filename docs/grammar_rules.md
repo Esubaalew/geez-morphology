@@ -1,10 +1,10 @@
 # Grammar rules used by the generator and the analyzer
 
-These are the language decisions the generator (`generate_synthetic_fixed.py`, `verb_classes.py`,
+These are the language decisions the generator (`generate_synthetic_data.py`, `verb_classes.py`,
 `verb_class_paradigms.py`) and the analyzer (`analyzer.py`) follow. Page numbers are the
 printed pages of the grammar books they were read from.
 
-Root letters are written in the consonant symbols of `geez_config.py` (h1 ሀ, h2 ሐ, kh ኀ, a አ,
+Root letters are written in the consonant symbols of `geez_script.py` (h1 ሀ, h2 ሐ, kh ኀ, a አ,
 a2 ዐ, s2 ሠ, S ጸ, S2 ፀ, T ጠ, qh ቈ).
 
 Tenses: perfect (past) and imperfect (present), as the data labels them, then the subjunctive

@@ -11,7 +11,7 @@ S-b-r, kh-r-s and m-l-a: the generator stands; the final-guttural 4th order only
 data/class_changes.tsv is a byte copy of class_changes.tsv: one row per class change.
 data/phantom_root_qh_h2_m.tsv is a byte copy of the qh-h2-m reply (the exception table:
 the restored row for qh-h2-m is withdrawn (its Type D triple was an OCR misread of entry 360), so qh-h2-m stays Type A.
-Expected forms are built from root letters (geez_config.render_unit), so this file types no Ge'ez letters.
+Expected forms are built from root letters (geez_script.render_unit), so this file types no Ge'ez letters.
 """
 import csv
 import hashlib
@@ -24,9 +24,9 @@ import pytest
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
-import geez_config  # noqa: E402
+import geez_script  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
-import generate_synthetic_fixed as gen  # noqa: E402
+import generate_synthetic_data as gen  # noqa: E402
 import verb_classes  # noqa: E402
 
 DATASET = DATASET_DIR
@@ -40,7 +40,7 @@ BLOCKED = gen.read_blocked_forms_file()
 
 
 def _w(*units):
-    return "".join(geez_config.render_unit(c, v) for c, v in units)
+    return "".join(geez_script.render_unit(c, v) for c, v in units)
 
 
 def need_allowed(root):
@@ -156,7 +156,7 @@ def test_final_guttural_object_forms_keep_6th(synth_all):
     for r in synth_all:
         f = r["features"]
         if f["root"] in roots and f.get("stem") == "basic" and "object" in f and f["tense"] in ("subjunctive", "imperative"):
-            dec = [geez_config.decompose_char(ch) for ch in r["surface_form"]]
+            dec = [geez_script.decompose_char(ch) for ch in r["surface_form"]]
             c2 = f["root"].split("-")[1]
             assert any(d == (c2, "I") for d in dec), r
             seen += 1
@@ -172,7 +172,7 @@ def test_guttural_present_prefix(cells, triples, root):
     need_allowed(root)
     pres = one(cells, root, "present", "3ms")
     assert pres in {x["triple"][1] for x in triples[root]}
-    assert geez_config.decompose_char(pres[0]) == ("y", "a")
+    assert geez_script.decompose_char(pres[0]) == ("y", "a")
 
 
 # ------------------------------------------------------------------ initial w, hollow, quadriliteral

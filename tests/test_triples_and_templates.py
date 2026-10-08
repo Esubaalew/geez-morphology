@@ -8,7 +8,7 @@ import pytest
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
-import geez_config  # noqa: E402
+import geez_script  # noqa: E402
 import kidane_wold_triples as kw  # noqa: E402
 from engine import InterdigitationEngine, slots_from_spec  # noqa: E402
 
@@ -48,7 +48,7 @@ def test_restore_dropped_letter():
     assert kw.restore_dropped({"headword_geez": "ቀተለ", "inferred_root": "q-t-l"}) is None
 
 
-ENG = InterdigitationEngine(renderer=geez_config.render_unit)
+ENG = InterdigitationEngine(renderer=geez_script.render_unit)
 
 
 def load(name):

@@ -27,7 +27,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-import geez_config  # noqa: E402
+import geez_script  # noqa: E402
 
 SPLITS = ("train", "val", "test")
 DATASET_DIR_ENV = "GEEZ_DATASET_DIR"
@@ -87,7 +87,7 @@ def root_problem(root):
     if any(not (0x1200 <= ord(c) <= 0x137F) and c != "-" for c in root):
         return "Latin or other non-Ethiopic text in root"
     parts = root.split("-")
-    if any(len(p) != 1 or geez_config.decompose_char(p)[0] is None for p in parts):
+    if any(len(p) != 1 or geez_script.decompose_char(p)[0] is None for p in parts):
         return "letter outside the Ge'ez table"
     if not 2 <= len(parts) <= 5:
         return "root is not 2-5 letters"

@@ -4,7 +4,7 @@
   verb entry, a gold root or a Kidane Wold verb triple, plus the 8 roots the maintainers restored by decision in
   the exception table: m-h2-l, m-s-l, S-w-t, b-y-S, f-r-S, h2-r-g, m-s-k, w-k-a2; m-kh-l is DROP there). The
   generator stops if the file is missing.
-- data/heldout_gold_forms_6183c24.tsv: every gold val/test form of dataset commit 6183c24. A synthetic line
+- data/heldout_gold_forms.tsv: every gold val/test form of dataset commit 6183c24. A synthetic line
   with one of these forms is not written; the root's other lines do not change. Missing file: the generator stops.
 - split_heldout_synthetic.py --check fails when a dataset synthetic line has a gold val/test form.
 Any change to the two files shows in the sha256 tests.
@@ -25,8 +25,8 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 
 import engine as engine_module  # noqa: E402
-import generate_synthetic_fixed as gen  # noqa: E402
-import geez_config  # noqa: E402
+import generate_synthetic_data as gen  # noqa: E402
+import geez_script  # noqa: E402
 import split_heldout_synthetic as H  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
@@ -44,7 +44,7 @@ def _sha(path):
 
 def _word(*units):
     """Ethiopic word from (consonant symbol, vowel) units, so the test types no Ge'ez letters."""
-    return "".join(geez_config.render_unit(c, v) for c, v in units)
+    return "".join(geez_script.render_unit(c, v) for c, v in units)
 
 
 def test_files_are_unchanged():
@@ -162,7 +162,7 @@ def _heldout_setup(tmp, train_forms):
     os.makedirs(os.path.join(tmp, "full"))
     rootless = _word(("k", "i"), ("d", "A"))                                  # a val row with no root
     val = {"root": "", "table_data": [{"geez_form": rootless}]}
-    test = {"root": geez_config.to_ethiopic_root("s-m-a2"),
+    test = {"root": geez_script.to_ethiopic_root("s-m-a2"),
             "table_data": [{"geez_form": _word(("s", "a"), ("m", "I"), ("a2", "a"))}]}
     for name, rec in (("merho_ges_gold_val.jsonl", val), ("merho_ges_gold_test.jsonl", test)):
         with open(os.path.join(tmp, "ds", "data", "paradigms", name), "w", encoding="utf-8") as f:

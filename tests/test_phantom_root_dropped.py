@@ -14,7 +14,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
 from conftest import DATASET_DIR  # noqa: E402
-import generate_synthetic_fixed as gen  # noqa: E402
+import generate_synthetic_data as gen  # noqa: E402
 
 ALLOWED = {"-".join(r) for r in gen.read_allowed_roots_file()}
 FILES = [os.path.join("data", "paradigms", "synthetic_morphology_train.jsonl"),

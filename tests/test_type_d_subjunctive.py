@@ -11,7 +11,7 @@ import pytest
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
-import geez_config  # noqa: E402
+import geez_script  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 import verb_classes  # noqa: E402
 
@@ -65,7 +65,7 @@ def test_no_sixth_order_2nd_radical_in_type_d_subj_imp(synth):
         if f.get("verb_type") != "strong_D" or f["tense"] not in ("subjunctive", "imperative"):
             continue
         root = f["root"].split("-")
-        cons = [geez_config.decompose_char(ch) for ch in r["surface_form"]]
+        cons = [geez_script.decompose_char(ch) for ch in r["surface_form"]]
         second = [v for c, v in cons if c == root[1]]
         if not second or second[-1] == "I":
             bad.append(r["surface_form"])

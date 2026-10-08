@@ -3,7 +3,7 @@ Root-and-pattern interdigitation engine.
 
 Puts the consonants of a root into the slots of a pattern template. The
 engine does not render a script itself: rendering, the vowel inventory and
-the affixes come from the caller (for Ge'ez, geez_config.render_unit).
+the affixes come from the caller (for Ge'ez, geez_script.render_unit).
 
 The core operation:
     interdigitate(root, pattern) -> abstract_form

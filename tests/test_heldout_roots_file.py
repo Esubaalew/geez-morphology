@@ -1,4 +1,4 @@
-"""data/heldout_test_roots_c7bc587.txt: the gold test roots the synthetic data was generated without.
+"""data/heldout_test_roots.txt: the gold test roots the synthetic data was generated without.
 
 The list was made once from dataset commit c7bc587 (data/paradigms/merho_ges_gold_test.jsonl) and is
 committed, so the generator needs no git history of the dataset. Any change to the file shows here.
@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import generate_synthetic_fixed as gen  # noqa: E402
+import generate_synthetic_data as gen  # noqa: E402
 
 SHA256 = "8a6b64053cddd0d54301acc4142e3aa9e2b25cc88bb6334ce5a05dd061b7c88d"
 

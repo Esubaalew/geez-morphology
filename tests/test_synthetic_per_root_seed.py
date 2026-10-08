@@ -1,4 +1,4 @@
-"""Per-root random seeding in generate_synthetic_fixed.py.
+"""Per-root random seeding in generate_synthetic_data.py.
 
 A change to one root's class tag must change only that root's lines: every other root's lines
 (base, quadriliteral, object and negative) stay identical and in the same order. Runs the
@@ -18,7 +18,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 
 import engine as engine_module  # noqa: E402
-import generate_synthetic_fixed as gen  # noqa: E402
+import generate_synthetic_data as gen  # noqa: E402
 import verb_classes  # noqa: E402
 
 TRILITERAL = ["q-t-l", "g-b-r", "n-g-r", "s-b-r", "k-t-b", "d-m-r", "f-t-l", "m-s-l", "n-b-r", "l-b-s",
@@ -96,7 +96,7 @@ def test_root_rng_is_sha256_based_not_salted_hash():
     assert value == 0.3855267602400665
     assert gen.root_rng("q-t-l", "negative").random() != value
     assert gen.root_rng("q-t-r", "objects").random() != value
-    code = ("import sys; sys.path.insert(0, %r); import generate_synthetic_fixed as g; "
+    code = ("import sys; sys.path.insert(0, %r); import generate_synthetic_data as g; "
             "print(repr(g.root_rng('q-t-l', 'objects').random()))" % ROOT)
     env = dict(os.environ, PYTHONHASHSEED="12345")
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, cwd=ROOT)
