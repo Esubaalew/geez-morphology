@@ -99,7 +99,7 @@ byt5_morphology_model/
 
 On SIGTERM or Ctrl-C the trainer saves a checkpoint and stops; the same command resumes. `--resume_from` points at another run's checkpoints, and `--batch_size 8 --grad_accum 2` keeps the effective batch at 16. A dry run on CPU: `python train_byt5_morphology.py --dataset_dir ../geez-dataset --device cpu --max_steps 3 --sample_limit 64 --max_eval_samples 8 --batch_size 4 --output_dir /tmp/byt5_dry_run`.
 
-`evaluate_gold.py` scores every pair of the gold val and test files (`--split val test`), read by the same loader. It loads the final model from `--model_dir` (default `byt5_morphology_model/`), or the latest `checkpoint-<step>` when the run did not finish. It ends with the root accuracy per split:
+`evaluate_gold.py` scores every pair of the gold val and test files (`--split val test`), read by the same loader. It loads the final model from `--model_dir` (default `byt5_morphology_model/`), or the latest `checkpoint-<step>` when the run did not finish. `HybridAnalyzer` (and `--system hybrid`) finds its ByT5 fallback the same way; if there is no model there it stops with `ByT5 model not found in ...`. `--no_neural` (`use_neural=False`) runs the rules only and needs no model. It ends with the root accuracy per split:
 
 ```
 Root accuracy (exact match):

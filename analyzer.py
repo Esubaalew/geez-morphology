@@ -14,6 +14,7 @@ from typing import List, Dict, Optional, Tuple, Any, Set
 
 import geez_config
 import dataset_loader  # default_dataset_dir(): --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset
+from train_byt5_morphology import DEFAULT_OUTPUT_DIR as DEFAULT_MODEL_DIR, model_to_load
 try:
     from .engine import InterdigitationEngine, slots_from_spec, Pattern
 except ImportError:
@@ -37,6 +38,19 @@ def _project_dir() -> str:
 
 # The dictionary the analyzer reads, inside the geez-dataset checkout.
 DICTIONARY_FILE = os.path.join("data", "geez_amharic_dictionary.jsonl")
+
+
+def find_model_dir(model_dir: Optional[str] = None) -> str:
+    """The ByT5 model folder, found the way evaluate_gold.py finds it: model_dir (default
+    byt5_morphology_model/, the trainer's --output_dir), its final model, else its latest
+    checkpoint-<step>. Raises FileNotFoundError when there is no model there."""
+    folder = model_to_load(os.path.abspath(model_dir or DEFAULT_MODEL_DIR))
+    if not os.path.exists(os.path.join(folder, "config.json")):
+        raise FileNotFoundError(
+            f"ByT5 model not found in {folder}. Train one with train_byt5_morphology.py "
+            "(it writes byt5_morphology_model/), pass --model_dir (model_dir=...), "
+            "or use --no_neural (use_neural=False) for the rules only.")
+    return folder
 
 
 # Guttural first radical (አ ዐ ሀ ሐ ኀ): imperfect prefix in the 1st order.
@@ -957,28 +971,16 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
         self,
         patterns_path: Optional[str] = None,
         dictionary_path: Optional[str] = None,
-        checkpoint_dir: Optional[str] = None,
+        model_dir: Optional[str] = None,
         device: Optional[str] = None,
         dataset_dir: Optional[str] = None,
+        use_neural: bool = True,
     ):
+        """model_dir: the ByT5 model folder (see find_model_dir; default byt5_morphology_model/).
+        With use_neural=True it must hold a model, else FileNotFoundError. use_neural=False: rules
+        only, no model needed and none is loaded."""
+        self.model_dir = find_model_dir(model_dir) if use_neural else None
         super().__init__(patterns_path=patterns_path, dictionary_path=dictionary_path, dataset_dir=dataset_dir)
-        base_dir = _project_dir()
-        
-        if checkpoint_dir is None:
-            # Check default checkpoint locations
-            candidates = [
-                os.path.join(base_dir, "byt5_morphology_model"),     # train_byt5_morphology.py's final model
-                os.path.join(base_dir, "checkpoints", "checkpoint-3936"),
-                os.path.join(base_dir, "checkpoints", "checkpoint-2624"),
-                os.path.join(base_dir, "checkpoints_backup_20k", "checkpoint-3936"),
-                os.path.join(base_dir, "checkpoints"),
-            ]
-            for c in candidates:
-                if os.path.exists(os.path.join(c, "model.safetensors")):
-                    checkpoint_dir = c
-                    break
-
-        self.checkpoint_dir = checkpoint_dir
         self.device = device
         self._tokenizer = None
         self._model = None
@@ -987,22 +989,19 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
         """Lazily load neural ByT5 model when fallback is triggered."""
         if self._model is not None:
             return True
-        if not self.checkpoint_dir or not os.path.exists(self.checkpoint_dir):
+        if not self.model_dir:      # use_neural=False: rules only
             return False
 
-        try:
-            import torch
-            from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+        import torch
+        from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
-            if self.device is None:
-                self.device = "mps" if torch.backends.mps.is_available() else "cpu"
+        if self.device is None:
+            self.device = "mps" if torch.backends.mps.is_available() else "cpu"
 
-            self._tokenizer = AutoTokenizer.from_pretrained(self.checkpoint_dir)
-            self._model = AutoModelForSeq2SeqLM.from_pretrained(self.checkpoint_dir).to(self.device)
-            self._model.eval()
-            return True
-        except Exception:
-            return False
+        self._tokenizer = AutoTokenizer.from_pretrained(self.model_dir)
+        self._model = AutoModelForSeq2SeqLM.from_pretrained(self.model_dir).to(self.device)
+        self._model.eval()
+        return True
 
     def _neural_fallback(self, word: str) -> List[MorphologicalAnalysis]:
         """Perform neural prediction using ByT5 model."""

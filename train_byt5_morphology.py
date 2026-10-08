@@ -169,6 +169,19 @@ def latest_checkpoint(folder: Optional[str]) -> Optional[str]:
     return best
 
 
+def model_to_load(model_dir: str) -> str:
+    """The model to load from a training output folder: the final model at the top of model_dir
+    (written when training finished), else its latest checkpoint-<step> folder (a run that stopped
+    early), else model_dir itself. Used by evaluate_gold.py and the analyzer."""
+    if os.path.exists(os.path.join(model_dir, "config.json")):
+        return model_dir
+    subdirs = [os.path.join(model_dir, d) for d in os.listdir(model_dir)
+               if CHECKPOINT_RE.match(d)] if os.path.isdir(model_dir) else []
+    if subdirs:
+        return sorted(subdirs, key=lambda x: int(x.rsplit("-", 1)[-1]))[-1]
+    return model_dir
+
+
 def resolve_resume(output_dir: str, resume_from: Optional[str]) -> Optional[str]:
     """Checkpoint to resume from: the latest in output_dir wins (the run's own progress),
     then --resume_from (a checkpoint-N folder or a folder holding them)."""

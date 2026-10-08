@@ -51,7 +51,7 @@ def analyzer():
     if not os.path.exists(DATASET):
         pytest.skip("no geez-dataset checkout (the analyzer reads its lexicon)")
     from analyzer import HybridAnalyzer
-    return HybridAnalyzer(dataset_dir=DATASET)
+    return HybridAnalyzer(dataset_dir=DATASET, use_neural=False)   # rules only
 
 
 def top(analyzer, word):

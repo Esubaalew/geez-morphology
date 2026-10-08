@@ -147,8 +147,7 @@ def analyzer():
     if not os.path.exists(DATASET):
         pytest.skip("dataset folder not found")
     from analyzer import HybridAnalyzer
-    a = HybridAnalyzer(dataset_dir=DATASET)
-    a.checkpoint_dir = None   # rules only, as in the rules-only eval; never load the model
+    a = HybridAnalyzer(dataset_dir=DATASET, use_neural=False)   # rules only, as in the rules-only eval
     return a
 
 

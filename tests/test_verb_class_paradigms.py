@@ -43,8 +43,7 @@ def analyzer():
     if not os.path.exists(DATASET_DIR):
         pytest.skip("no geez-dataset checkout (the analyzer reads its dictionary)")
     from analyzer import HybridAnalyzer
-    a = HybridAnalyzer(dataset_dir=DATASET_DIR)
-    a.checkpoint_dir = None  # rules only
+    a = HybridAnalyzer(dataset_dir=DATASET_DIR, use_neural=False)  # rules only
     return a
 
 

@@ -25,7 +25,6 @@ What is scored:
 """
 
 import os
-import re
 import sys
 import json
 import argparse
@@ -37,7 +36,7 @@ if SCRIPT_DIR not in sys.path:
 
 import geez_config
 import dataset_loader  # reads the gold files; shared with train_byt5_morphology.py
-from train_byt5_morphology import DEFAULT_OUTPUT_DIR as DEFAULT_MODEL_DIR
+from train_byt5_morphology import DEFAULT_OUTPUT_DIR as DEFAULT_MODEL_DIR, model_to_load
 
 FIELDS = ["root", "type", "stem", "tense", "person", "gender", "number", "object"]
 TENSE_ALIASES = {"jussive": "subjunctive"}
@@ -132,18 +131,6 @@ def load_gold_pairs(dataset_dir, split, stats=None):
     return pairs
 
 
-def model_to_load(model_dir):
-    """The final model at the top of model_dir (written when training finished), else its latest
-    checkpoint-<step> folder (a run that stopped early), else model_dir itself."""
-    if os.path.exists(os.path.join(model_dir, "config.json")):
-        return model_dir
-    subdirs = [os.path.join(model_dir, d) for d in os.listdir(model_dir)
-               if re.fullmatch(r"checkpoint-\d+", d)] if os.path.isdir(model_dir) else []
-    if subdirs:
-        return sorted(subdirs, key=lambda x: int(x.rsplit("-", 1)[-1]))[-1]
-    return model_dir
-
-
 class ByT5System:
     def __init__(self, model_dir):
         import torch
@@ -167,11 +154,10 @@ class ByT5System:
 
 
 class HybridSystem:
-    def __init__(self, dataset_dir, no_neural=False):
+    def __init__(self, dataset_dir, model_dir=None, no_neural=False):
         from analyzer import HybridAnalyzer
-        self.a = HybridAnalyzer(dataset_dir=dataset_dir)   # its dictionary comes from the same checkout
-        if no_neural:
-            self.a.checkpoint_dir = None
+        # dictionary from the same dataset checkout, ByT5 fallback from the same --model_dir
+        self.a = HybridAnalyzer(dataset_dir=dataset_dir, model_dir=model_dir, use_neural=not no_neural)
 
     def predict(self, surface):
         res = self.a.analyze(surface)
@@ -243,7 +229,7 @@ def main():
     args.dataset_dir = os.path.abspath(args.dataset_dir)
 
     # The system first: the hybrid analyzer stops with a clear error when the dataset has no dictionary.
-    system = ByT5System(args.model_dir) if args.system == "byt5" else HybridSystem(args.dataset_dir, args.no_neural)
+    system = ByT5System(args.model_dir) if args.system == "byt5" else HybridSystem(args.dataset_dir, args.model_dir, args.no_neural)
     for split in args.split:
         path = dataset_loader.gold_file_path(args.dataset_dir, split)
         if not os.path.exists(path):
