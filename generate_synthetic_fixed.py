@@ -26,9 +26,11 @@ negative forms, which object suffixes, which augmentation forms get the negative
 quadriliteral root is used all come from that root's own random.Random, seeded with
 sha256("<SEED>:<purpose>:<root>") (root_rng). A change to one root (its class tag, its templates)
 changes only that root's lines; every other root's lines stay identical and in the same order.
-The committed files were generated with the test file as extracted (544271a):
-  git -C <dataset> show 544271a:data/paradigms/merho_ges_gold_test.jsonl > /tmp/test_544271a.jsonl
-  python generate_synthetic_fixed.py --test_file /tmp/test_544271a.jsonl
+The synthetic files in the dataset were generated with the gold test file as extracted, dataset
+commit c7bc587 (544271a before the dataset history was rewritten). Its test roots differ from the
+current test file's, so to reproduce the files:
+  git -C <dataset> show c7bc587:data/paradigms/merho_ges_gold_test.jsonl > /tmp/test_c7bc587.jsonl
+  python generate_synthetic_fixed.py --test_file /tmp/test_c7bc587.jsonl
 """
 
 import os
