@@ -92,7 +92,7 @@ def type_c_o(r):  # ጦመረ ṭōmara / ይጦምር / ይጦምር / ጦም�
             "subjunctive": prefixed(r, 7, 6), "imperative": imperative(r, 7, 6)}
 
 
-def type_c_e(r):  # Type C with ē kept on radical 1 (an earlier prototype ሴሰየ type, strong radicals only)
+def type_c_e(r):  # Type C with ē kept on radical 1 (ሴሰየ type, strong radicals only)
     return {"perfect": strong_perfect(r, 5), "imperfect": prefixed(r, 5, 6),
             "subjunctive": prefixed(r, 5, 6), "imperative": imperative(r, 5, 6)}
 
@@ -276,7 +276,7 @@ EXPECTED = {
 
 CLASSES = {"type_b": type_b, "type_c": type_c, "final_y": final_y,
            "final_w": final_w, "initial_w_drop": initial_w_drop,
-           # the written shape types; used only for roots whose Kidane Wold triple is written this way.
+           # shape classes; used only for roots whose Kidane Wold triple is written this way.
            "type_c_o": type_c_o, "type_c_e": type_c_e, "quad_c": quad_c}
 
 

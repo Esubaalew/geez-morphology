@@ -1,4 +1,4 @@
-"""Classes read off the written Kidane Wold triple: the written shape types (ጦመረ, ሴሰየ, ማህረከ shapes)."""
+"""Classes read off the written Kidane Wold triple (ጦመረ, ሴሰየ, ማህረከ shapes)."""
 import json
 import os
 import sys

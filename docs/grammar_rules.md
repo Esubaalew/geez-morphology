@@ -174,8 +174,7 @@ stem label is `aste`.
   - the Merho Ges training tables' class names (ባረከ → Type C, ቀደሰ → Type B, ሰተየ → final-y);
   - the class lemmas.
 - A root with no evidence gets the default for its shape.
-- **an earlier prototype is a hint only.** Its classes come from earlier work that could not be confirmed. A
-  an earlier prototype lemma is linked only by exact spelling, and no class is taken from it.
+- No class is taken from any other analyzer's labels; a class comes only from the evidence above.
 
 ## 9. Kidane Wold triple check
 

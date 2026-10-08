@@ -5,7 +5,7 @@ Contents:
   1. Vowel inventory: the 7 Ethiopic vowel orders with abstract labels.
   2. Consonant inventory: abstract symbol -> base code point.
   3. Renderer: (consonant, vowel) -> Ethiopic character via Unicode
-     vowel-order arithmetic (the usual approach).
+     vowel-order arithmetic (code point = base + order).
   4. Decomposer: character -> (consonant, vowel), inverse of renderer.
   5. Guttural spelling variants and root helpers.
 
@@ -91,7 +91,7 @@ def decompose_char(ch: str):
     Inverse of render_unit: Ethiopic character -> (consonant, vowel).
     Returns (consonant_symbol, vowel_label), or (None, None) if the
     character is not a recognized consonant+vowel syllable.
-    Uses the usual arithmetic: base = (cp // 8) * 8, order = cp % 8.
+    Code point arithmetic: base = (cp // 8) * 8, order = cp % 8.
     """
     if len(ch) != 1:
         return (None, None)

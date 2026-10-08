@@ -43,8 +43,8 @@ VERB_TYPE_OF = {"type_b": "strong_B", "type_c": "strong_C", "final_y": "weak_fin
                 "type_d": "strong_D"}
 VOWEL_ORDER = {"a": 1, "u": 2, "i": 3, "A": 4, "e": 5, "I": 6, "o": 7}
 GUTTURALS = ("a", "a2", "h1", "h2", "kh")
-# Classes read off the written triple by shape_classes() (the written shape types that were
-# checked): ጦመረ ፡ ይጦምር ፡ ይጦምር, ē kept on radical 1, ማህረከ ፡ ይማህርክ ፡ ይማህርክ.
+# Classes read off the written triple by shape_classes() (their paradigms are checked in
+# tests/test_class_assignment.py): ጦመረ ፡ ይጦምር ፡ ይጦምር, ē kept on radical 1, ማህረከ ፡ ይማህርክ ፡ ይማህርክ.
 SHAPE_CLASSES = ("type_c_o", "type_c_e", "quad_c")
 
 CLASS_LEMMAS = {"ቀደሰ": "type_b", "ባረከ": "type_c", "ሰትየ": "final_y", "ተለወ": "final_w"}
