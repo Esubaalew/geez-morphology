@@ -197,7 +197,7 @@ def score(pairs, system, predictions=None):
         ok["exact"] = all(v for v in ok.values() if v is not None) if labeled_all else None
         groups = ["ALL", "type:" + item["type"], "tier:" + pred["tier"]]
         if item["type"] == "verb":
-            groups += ["class:" + item["verb_class"], "tense:" + str(item["tense"])]
+            groups += ["class:" + str(item["verb_class"] or "unknown"), "tense:" + str(item["tense"])]
         for g in groups:
             totals[g]["rows"][1] += 1
             for f, v in ok.items():
