@@ -169,6 +169,44 @@ def load_gold_split(dataset_dir, split, stats=None):
     return file_pairs(records, split, read_flagged_rows(dataset_dir), stats)
 
 
+# ------------------------------------------------------------------ forms printed in the other books
+
+BOOK_FORMS_FILE = os.path.join("data", "lexicon", "book_forms.jsonl")
+BOOK_FORM_SPLITS = ("train", "heldout")
+
+
+def load_book_forms(dataset_dir, split, stats=None):
+    """Pairs of data/lexicon/book_forms.jsonl for one split ("train", or "heldout": a gold val/test root or form).
+    Only rows with an empty status load (CHECK, CONFLICT and NO_ROOT rows stay in the file), and only verbs
+    with tense, person, gender, number and stem, and nouns and adjectives with a number. [] when the file is missing."""
+    if split not in BOOK_FORM_SPLITS:
+        raise ValueError(f"book_forms split must be one of {BOOK_FORM_SPLITS}, not {split!r}")
+    stats = stats if stats is not None else collections.Counter()
+    path = os.path.join(dataset_dir, BOOK_FORMS_FILE)
+    if not os.path.exists(path):
+        return []
+    pairs = []
+    with open(path, encoding="utf-8") as f:
+        for n, line in enumerate(f, 1):
+            r = json.loads(line)
+            if r.get("split") != split:
+                continue
+            if r.get("status"):
+                stats[f"not loaded: status {r['status']}"] += 1
+                continue
+            t = r.get("type")
+            need = ("tense", "person", "gender", "number", "stem") if t == "verb" else ("number",)
+            if t not in ("verb",) + NOMINAL_TYPES or not r.get("root") or any(not r.get(k) for k in need):
+                stats["not loaded: type or labels missing"] += 1
+                continue
+            pairs.append({"form": r["form"], "root": r["root"], "type": t, "tense": r.get("tense"),
+                          "person": r.get("person"), "gender": r.get("gender"), "number": r.get("number"),
+                          "stem": r.get("stem"), "object": r.get("object") or "", "book": r.get("book"),
+                          "page": r.get("page"), "line": n})
+            stats["loaded"] += 1
+    return pairs
+
+
 # ------------------------------------------------------------------ inputs and targets
 
 def task_of(pair):

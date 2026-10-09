@@ -120,6 +120,11 @@ def verb_class(rec):
 def load_gold_pairs(dataset_dir, split, stats=None):
     """The scored pairs of one split (dataset_loader.load_gold_split), with normalized labels."""
     pairs = []
+    if split == "books":
+        for p in dataset_loader.load_book_forms(dataset_dir, "heldout", stats):
+            pairs.append({"split": split, "surface": p["form"], "root": p["root"], "record_id": None,
+                          "row": p["line"], "verb_class": None, **normalize_row(p)})
+        return pairs
     for p in dataset_loader.load_gold_split(dataset_dir, split, stats):
         pairs.append({
             "split": split,
@@ -219,8 +224,9 @@ def main():
     ap.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
                     help="Checkout of the geez-dataset repo the model was trained on "
                          "(default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
-    ap.add_argument("--split", nargs="+", choices=["val", "test"], default=["val", "test"],
-                    help="Gold splits to score (default: val test)")
+    ap.add_argument("--split", nargs="+", choices=["val", "test", "books"], default=["val", "test"],
+                    help="Gold splits to score (default: val test); books = data/lexicon/book_forms.jsonl rows of the "
+                         "other books whose root or form is a gold val/test one (never trained on)")
     ap.add_argument("--limit", type=int, default=0, help="Random sample of N pairs per split (0 = all, the default)")
     ap.add_argument("--out_json", default=None,
                     help="Write the results to this JSON file, e.g. gold_eval_byt5.json")
@@ -233,7 +239,8 @@ def main():
     # The system first: the hybrid analyzer stops with a clear error when the dataset has no dictionary.
     system = ByT5System(args.model_dir) if args.system == "byt5" else HybridSystem(args.dataset_dir, args.model_dir, args.no_neural)
     for split in args.split:
-        path = dataset_loader.gold_file_path(args.dataset_dir, split)
+        path = (os.path.join(args.dataset_dir, dataset_loader.BOOK_FORMS_FILE) if split == "books"
+                else dataset_loader.gold_file_path(args.dataset_dir, split))
         if not os.path.exists(path):
             sys.exit(f"[!] Gold file not found: {path}")
     name = args.system + (" (no neural)" if args.no_neural else "")
@@ -243,7 +250,8 @@ def main():
     for split in args.split:
         stats = defaultdict(int)
         pairs = load_gold_pairs(args.dataset_dir, split, stats)
-        print(f"\n{split}: {dataset_loader.gold_file_path(args.dataset_dir, split)}: {len(pairs)} pairs "
+        where = dataset_loader.BOOK_FORMS_FILE if split == "books" else dataset_loader.gold_file_path(args.dataset_dir, split)
+        print(f"\n{split}: {where}: {len(pairs)} pairs "
               f"({', '.join(f'{k} {v}' for k, v in sorted(stats.items()))})")
         if args.limit and args.limit < len(pairs):
             import random
