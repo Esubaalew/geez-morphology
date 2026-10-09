@@ -44,7 +44,7 @@ Two more committed files in data/ limit the output; the generator stops if eithe
   data/synthetic_roots_allowed_v5.txt  the only roots it conjugates: roots with a dictionary verb
       entry, a gold root or a Kidane Wold verb triple, plus a few roots checked by hand (the file
       header records how the list was made).
-  data/heldout_gold_forms.tsv       every gold val/test form of dataset commit 6183c24; a line
+  data/heldout_gold_forms.tsv       every gold val/test form of dataset branch crosscheck-1009; a line
       whose surface form is one of them is not written. The rest of that root's lines are made as if
       the line were there, so no other line changes.
 """
@@ -71,12 +71,12 @@ from engine import InterdigitationEngine, slots_from_spec
 import engine as engine_module   # NON_HOLLOW is extended from the dictionary triples
 
 OBJECT_SUFFIXES = [
-    {"key": "1s", "person": "1", "number": "s", "gender": None, "suffix": "ኒ"},
+    {"key": "1cs", "person": "1", "number": "s", "gender": None, "suffix": "ኒ"},
     {"key": "2ms", "person": "2", "number": "s", "gender": "m", "suffix": "ከ"},
     {"key": "2fs", "person": "2", "number": "s", "gender": "f", "suffix": "ኪ"},
     {"key": "3ms", "person": "3", "number": "s", "gender": "m", "suffix": "ዎ"},
     {"key": "3fs", "person": "3", "number": "s", "gender": "f", "suffix": "ሃ"},
-    {"key": "1p", "person": "1", "number": "p", "gender": None, "suffix": "ነ"},
+    {"key": "1cp", "person": "1", "number": "p", "gender": None, "suffix": "ነ"},
     {"key": "2mp", "person": "2", "number": "p", "gender": "m", "suffix": "ክሙ"},
     {"key": "2fp", "person": "2", "number": "p", "gender": "f", "suffix": "ክን"},
     {"key": "3mp", "person": "3", "number": "p", "gender": "m", "suffix": "ሆሙ"},
@@ -104,16 +104,16 @@ def root_rng(root: str, purpose: str, seed: int = SEED) -> random.Random:
 
 # Third-person object suffixes change shape with the vowel they attach to.
 # Keys are the OBJECT_SUFFIXES "suffix" values (the after-consonant shape).
-THIRD_PERSON_AFTER_U = {"ዎ": "ዎ", "ሃ": "ዋ", "ሆሙ": "ዎሙ", "ሆን": "ዎን"}   # ቀተልኩዎ
+THIRD_PERSON_AFTER_U = {"ዎ": "ዎ", "ሃ": "ዋ", "ሆሙ": "ዎሙ", "ሆን": "ዎን"}   # ቀተልዎ, ቀተልክዋ
 THIRD_PERSON_AFTER_I = {"ዎ": "ዮ", "ሃ": "ያ", "ሆሙ": "ዮሙ", "ሆን": "ዮን"}   # ቀተልኪዮ
 THIRD_PERSON_AFTER_LONG_A = {"ዎ": "ሁ", "ሃ": "ሃ", "ሆሙ": "ሆሙ", "ሆን": "ሆን"}  # ቀተላሁ
 
 
-def attach_object_pronoun(surface: str, obj_suffix: str) -> Optional[str]:
-    """Attach an object suffix to a verb form.
+def attach_object_pronoun(surface: str, obj_suffix: str, feat: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    """Attach an object suffix to a verb form. `feat` holds the subject's tense, person, gender, number.
 
-    The caller skips perfect 1p/2mp/2fp subjects (ቀተልነ, ቀተልክሙ, ቀተልክን):
-    their object forms are not settled yet, so no unchecked forms enter the data.
+    Spellings follow the ቀተለ object tables of ርባሐ ስም ወአንቀጽ (pp. 27-32) and Kidane Wold's
+    grammar (አመረ): ቀተልክዎ, ቀተልዎ, ቅትልዎ, ቀተልክኒ, ይቅትልከ, ቀተልናሁ, ቀተልክምዎ, ቀተልክናሁ.
     """
     if not surface:
         return None
@@ -121,20 +121,41 @@ def attach_object_pronoun(surface: str, obj_suffix: str) -> Optional[str]:
     units = geez_script.decompose_string(surface)
     if not units:
         return None
+    feat = feat or {}
     last_cons, last_vowel = units[-1]
+    stem = surface[:-1]
     third = obj_suffix in ("ዎ", "ሃ", "ሆሙ", "ሆን")
+    first = obj_suffix in ("ኒ", "ነ")
+    tense = feat.get("tense")
+    subject = (feat.get("person"), feat.get("gender"), feat.get("number"))
+
+    # Perfect 1p ቀተልነ and 2fp ቀተልክን take the object after a long a: ቀተልናሁ, ቀተልናከ, ቀተልክናኒ.
+    if tense == "past" and subject in (("1", "c", "p"), ("2", "f", "p")):
+        stem_a = stem + geez_script.render_unit(last_cons, "A")
+        return stem_a + (THIRD_PERSON_AFTER_LONG_A[obj_suffix] if third else obj_suffix)
 
     # Final 1st order (-a) or 6th order (no vowel): ቀተለ, ቀተልከ, ይቀትል, ቀተለት.
     if last_vowel in ("a", "I"):
         if obj_suffix == "ዎ":
-            return surface[:-1] + geez_script.render_unit(last_cons, "o")          # ቀተሎ
+            return stem + geez_script.render_unit(last_cons, "o")          # ቀተሎ
         if obj_suffix == "ሃ":
-            return surface[:-1] + geez_script.render_unit(last_cons, "A")          # ቀተላ, ይቀትላ
+            return stem + geez_script.render_unit(last_cons, "A")          # ቀተላ, ይቀትላ
         if obj_suffix in ("ሆሙ", "ሆን"):
-            return surface[:-1] + geez_script.render_unit(last_cons, "o") + obj_suffix[1:]  # ቀተሎሙ
+            return stem + geez_script.render_unit(last_cons, "o") + obj_suffix[1:]  # ቀተሎሙ
+        if last_vowel == "I" and not first and tense in ("subjunctive", "jussive"):
+            return surface + obj_suffix                                    # ይቅትልከ, ትቅትልክሙ
         if last_vowel == "I":
-            return surface[:-1] + geez_script.render_unit(last_cons, "a") + obj_suffix  # ይቀትለኒ
-        return surface + obj_suffix                                                # ቀተለኒ
+            return stem + geez_script.render_unit(last_cons, "a") + obj_suffix  # ይቀትለኒ, ይቅትለኒ
+        return surface + obj_suffix                                        # ቀተለኒ
+
+    # Subject -u (3mp ቀተሉ, perfect 1s ቀተልኩ, 2mp ቀተልክሙ / ትቀትሉ / ቅትሉ): the u drops before a
+    # 3rd-person object: ቀተልዎ, ቀተልክዎ, ቀተልክምዎ, ቅትልዎ. Other objects keep it: ቀተሉከ, ቀተልኩከ.
+    u_subject = subject in (("3", "m", "p"), ("2", "m", "p")) or (tense == "past" and subject == ("1", "c", "s"))
+    if third and last_vowel == "u" and u_subject:
+        return stem + geez_script.render_unit(last_cons, "I") + THIRD_PERSON_AFTER_U[obj_suffix]
+    # 2fs -i drops before a 1st-person object: ቀተልክኒ, ትቀትልኒ (3rd person: ቀተልኪዮ).
+    if first and last_vowel == "i" and subject == ("2", "f", "s"):
+        return stem + geez_script.render_unit(last_cons, "I") + obj_suffix
 
     if third and last_vowel == "u":
         return surface + THIRD_PERSON_AFTER_U[obj_suffix]
@@ -235,7 +256,7 @@ def read_held_out_roots_file(path: str = HELD_OUT_ROOTS_FILE) -> set:
 # notes; the file's header records how the list was made. Checked in
 # tests/test_synthetic_allowed_roots_and_blocked_forms.py.
 ALLOWED_ROOTS_FILE = os.path.join(BASE_DIR, "data", "synthetic_roots_allowed_v5.txt")
-# Every gold val/test form of dataset commit 6183c24 (column geez_form; "#" lines are notes).
+# Every gold val/test form of dataset branch crosscheck-1009 (column geez_form; "#" lines are notes).
 BLOCKED_FORMS_FILE = os.path.join(BASE_DIR, "data", "heldout_gold_forms.tsv")
 
 
@@ -789,8 +810,7 @@ def generate_extended_dataset(
                     if feat.get("person") == obj["person"] and obj["person"] in ("1", "2"):
                         continue
 
-                    unsettled = feat.get("tense") == "past" and (feat.get("person"), feat.get("number")) in (("1", "p"), ("2", "p"))
-                    obj_form = None if unsettled else attach_object_pronoun(obj_base.get((cons, form), form), obj["suffix"])
+                    obj_form = attach_object_pronoun(obj_base.get((cons, form), form), obj["suffix"], feat)
                     if obj_form is None:
                         skipped_objects += 1
                         continue
@@ -851,7 +871,7 @@ def generate_extended_dataset(
     print(f"Duplicate pairs dropped (jussive = subjunctive): {duplicates_dropped:,}")
     print(f"Forms with unassigned code points skipped (labiovelar + u/o): {unassigned_forms:,}")
     print(f"Unchecked weak templates skipped: {skipped_templates:,}")
-    print(f"Objects skipped:      {skipped_objects:8,}  (1p, 2mp, 2fp subjects: object forms not settled yet)")
+    print(f"Objects skipped:      {skipped_objects:8,}  (no form to attach to)")
     print(f"Checked class paradigm pairs: {class_counts}")
     print(f"Type B derived-stem pairs: {type_b_derived_counts}; type_b roots with no derived stems (w/y radical or "
           f"guttural middle radical): "

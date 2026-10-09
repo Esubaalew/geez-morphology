@@ -43,6 +43,19 @@ def test_load_counts_and_targets():
         assert sum("tense: subjunctive" in t for t in targets) == 1
 
 
+def test_synthetic_object_in_target():
+    with tempfile.TemporaryDirectory() as tmp:
+        _dataset(tmp, n_syn=0, gold_name=None)
+        path = os.path.join(tmp, "data", "paradigms", "synthetic_morphology_train.jsonl")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(json.dumps({"surface_form": "ቀተልክዎ", "features": {
+                "root": "q-t-l", "tense": "past", "person": "1", "gender": "c", "number": "s",
+                "stem": "basic", "object": "3ms"}}, ensure_ascii=False) + "\n")
+        (s,) = T.load_data(tmp)
+        assert s["target_text"] == ("root: ቀ-ተ-ለ | tense: past | person: 1 | gender: c | number: s | "
+                                    "stem: basic | object: 3ms")
+
+
 def test_sample_limit_and_determinism():
     with tempfile.TemporaryDirectory() as tmp:
         _dataset(tmp, n_syn=50)

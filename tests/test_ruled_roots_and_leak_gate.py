@@ -154,7 +154,8 @@ def test_roots_without_training_lines():
 def test_w_s2_kh_comes_from_its_three_entries():
     _need_dataset()
     assert ("w", "S2", "kh") in gen.read_allowed_roots_file()
-    assert any(d["features"]["root"] == "w-S2-kh" for d in _train_lines())
+    # gold test record b0e9efdf890f (ተዋፅኀ) has this root, so its synthetic lines are held out
+    assert not any(d["features"]["root"] == "w-S2-kh" for d in _train_lines())
     fixes = verb_classes.root_fixes(DATASET_DIR)
     for rel in DICTIONARIES:
         ids = sorted(i for i, e in _entries(rel).items() if verb_classes.entry_root(e, fixes) == "w-S2-kh"

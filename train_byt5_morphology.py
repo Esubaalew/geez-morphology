@@ -6,7 +6,7 @@ Input text:  "analyze: <surface form>" for the full analysis, "root: <surface fo
              (dataset_loader.input_text; the "task" field of a pair picks the prefix and the target).
              --single_prefix gives every input the "analyze: " prefix.
 Target text: "root: <ሀ-ለ-መ> | tense: <t> | person: <p> | gender: <g> | number: <n> | stem: <s>" for a verb
-             (gold verbs with an object add " | object: <o>"), and
+             (verbs with an object suffix add " | object: <o>"), and
              "root: <ሀ-ለ-መ> | type: <noun|adjective> | gender: <g> | number: <n>" for a noun or adjective
              (gender only where the gold row has one); see dataset_loader.target_text.
              A root-only pair (task root_only) has the root alone: "root: <root>", or "root: none" for a word
@@ -17,6 +17,8 @@ Data (read from --dataset_dir, the geez-dataset checkout), as written:
       (only this file: the lines held out for the gold val/test roots, data/synthetic/, are never read)
   data/paradigms/merho_ges_gold_train.jsonl              Merho Ges gold-train paradigms
   data/lexicon/classical_dictionary_kidane_wold.jsonl    Kidane Wold nouns and adjectives, headword to root
+  data/lexicon/book_forms.jsonl                          forms printed in the other books (ርባሐ ስም, Kidane Wold's
+      grammar and dictionary), split "train" only (--no_book_forms leaves them out)
 and, from this repo, data/closed_class_words_without_root.tsv (words without root, target "root: none";
 --no_words_without_root leaves them out).
 The gold pairs are read by dataset_loader.load_gold_split: the rows listed in
@@ -89,7 +91,7 @@ EXPORT_FILES = {"train": "train_pairs.jsonl", "eval": "eval_pairs_synthetic.json
                 "eval_dictionary": "eval_pairs_dictionary_nominal.jsonl"}
 DICTIONARY_EVAL_NAME = "dictionary_nominal"
 # Where a training sample comes from (its "source" field), in the order the counts are printed.
-SOURCES = ("synthetic", "gold_verb", "gold_nominal", "dictionary", "word_without_root")
+SOURCES = ("synthetic", "gold_verb", "gold_nominal", "dictionary", "word_without_root", "book_forms")
 DEFAULT_GOLD_UPSAMPLE = 4
 DEFAULT_GOLD_NOMINAL_UPSAMPLE = 5
 ROOT_ACCURACY_MAX_NEW_TOKENS = 32   # bytes; "root: " and a 4-radical root take 21
@@ -130,6 +132,8 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None) ->
         eth_root = to_ethiopic_root(feat.get("root", ""))
         target = (f"root: {eth_root} | tense: {feat.get('tense', '')} | person: {feat.get('person', '')} | "
                   f"gender: {feat.get('gender', '')} | number: {feat.get('number', '')} | stem: {feat.get('stem', '')}")
+        if feat.get("object"):
+            target += f" | object: {feat['object']}"
         samples.append({"input_text": dataset_loader.input_text(surface), "target_text": target, "is_gold": False,
                         "task": dataset_loader.ANALYZE_TASK, "source": "synthetic"})
 
@@ -179,6 +183,16 @@ def load_dictionary_samples(dataset_dir: str, stats: Optional[Dict] = None, sing
 
     return ([root_only_sample(p, "dictionary", single_prefix) for p in train],
             [root_only_sample(p, "dictionary", single_prefix) for p in evals])
+
+
+def load_book_form_samples(dataset_dir: str, stats: Optional[Dict] = None, single_prefix: bool = False):
+    """Training samples of the forms printed in the other books (dataset_loader.load_book_forms, split "train":
+    roots and forms outside the gold val/test files)."""
+    pairs = dataset_loader.load_book_forms(dataset_dir, "train", stats)
+    print(f"Read {len(pairs)} book-form pairs from {dataset_loader.BOOK_FORMS_FILE}")
+    return [{"input_text": dataset_loader.input_text(p["form"], single_prefix=single_prefix),
+             "target_text": dataset_loader.target_text(p), "is_gold": True, "source": "book_forms",
+             "task": dataset_loader.ANALYZE_TASK} for p in pairs]
 
 
 def load_words_without_root_samples(dataset_dir: str, stats: Optional[Dict] = None, single_prefix: bool = False):
@@ -383,6 +397,8 @@ def parse_args(argv=None):
                    help="Leave out the Kidane Wold noun and adjective pairs (training and the dictionary_nominal eval)")
     p.add_argument("--no_words_without_root", action="store_true",
                    help="Leave out the words without root (data/closed_class_words_without_root.tsv, target 'root: none')")
+    p.add_argument("--no_book_forms", action="store_true",
+                   help="Leave out the forms printed in the other books (data/lexicon/book_forms.jsonl, split train)")
     p.add_argument("--single_prefix", action="store_true",
                    help="Give every input the prefix 'analyze: ' (root-only pairs too) instead of one prefix per task")
     p.add_argument("--gold_upsample", type=int, default=DEFAULT_GOLD_UPSAMPLE,
@@ -425,8 +441,11 @@ def main(argv=None) -> int:
     without_root_stats = collections.Counter()
     without_root = [] if args.no_words_without_root else \
         load_words_without_root_samples(args.dataset_dir, without_root_stats, args.single_prefix)
-    if dictionary_train or without_root:
-        train_samples = train_samples + dictionary_train + without_root
+    book_stats = collections.Counter()
+    book_forms = [] if args.no_book_forms else \
+        load_book_form_samples(args.dataset_dir, book_stats, args.single_prefix)
+    if dictionary_train or without_root or book_forms:
+        train_samples = train_samples + dictionary_train + without_root + book_forms
         random.Random(SEED).shuffle(train_samples)
     if args.max_eval_samples and args.max_eval_samples < len(eval_samples):
         eval_samples = eval_samples[:args.max_eval_samples]
@@ -439,6 +458,10 @@ def main(argv=None) -> int:
         print("Dictionary load counts:")
         for k, v in sorted(dictionary_stats.items()):
             print(f"  {k}: {v}")
+    if book_stats:
+        print("Book-form load counts:")
+        for k, v in sorted(book_stats.items()):
+            print(f"  {k}: {v}")
     if without_root_stats:
         print("Words-without-root load counts:")
         for k, v in sorted(without_root_stats.items()):
@@ -446,7 +469,7 @@ def main(argv=None) -> int:
     train_by_source = counts_by_source(train_samples)
     print(f"Synthetic pairs: {n_syn}. Gold-train pairs: {n_gold}. "
           f"Dictionary pairs: {len(dictionary_train)} train, {len(dictionary_eval)} eval. "
-          f"Words without root: {len(without_root)}.")
+          f"Words without root: {len(without_root)}. Book forms: {len(book_forms)}.")
     print(f"Gold upsampling: verbs x{args.gold_upsample}, nouns and adjectives x{args.gold_nominal_upsample}. "
           f"Prefixes: {'analyze: for every task' if args.single_prefix else 'one per task'}.")
     print(f"Train: {len(train_samples)} pairs (" + ", ".join(f"{k} {v}" for k, v in train_by_source.items()) + "). "

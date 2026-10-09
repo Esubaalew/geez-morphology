@@ -3,7 +3,7 @@
 - data/synthetic_roots_allowed_v5.txt: the only roots the generator conjugates (roots with a dictionary
   verb entry, a gold root or a Kidane Wold verb triple, plus 8 roots kept by hand: m-h2-l, m-s-l, S-w-t, b-y-S,
   f-r-S, h2-r-g, m-s-k, w-k-a2; m-kh-l is left out). The generator stops if the file is missing.
-- data/heldout_gold_forms.tsv: every gold val/test form of dataset commit 6183c24. A synthetic line
+- data/heldout_gold_forms.tsv: every gold val/test form of dataset branch crosscheck-1009. A synthetic line
   with one of these forms is not written; the root's other lines do not change. Missing file: the generator stops.
 - split_heldout_synthetic.py drops a training line with a gold val/test form, and --check fails when a dataset
   synthetic line has one.
@@ -31,7 +31,7 @@ import split_heldout_synthetic as H  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
 ALLOWED_SHA256 = "84fc1851d7d731eadaa0aaca179ee003be717114af410a50168659dd6df58fc1"
-BLOCKED_SHA256 = "5c046ce68762d3e18d3510377b3a5bcb45ddded6fdd3c9c24df17dea1b594f4e"
+BLOCKED_SHA256 = "91a79aa2bb4a2a52cec9f226442db475e8c9ca4fd80deb4b659905f5b37ae5ac"
 TRILITERAL = ["q-t-l", "g-b-r", "n-g-r", "s-b-r", "k-t-b", "d-m-r", "f-t-l", "m-s-l"]
 QUADRILITERAL = ["d-n-g-s", "s-n-b-t", "t-r-g-m", "m-s-k-r", "q-n-d-l", "b-r-b-r"]
 BLOCKED_HEADER = "geez_form\tsplit\trecord_id\trow\tvariant\n"
@@ -75,12 +75,12 @@ def test_allow_list_has_1234_roots():
 
 def test_blocked_forms_file_has_every_val_and_test_row():
     forms = gen.read_blocked_forms_file()
-    assert len(forms) == 2832
+    assert len(forms) == 2858
     with open(gen.BLOCKED_FORMS_FILE, encoding="utf-8") as f:
         rows = [line.rstrip("\n").split("\t") for line in f if not line.startswith("#")]
     header, rows = rows[0], rows[1:]
     assert header == ["geez_form", "split", "record_id", "row", "variant", "source_row", "source_variant", "root", "cell"]
-    assert len(rows) == 2939
+    assert len(rows) == 2938
     assert len({tuple(r[1:5]) for r in rows}) == len(rows)          # key: split + record_id + row + variant
     assert {r[1] for r in rows} == {"val", "test"}
     assert sum(1 for r in rows if not r[7]) == 203                     # rows with no root are in
