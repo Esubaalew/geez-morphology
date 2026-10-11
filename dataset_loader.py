@@ -39,6 +39,14 @@ PARADIGMS_DIR = os.path.join("data", "paradigms")
 FLAGGED_ROWS_FILE = "merho_ges_gold_flagged_rows.tsv"
 TYPES = ("verb", "noun", "adjective")
 NOMINAL_TYPES = ("noun", "adjective")
+# The other word classes of data/unified (the unified row table): they have their own target shape (target_text).
+# Rooted: the root is read; rootless: the word has no root and the target says "root: none".
+UNIFIED_ROOTED_TYPES = ("infinitive", "gerund", "verbal_noun", "nominal")
+UNIFIED_ROOTLESS_TYPES = ("pronoun", "demonstrative", "preposition", "particle", "numeral", "adverb")
+UNIFIED_TYPES = UNIFIED_ROOTED_TYPES + UNIFIED_ROOTLESS_TYPES
+UNIFIED_FILE = os.path.join("data", "unified", "geez_morphology_rows.jsonl")
+# Label fields of the generic target shape, in the order they are written.
+GENERIC_FIELDS = ("tense", "person", "gender", "number", "stem", "object", "possessor")
 # The "task" field of a pair says what the model is asked for, and so both its input prefix and its target.
 # A pair without a "task" field has the full analysis.
 ANALYZE_TASK = "analyze"          # target: the full analysis (dataset_loader.target_text)
@@ -207,6 +215,50 @@ def load_book_forms(dataset_dir, split, stats=None):
     return pairs
 
 
+# ------------------------------------------------------------------ the unified rows (all books and the gold, one schema)
+
+def load_unified(dataset_dir, split, sources=("book",), stats=None):
+    """Pairs of data/unified/geez_morphology_rows.jsonl for one split ("train", "val" or "test"). Only rows with an
+    empty status load (CHECK, CONFLICT, NO_ROOT, FLAGGED and EXCLUDED rows stay in the file). `sources` picks
+    "book" rows, "gold" rows or both (the gold rows are also read by load_gold_split; the trainer takes the
+    book rows). A row of a rooted class needs its root; a rootless class (UNIFIED_ROOTLESS_TYPES) has root None
+    and the target 'root: none'. The pair has the keys of load_gold_split's pairs plus possessor, negated, source,
+    book, page and id. [] when the file is missing."""
+    if split not in SPLITS:
+        raise ValueError(f"split must be one of {SPLITS}, not {split!r}")
+    stats = stats if stats is not None else collections.Counter()
+    path = os.path.join(dataset_dir, UNIFIED_FILE)
+    if not os.path.exists(path):
+        return []
+    pairs = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            r = json.loads(line)
+            if r.get("split") != split or r.get("source") not in sources:
+                continue
+            if r.get("status"):
+                stats[f"not loaded: status {r['status']}"] += 1
+                continue
+            t = r["word_class"]
+            if t not in TYPES + UNIFIED_TYPES:
+                stats[f"not loaded: class {t}"] += 1
+                continue
+            if t in UNIFIED_ROOTLESS_TYPES:
+                root = None
+            elif not r.get("root"):
+                stats["not loaded: row has no root"] += 1
+                continue
+            else:
+                root = r["root"]
+            pairs.append({"form": r["form"], "root": root, "type": t, "tense": r.get("tense"), "person": r.get("person"),
+                          "gender": r.get("gender") or "", "number": r.get("number") or "", "stem": r.get("stem"),
+                          "object": r.get("object") or "", "possessor": r.get("possessor") or "",
+                          "negated": bool(r.get("negated")), "source": r["source"], "book": r.get("book"),
+                          "page": r.get("page"), "id": r["id"]})
+            stats["loaded"] += 1
+    return pairs
+
+
 # ------------------------------------------------------------------ inputs and targets
 
 def task_of(pair):
@@ -223,18 +275,28 @@ def target_text(pair):
     """Training target. Verbs: 'root | tense | person | gender | number | stem' plus ' | object: X'
     when the form carries an object suffix. Nouns: 'root | type: noun | number'. Adjectives:
     'root | type: adjective | gender | number' (gender left out when the book gives none).
+    Every other class of the unified rows (UNIFIED_TYPES: infinitive, gerund, verbal_noun, nominal and the
+    rootless pronoun, demonstrative, preposition, particle, numeral, adverb) has the generic shape
+    'root: <root or none> | type: <class>' followed by the labels it has, in GENERIC_FIELDS order.
+    A pair with a possessor ends with ' | possessor: 3ms'; a negated pair ends with ' | negated: yes'.
     A pair whose task is ROOT_ONLY_TASK has the root alone: 'root: <root>' ('root: none' for a word without root)."""
     if task_of(pair) == ROOT_ONLY_TASK:
         return f"root: {pair['root']}"
+    tail = (f" | possessor: {pair['possessor']}" if pair.get("possessor") and pair["type"] not in UNIFIED_TYPES else "") + \
+           (" | negated: yes" if pair.get("negated") else "")
+    if pair["type"] in UNIFIED_TYPES:
+        parts = [f"root: {pair.get('root') or NO_ROOT}", f"type: {pair['type']}"]
+        parts += [f"{k}: {pair[k]}" for k in GENERIC_FIELDS if pair.get(k)]
+        return " | ".join(parts) + (" | negated: yes" if pair.get("negated") else "")
     if pair["type"] in NOMINAL_TYPES:
         parts = [f"root: {pair['root']}", f"type: {pair['type']}"]
         if pair["type"] == "adjective" and pair.get("gender"):
             parts.append(f"gender: {pair['gender']}")
         parts.append(f"number: {pair['number']}")
-        return " | ".join(parts)
+        return " | ".join(parts) + tail
     text = (f"root: {pair['root']} | tense: {pair['tense']} | person: {pair['person']} | gender: {pair['gender']} | "
             f"number: {pair['number']} | stem: {pair['stem']}")
-    return text + (f" | object: {pair['object']}" if pair.get("object") else "")
+    return text + (f" | object: {pair['object']}" if pair.get("object") else "") + tail
 
 
 # ------------------------------------------------------------------ Kidane Wold nouns and adjectives
