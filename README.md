@@ -153,6 +153,26 @@ Root accuracy (exact match):
 
 A root counts as correct only when it equals the gold root letter for letter (`ቅ-ት-ል` for `ቀ-ተ-ለ` is wrong). The numbers above are the rules-only analyzer (`--system hybrid --no_neural`) on dataset 0d0ceaa; it does not predict nouns and adjectives, so their type and exact match are always wrong. The full table also gives type, stem, tense, person, gender, number, object and exact match, by type, verb class, tense and tier. `--predictions_out` writes one line per pair with the gold labels, the prediction and the fields it got right.
 
+### Runs, seeds and held-out sets
+
+The unified book rows (`data/unified/`) are trained on by default (source `unified_book`, split train, status empty); they replace `data/lexicon/book_forms.jsonl` and any word without root with the same form. `--no_unified` leaves them out, `--legacy_book_forms` brings the old file back, `--seed N` sets the run's seed (dropout, data order, shuffle of the mixture; the splits do not depend on it). Two arms are compared, each with seeds 1, 2 and 3:
+
+| arm | flags | trains on |
+|---|---|---|
+| books | (default) | gold, generated verbs, dictionary headwords, words without root, all book rows |
+| core | `--no_unified --no_book_forms` | the same without book rows |
+
+Checkpoints are chosen on one dev set for both arms: the gold val pairs plus the unified book rows of split val (`evaluate_gold.py --split val --dev_unified`; the trainer's `--root_accuracy_rows` uses the same words unless `--dev_gold_only`). The held-out sets are scored once, at the end, on the chosen checkpoint: gold test, unified book test (`--split unified_test`) and, for the record, gold val and unified book val. Results are broken down by word class, book, tense and, for the gold and unified sets, `rootvar` (a held-out root that folds onto a training root, such as ሠ-ሀ-የ and ሰ-ሐ-የ, is `variant_in_train`; the splits are disjoint by exact root, not by folded root, so report the `disjoint` group next to the full set).
+
+```bash
+python3 train_byt5_morphology.py --dataset_dir ../geez-dataset --load_only --export_dir /tmp/exp
+python3 scripts/audit_train_leakage.py --dataset_dir ../geez-dataset --train /tmp/exp/train_pairs.jsonl   # CLEAN, or exit 1
+python3 scripts/summarize_runs.py RUN_DIR [RUN_DIR ...]                       # mean, sd and Wilson interval over seeds
+python3 scripts/summarize_runs.py --compare BOOKS_DIRS -- CORE_DIRS           # paired McNemar test, exact accuracy
+```
+
+A spelling listed with two analyses in one split cannot be exact for both with one answer; `evaluate_gold.py` prints that ceiling for each split.
+
 ## Rules
 
 Language decisions and their sources: [`docs/grammar_rules.md`](docs/grammar_rules.md).
@@ -164,3 +184,14 @@ See [`CITATION.cff`](CITATION.cff).
 ## License
 
 Apache License 2.0; see [`LICENSE`](LICENSE). The geez-dataset repo is licensed separately (its data files under CC BY-SA 4.0).
+
+## Unified rows and the target of every word class
+
+`dataset_loader.load_unified(dataset_dir, split, sources=("book",))` reads `data/unified/geez_morphology_rows.jsonl` of the
+dataset (rows with an empty status). The verb, noun and adjective targets are unchanged. The other classes use one generic
+shape, `root: <root or none> | type: <class>` followed by the labels the row has, in the order tense, person, gender,
+number, stem, object, possessor: `infinitive`, `gerund`, `verbal_noun`, `nominal` (rooted) and `pronoun`, `demonstrative`,
+`preposition`, `particle`, `numeral`, `adverb` (rootless, `root: none`). A row with a possessor ends with
+`| possessor: 3ms`, a negated row with `| negated: yes`. `analyzer.parse_neural_output` reads all of these; a rootless class
+with a root, a rooted class with `none`, an unknown class or a duplicate key gives no answer. Tests:
+`tests/test_unified_targets.py`.

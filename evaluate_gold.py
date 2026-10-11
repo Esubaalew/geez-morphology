@@ -21,12 +21,19 @@ What is scored:
     rule-based analyzer) predicts type "verb", so its nominal "type" and "exact" are wrong by design.
   - A predicted "jussive" is read as "subjunctive" (the gold files use subjunctive only).
   - Results are broken down by type, verb class, tense, and (hybrid) by which tier answered.
+  - --split unified_val unified_test score the book rows of data/unified/geez_morphology_rows.jsonl (status empty,
+    split val or test; roots and forms the model was not trained on). Their word classes include the rootless
+    ones (pronoun, preposition, particle, ...: the reply must say 'root: none'), nominal, infinitive, gerund and
+    verbal_noun; results are also broken down by book. possessor and negated count where the pair has them or
+    the reply gives them.
+  - 95% Wilson intervals are written to --out_json for the root and exact accuracy of every group.
 """
 
 import os
 import sys
 import json
 import argparse
+import math
 from collections import defaultdict
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,7 +44,8 @@ import geez_script
 import dataset_loader  # reads the gold files; shared with train_byt5_morphology.py
 from train_byt5_morphology import DEFAULT_OUTPUT_DIR as DEFAULT_MODEL_DIR, model_to_load
 
-FIELDS = ["root", "type", "stem", "tense", "person", "gender", "number", "object"]
+FIELDS = ["root", "type", "stem", "tense", "person", "gender", "number", "object", "possessor", "negated"]
+UNIFIED_SPLITS = {"unified_val": "val", "unified_test": "test"}
 TENSE_ALIASES = {"jussive": "subjunctive"}
 CLASS_ORDER = ["Type A", "Type B", "Type C", "hollow", "initial-weak",
                "final-weak", "quadriliteral", "unknown"]
@@ -58,7 +66,10 @@ def parse_prediction(pred_str):
 
 def root_matches(predicted, gold):
     """Exact root match. The prediction is written in Ethiopic letters first (q-t-l -> ቀ-ተ-ለ);
-    the letters themselves are compared as they are."""
+    the letters themselves are compared as they are. A gold root of None (a word without root) is matched by
+    a reply without root ('root: none')."""
+    if gold is None:
+        return not predicted
     return bool(predicted) and geez_script.to_ethiopic_root(predicted.strip()) == gold
 
 
@@ -73,12 +84,14 @@ def clean_label(v):
 
 def normalize_row(d):
     """Shared label normalization for gold and predictions. type defaults to "verb" (a prediction
-    or gold row without a type is a verb analysis); object is None when there is none."""
-    d = {k: clean_label(d.get(k)) for k in ("type", "stem", "tense", "person", "gender", "number", "object")}
-    d["type"] = d["type"] or "verb"
-    if d["person"] == "1" and d["gender"] is None:
-        d["gender"] = "c"
-    return d
+    or gold row without a type is a verb analysis); object and possessor are None when there is none;
+    negated is "yes" or None."""
+    out = {k: clean_label(d.get(k)) for k in ("type", "stem", "tense", "person", "gender", "number", "object", "possessor")}
+    out["negated"] = "yes" if str(d.get("negated")).strip().lower() in ("yes", "true", "1") else None
+    out["type"] = out["type"] or "verb"
+    if out["person"] == "1" and out["gender"] is None:
+        out["gender"] = "c"
+    return out
 
 
 def verb_class(rec):
@@ -117,9 +130,62 @@ def verb_class(rec):
     return "unknown"
 
 
+def book_short(name):
+    """Short book name for the per-book groups."""
+    name = name or ""
+    for key, short in (("Mets", "Kidane Wold"), ("ርባሐ", "Rebaha"), ("ፍሬ", "Fre Geez"), ("መማሪያ", "Memariya"),
+                       ("ግዕዝ ቋንቋ", "Quanqua 2"), ("Mesehaf", "Merho Ges")):
+        if name.startswith(key) or key in name[:30]:
+            return short
+    return name[:20] or "unknown"
+
+
+def wilson(c, n, z=1.96):
+    """95% Wilson interval of c correct out of n, as (low, high) fractions."""
+    if not n:
+        return (None, None)
+    p = c / n
+    d = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / d
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    return (max(0.0, centre - half), min(1.0, centre + half))
+
+
+def duplicate_surplus(pairs):
+    """Rows beyond the first for a spelling listed with more than one analysis: a single-answer system cannot be
+    exact on all of them, so exact accuracy cannot exceed 1 - surplus / pairs."""
+    counts = defaultdict(int)
+    for p in pairs:
+        counts[p["surface"]] += 1
+    return sum(c - 1 for c in counts.values())
+
+
+def folded_train_roots(dataset_dir):
+    """Spelling-folded roots (geez_script.fold_spelling) of the gold train pairs and of the unified book rows in
+    split train. The splits are disjoint by exact root; a held-out root that folds onto one of these is a spelling
+    variant of a training root (ሠ/ሰ, ጸ/ፀ, ሀ/ሐ/ኀ, labiovelar and plain, ...), and the fold is wide, so the group is an
+    upper bound on real variants."""
+    roots = {p["root"] for p in dataset_loader.load_gold_split(dataset_dir, "train")}
+    roots |= {p["root"] for p in dataset_loader.load_unified(dataset_dir, "train", ("book",)) if p["root"]}
+    return {geez_script.fold_spelling(r) for r in roots}
+
+
+def tag_root_variants(pairs, train_folded):
+    """Add 'rootvar' to each pair: 'variant_in_train' when its folded root is a folded training root."""
+    for p in pairs:
+        p["rootvar"] = ("variant_in_train" if p["root"] and geez_script.fold_spelling(p["root"]) in train_folded
+                        else "disjoint")
+
+
 def load_gold_pairs(dataset_dir, split, stats=None):
     """The scored pairs of one split (dataset_loader.load_gold_split), with normalized labels."""
     pairs = []
+    if split in UNIFIED_SPLITS:
+        for p in dataset_loader.load_unified(dataset_dir, UNIFIED_SPLITS[split], ("book",), stats):
+            pairs.append({"split": split, "surface": p["form"], "root": p["root"], "record_id": p["id"],
+                          "row": p["page"], "verb_class": None, "book": book_short(p["book"]),
+                          **normalize_row({**p, "type": p["type"]})})
+        return pairs
     if split == "books":
         for p in dataset_loader.load_book_forms(dataset_dir, "heldout", stats):
             pairs.append({"split": split, "surface": p["form"], "root": p["root"], "record_id": None,
@@ -189,13 +255,27 @@ def score(pairs, system, predictions=None):
         pred = system.predict(item["surface"])
         ok = {"root": root_matches(pred["root"], item["root"])}
         for f in FIELDS[1:]:
-            ok[f] = (pred[f] == item[f]) if item[f] is not None else None
+            # possessor and negated count where the pair has them or the reply gives them (a wrong extra one is a miss)
+            if f in ("possessor", "negated"):
+                ok[f] = (pred[f] == item[f]) if (item[f] is not None or pred[f] is not None) else None
+            else:
+                ok[f] = (pred[f] == item[f]) if item[f] is not None else None
         # exact: every field this pair should carry is labeled and right (verbs need root, stem,
         # tense, person, gender, number; nominals need root and number; type, gender, object as labeled)
-        needed = ["root", "number"] + (["stem", "tense", "person", "gender"] if item["type"] == "verb" else [])
+        if item["type"] == "verb":
+            needed = ["root", "number", "stem", "tense", "person", "gender"]
+        elif item["root"] is None:
+            needed = ["root"]                      # a word without root: the reply must say 'root: none'
+        else:
+            needed = ["root"] + (["number"] if item["number"] is not None else [])
         labeled_all = all(ok[f] is not None for f in needed)
         ok["exact"] = all(v for v in ok.values() if v is not None) if labeled_all else None
         groups = ["ALL", "type:" + item["type"], "tier:" + pred["tier"]]
+        groups.append("source:" + ("book" if item.get("book") else "gold"))
+        if item.get("book"):
+            groups.append("book:" + item["book"])
+        if item.get("rootvar"):
+            groups.append("rootvar:" + item["rootvar"])
         if item["type"] == "verb":
             groups += ["class:" + str(item["verb_class"] or "unknown"), "tense:" + str(item["tense"])]
         for g in groups:
@@ -224,9 +304,15 @@ def main():
     ap.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
                     help="Checkout of the geez-dataset repo the model was trained on "
                          "(default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
-    ap.add_argument("--split", nargs="+", choices=["val", "test", "books"], default=["val", "test"],
+    ap.add_argument("--split", nargs="+", choices=["val", "test", "books", "unified_val", "unified_test"], default=["val", "test"],
                     help="Gold splits to score (default: val test); books = data/lexicon/book_forms.jsonl rows of the "
-                         "other books whose root or form is a gold val/test one (never trained on)")
+                         "other books whose root or form is a gold val/test one (never trained on); "
+                         "unified_val / unified_test = the book rows of data/unified/geez_morphology_rows.jsonl in "
+                         "that split (status empty)")
+    ap.add_argument("--dev_unified", action="store_true",
+                    help="With --split val: score the dev set, the gold val pairs plus the unified book val rows, as one "
+                         "split named val (the Kaggle launcher selects checkpoints on it); the groups source:gold and "
+                         "source:book keep them apart")
     ap.add_argument("--limit", type=int, default=0, help="Random sample of N pairs per split (0 = all, the default)")
     ap.add_argument("--out_json", default=None,
                     help="Write the results to this JSON file, e.g. gold_eval_byt5.json")
@@ -240,24 +326,40 @@ def main():
     system = ByT5System(args.model_dir) if args.system == "byt5" else HybridSystem(args.dataset_dir, args.model_dir, args.no_neural)
     for split in args.split:
         path = (os.path.join(args.dataset_dir, dataset_loader.BOOK_FORMS_FILE) if split == "books"
+                else os.path.join(args.dataset_dir, dataset_loader.UNIFIED_FILE) if split in UNIFIED_SPLITS
                 else dataset_loader.gold_file_path(args.dataset_dir, split))
         if not os.path.exists(path):
             sys.exit(f"[!] Gold file not found: {path}")
     name = args.system + (" (no neural)" if args.no_neural else "")
-    cols = ["root", "type", "stem", "tense", "person", "gender", "number", "object", "exact"]
+    cols = ["root", "type", "stem", "tense", "person", "gender", "number", "object", "possessor", "negated", "exact"]
     results, predictions = {}, ([] if args.predictions_out else None)
 
+    train_folded = folded_train_roots(args.dataset_dir) if os.path.exists(dataset_loader.gold_file_path(args.dataset_dir, "train")) else None
     for split in args.split:
         stats = defaultdict(int)
         pairs = load_gold_pairs(args.dataset_dir, split, stats)
-        where = dataset_loader.BOOK_FORMS_FILE if split == "books" else dataset_loader.gold_file_path(args.dataset_dir, split)
+        if args.dev_unified and split == "val":
+            extra = load_gold_pairs(args.dataset_dir, "unified_val", stats)
+            for p in extra:
+                p["split"] = "val"
+            pairs += extra
+            print(f"--dev_unified: {len(extra)} unified book val rows added to the {len(pairs) - len(extra)} gold val pairs")
+        where = (dataset_loader.BOOK_FORMS_FILE if split == "books" else dataset_loader.UNIFIED_FILE if split in UNIFIED_SPLITS
+                 else dataset_loader.gold_file_path(args.dataset_dir, split))
         print(f"\n{split}: {where}: {len(pairs)} pairs "
               f"({', '.join(f'{k} {v}' for k, v in sorted(stats.items()))})")
         if args.limit and args.limit < len(pairs):
             import random
             pairs = random.Random(42).sample(pairs, args.limit)
             print(f"[!] --limit {args.limit}: scoring a random sample, not the full split")
+        if train_folded is not None:
+            tag_root_variants(pairs, train_folded)
+        surplus = duplicate_surplus(pairs)
+        if surplus:
+            print(f"{surplus} pair(s) repeat a spelling that has another analysis in this split: exact accuracy of a "
+                  f"single-answer system cannot exceed {100 * (1 - surplus / len(pairs)):.1f}%")
         totals, examples = score(pairs, system, predictions)
+        totals["ALL"]["duplicate_surplus"] = [surplus, len(pairs)]
         results[split] = {g: dict(t) for g, t in totals.items()}
 
         print("=" * 72)
@@ -271,10 +373,14 @@ def main():
                 t = totals[g]
                 print(f"\n[{g}]  pairs={t['rows'][1]}")
                 for c in cols:
-                    print(f"   {c:7s} {pct(*t[c])}")
+                    if c in t:
+                        print(f"   {c:8s} {pct(*t[c])}")
 
         show(["ALL"])
-        show(["type:" + t for t in dataset_loader.TYPES])
+        show(["type:" + t for t in dataset_loader.TYPES + dataset_loader.UNIFIED_TYPES])
+        show(sorted(g for g in totals if g.startswith("source:")))
+        show(sorted(g for g in totals if g.startswith("book:")))
+        show(sorted(g for g in totals if g.startswith("rootvar:")))
         show(["class:" + c for c in CLASS_ORDER])
         show(sorted(g for g in totals if g.startswith("tense:")))
         show(sorted(g for g in totals if g.startswith("tier:")))
@@ -287,11 +393,17 @@ def main():
 
     print("\nRoot accuracy (exact match):")
     for split, totals in results.items():
-        print(f"  {split:5s} {pct(*totals['ALL']['root'])}")
+        lo, hi = wilson(*totals['ALL']['root'])
+        print(f"  {split:12s} {pct(*totals['ALL']['root'])}" + (f"  95% CI {100 * lo:.1f}-{100 * hi:.1f}" if lo is not None else ""))
 
     if args.out_json:
         summary = {split: {"pairs": t["ALL"]["rows"][1], "root_correct": t["ALL"]["root"][0],
-                           "root_accuracy": t["ALL"]["root"][0] / max(1, t["ALL"]["root"][1])}
+                           "root_accuracy": t["ALL"]["root"][0] / max(1, t["ALL"]["root"][1]),
+                           "root_wilson95": wilson(*t["ALL"]["root"]),
+                           "exact_correct": t["ALL"].get("exact", [0, 0])[0],
+                           "exact_scored": t["ALL"].get("exact", [0, 0])[1],
+                           "exact_accuracy": t["ALL"].get("exact", [0, 0])[0] / max(1, t["ALL"].get("exact", [0, 0])[1]),
+                           "exact_wilson95": wilson(*t["ALL"].get("exact", [0, 0]))}
                    for split, t in results.items()}
         with open(args.out_json, "w", encoding="utf-8") as f:
             json.dump({"system": name, "model_dir": args.model_dir if args.system == "byt5" else None,
