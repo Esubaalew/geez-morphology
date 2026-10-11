@@ -55,11 +55,31 @@ HELDOUT_TRAIN = "synthetic_forms_for_val_test_roots.jsonl"
 HELDOUT_ANALYZE = "synthetic_forms_for_val_test_roots_analyze.jsonl"
 GOLD_EVAL = {"val": "merho_ges_gold_val.jsonl", "test": "merho_ges_gold_test.jsonl"}
 ETHIOPIC_ROOT = re.compile(r"[\u1200-\u137F](-[\u1200-\u137F]){1,4}")
+# Roots only the books print (no Merho Ges record) that the dataset gave to val or test (data/unified/book_root_splits.tsv).
+BOOK_ROOT_SPLITS = os.path.join("data", "unified", "book_root_splits.tsv")
+
+
+def book_eval_roots(dataset_dir):
+    """{1st-order Ethiopic root: {"val" | "test"}} of the book-only roots in data/unified/book_root_splits.tsv whose split is
+    val or test ({} when the file is missing)."""
+    path = os.path.join(dataset_dir, BOOK_ROOT_SPLITS)
+    roots = collections.defaultdict(set)
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        next(f)
+        for line in f:
+            root, _, _, split = line.rstrip("\n").split("\t")
+            if split in ("val", "test") and ETHIOPIC_ROOT.fullmatch(root):
+                roots[geez_script.first_order_root(root)].add(split)
+    return dict(roots)
 
 
 def gold_eval_roots(dataset_dir):
-    """{1st-order Ethiopic root: {"val", "test"}} from the current gold val/test files."""
+    """{1st-order Ethiopic root: {"val", "test"}} from the current gold val/test files and the val/test book-only roots."""
     roots = collections.defaultdict(set)
+    for root, splits in book_eval_roots(dataset_dir).items():
+        roots[root] |= splits
     for split, name in GOLD_EVAL.items():
         with open(os.path.join(dataset_dir, "data", "paradigms", name), encoding="utf-8") as f:
             for line in f:

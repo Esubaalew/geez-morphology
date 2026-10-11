@@ -885,6 +885,8 @@ class GeezMorphologicalAnalyzer:
 NEURAL_FIELDS = ("root", "tense", "person", "gender", "number", "stem")   # verb target
 NEURAL_NOMINAL_FIELDS = ("root", "type", "number")                       # + optional gender
 NOMINAL_TYPES = ("noun", "adjective")
+GENERIC_TYPES = dataset_loader.UNIFIED_TYPES          # the generic target shape (dataset_loader.target_text)
+GENERIC_KEYS = {"root", "type", "negated"} | set(dataset_loader.GENERIC_FIELDS)
 NO_VALUE = ("", "none", "null")
 ROOT_ONLY = dataset_loader.ROOT_ONLY_TASK   # type of a root-only reply
 
@@ -921,10 +923,17 @@ def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
         out["type"] = ROOT_ONLY
         if out["root"].lower() in NO_VALUE[1:]:
             out["root"] = None
-    elif keys - {"object"} == set(NEURAL_FIELDS):
+    elif keys - {"object", "possessor", "negated"} == set(NEURAL_FIELDS):
         out["type"] = "verb"
-    elif keys - {"gender"} == set(NEURAL_NOMINAL_FIELDS) and out["type"] in NOMINAL_TYPES:
+    elif keys - {"gender", "possessor", "negated"} == set(NEURAL_NOMINAL_FIELDS) and out["type"] in NOMINAL_TYPES:
         pass
+    elif "type" in keys and out["type"] in GENERIC_TYPES and "root" in keys and keys <= GENERIC_KEYS:
+        if out["type"] in dataset_loader.UNIFIED_ROOTLESS_TYPES:
+            if out["root"].lower() not in NO_VALUE[1:]:
+                return None                       # a rootless class has no root
+            out["root"] = None
+        elif out["root"].lower() in NO_VALUE[1:]:
+            return None
     else:
         return None
     letters = (out["root"] or "").replace("-", "").replace(" ", "")
@@ -936,9 +945,10 @@ def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
         if not dec or not dec[0]:
             return None
         cons.append(dec[0])
-    for k in ("tense", "person", "gender", "number", "stem", "object"):
+    for k in ("tense", "person", "gender", "number", "stem", "object", "possessor"):
         v = out.get(k)
         out[k] = None if v is None or v.lower() in NO_VALUE else v
+    out["negated"] = str(out.get("negated", "")).strip().lower() in ("yes", "true", "1")
     out["root_consonants"] = cons
     return out
 

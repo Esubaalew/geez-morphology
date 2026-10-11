@@ -1,12 +1,12 @@
 # Every gold val and test form of geez-dataset branch crosscheck-1009 (on f2cecc7, after the typed-edition cross-check). generate_synthetic_fixed.py leaves out every
 # synthetic line whose surface_form is exactly one of these forms, and stops if this file is missing.
-# Gold files: merho_ges_gold_val.jsonl sha256 9e98285f6943131863e36237209bddb774de21b60facc9f6f790a60106ce3c99, merho_ges_gold_test.jsonl sha256 35ec942ba61d9df425788458036c3925a40efb75c3271da4681c1135cede958e.
+# Gold files: merho_ges_gold_val.jsonl sha256 9e98285f6943131863e36237209bddb774de21b60facc9f6f790a60106ce3c99, merho_ges_gold_test.jsonl sha256 e6c67e41296be8830338ef928c626ad0ccb68b7283a0dd1eb55320e1190aec18.
 # One line per form of a row, rows with no root included. geez_form is one "/"-spelling of the cell with "(...)" notes
 # dropped, as scripts/check_dataset.py loads it; cell is the geez_form field as written in the gold file.
 # Key: split + record_id + row + variant. row = index of the row in the record's table_data, from 0 (as in
 # merho_ges_gold_flagged_rows.tsv); variant = index of the spelling in the cell, from 0; source_row and source_variant
 # are the row's own fields (empty when the row has none). root = the row's root, else the record's; empty = no root yet.
-# 2,938 entries, 2,858 distinct forms; 203 entries have no root.
+# 2,934 entries, 2,854 distinct forms; 203 entries have no root.
 geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 ስሕ	val	ef094bb2db48	0	0			ሰ-ሐ	ስሕ
 ረምሐ	val	c8b96d6ae77b	0	0			ረ-መ-ሐ	ረምሐ
@@ -1282,7 +1282,7 @@ geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 ተዋፅኀ	test	b0e9efdf890f	0	0			ወ-ፀ-ኀ	ተዋፅኀ
 መወፅኀ	test	b0e9efdf890f	1	0			ወ-ፀ-ኀ	መወፅኀ
 መስተወፅኀ	test	b0e9efdf890f	2	0			ወ-ፀ-ኀ	መስተወፅኀ
-መስተዋሰን	test	b0e9efdf890f	3	0			ወ-ፀ-ኀ	መስተዋሰን
+መስተዋፅኀ	test	b0e9efdf890f	3	0			ወ-ፀ-ኀ	መስተዋፅኀ
 ወሰነ	test	8e6b4cc07a29	0	0			ወ-ሰ-ነ	ወሰነ
 ይውስኑ	test	8e6b4cc07a29	1	0			ወ-ሰ-ነ	ይውስኑ
 ውሱን	test	8e6b4cc07a29	2	0			ወ-ሰ-ነ	ውሱን
@@ -1753,10 +1753,6 @@ geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 መስተዛውር	test	1ec37962cc4b	7	0			ዘ-ወ-ረ	መስተዛውር
 ዘወርት	test	1ec37962cc4b	8	0			ዘ-ወ-ረ	ዘወርት
 ዘውር	test	1ec37962cc4b	9	0			ዘ-ወ-ረ	ዘውር
-አበለ	test	e4d51018a3e5	0	0			አ-በ-ለ	አበለ
-መጽባበር	test	e4d51018a3e5	1	0			አ-በ-ለ	መጽባበር
-መስተጻብር	test	e4d51018a3e5	2	0			አ-በ-ለ	መስተጻብር
-መስተጸብር	test	e4d51018a3e5	3	0			አ-በ-ለ	መስተጸብር
 ልህቀ	test	e6fbd4f5a38d	0	0			ለ-ሀ-ቀ	ልህቀ
 ልሁቅ	test	e6fbd4f5a38d	1	0			ለ-ሀ-ቀ	ልሁቅ
 ልሂቅ	test	e6fbd4f5a38d	2	0			ለ-ሀ-ቀ	ልሂቅ

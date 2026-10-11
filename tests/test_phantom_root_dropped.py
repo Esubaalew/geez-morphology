@@ -64,10 +64,11 @@ def test_no_qh_h2_m_lines(rel):
 
 
 def test_q_h2_m_keeps_its_lines():
-    path = os.path.join(DATASET_DIR, FILES[0])
-    if not os.path.exists(path):
+    paths = [os.path.join(DATASET_DIR, FILES[0]), os.path.join(DATASET_DIR, FILES[2])]
+    if not all(os.path.exists(p) for p in paths):
         pytest.skip("synthetic data not generated")
-    assert roots_in(path).get("q-h2-m", 0) > 0
+    # q-h2-m is a book-only val root, so its lines are in the held-out file, not the training file
+    assert sum(roots_in(p).get("q-h2-m", 0) for p in paths) > 0
 
 
 @pytest.mark.parametrize("rel", KW_TABLES)

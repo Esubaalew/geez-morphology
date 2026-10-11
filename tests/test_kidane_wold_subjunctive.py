@@ -194,9 +194,9 @@ def test_doubly_guttural_present(synth, root, pres):
     ("m-h2-l", "present", "3ms", "passive", "ይትመሐል"),
     ("m-h2-l", "present", "3ms", "causative", "ያመሕል"),
 ])
-def test_derived_stems_unchanged(synth, root, tense, per, stem, expect):
-    need_allowed(root)
-    assert form(synth, root, tense, per, stem) == expect
+def test_derived_stems_unchanged(synth_all, root, tense, per, stem, expect):
+    need_allowed(root)      # m-h2-l is a book-only val root: its lines are in the held-out file
+    assert form(synth_all, root, tense, per, stem) == expect
 
 
 def test_initial_weak_unchanged(synth):

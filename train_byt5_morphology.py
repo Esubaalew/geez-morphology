@@ -17,6 +17,8 @@ Data (read from --dataset_dir, the geez-dataset checkout), as written:
       (only this file: the lines held out for the gold val/test roots, data/synthetic/, are never read)
   data/paradigms/merho_ges_gold_train.jsonl              Merho Ges gold-train paradigms
   data/lexicon/classical_dictionary_kidane_wold.jsonl    Kidane Wold nouns and adjectives, headword to root
+  data/unified/geez_morphology_rows.jsonl               book rows of the unified dataset, split "train", status empty
+      (--no_unified leaves them out); they replace book_forms.jsonl unless --legacy_book_forms is given
   data/lexicon/book_forms.jsonl                          forms printed in the other books (ርባሐ ስም, Kidane Wold's
       grammar and dictionary), split "train" only (--no_book_forms leaves them out)
 and, from this repo, data/closed_class_words_without_root.tsv (words without root, target "root: none";
@@ -91,7 +93,7 @@ EXPORT_FILES = {"train": "train_pairs.jsonl", "eval": "eval_pairs_synthetic.json
                 "eval_dictionary": "eval_pairs_dictionary_nominal.jsonl"}
 DICTIONARY_EVAL_NAME = "dictionary_nominal"
 # Where a training sample comes from (its "source" field), in the order the counts are printed.
-SOURCES = ("synthetic", "gold_verb", "gold_nominal", "dictionary", "word_without_root", "book_forms")
+SOURCES = ("synthetic", "gold_verb", "gold_nominal", "dictionary", "word_without_root", "book_forms", "unified_book")
 DEFAULT_GOLD_UPSAMPLE = 4
 DEFAULT_GOLD_NOMINAL_UPSAMPLE = 5
 ROOT_ACCURACY_MAX_NEW_TOKENS = 32   # bytes; "root: " and a 4-radical root take 21
@@ -195,6 +197,15 @@ def load_book_form_samples(dataset_dir: str, stats: Optional[Dict] = None, singl
              "task": dataset_loader.ANALYZE_TASK} for p in pairs]
 
 
+def load_unified_samples(dataset_dir: str, stats: Optional[Dict] = None, single_prefix: bool = False):
+    """Training samples of the book rows of data/unified/geez_morphology_rows.jsonl (dataset_loader.load_unified,
+    split "train", rows with an empty status). Rootless classes (function words and the like) have target
+    'root: none | type: ...'. [] when the file is missing."""
+    pairs = dataset_loader.load_unified(dataset_dir, "train", ("book",), stats)
+    print(f"Read {len(pairs)} unified book rows (split train) from {dataset_loader.UNIFIED_FILE}")
+    return [root_only_sample(p, "unified_book", single_prefix) | {"is_gold": True} for p in pairs]
+
+
 def load_words_without_root_samples(dataset_dir: str, stats: Optional[Dict] = None, single_prefix: bool = False):
     """Training samples (target "root: none") of the words without root (dataset_loader.load_words_without_root)."""
     pairs = dataset_loader.load_words_without_root(dataset_dir, stats)
@@ -236,16 +247,20 @@ def root_in_output(text: str) -> str:
     return m.group(1).strip() if m else ""
 
 
-def root_accuracy_items(dataset_dir: str, n: int) -> List[tuple]:
-    """(input text, gold root) of up to n gold val pairs (a seeded sample in file order when there are more),
-    with the full-analysis prefix, for eval_root_accuracy."""
+def root_accuracy_items(dataset_dir: str, n: int, gold_only: bool = False) -> List[tuple]:
+    """(input text, gold root) of up to n dev pairs (a seeded sample in file order when there are more), with the
+    full-analysis prefix, for eval_root_accuracy. The dev pairs are the gold val pairs plus, unless gold_only, the
+    book rows of the unified file in split val (status empty); a word without root has the root "none". The dev
+    set does not depend on --no_unified or --seed, so runs of an ablation select checkpoints on the same words."""
     if n <= 0 or not os.path.exists(dataset_loader.gold_file_path(dataset_dir, "val")):
         return []
     pairs = dataset_loader.load_gold_split(dataset_dir, "val")
+    if not gold_only:
+        pairs = pairs + dataset_loader.load_unified(dataset_dir, "val", ("book",))
     if n < len(pairs):
         keep = sorted(random.Random(SEED).sample(range(len(pairs)), n))
         pairs = [pairs[i] for i in keep]
-    return [(dataset_loader.input_text(p["form"]), p["root"]) for p in pairs]
+    return [(dataset_loader.input_text(p["form"]), p["root"] or "none") for p in pairs]
 
 
 def sample_items(samples: List[Dict]) -> List[tuple]:
@@ -397,6 +412,16 @@ def parse_args(argv=None):
                    help="Leave out the Kidane Wold noun and adjective pairs (training and the dictionary_nominal eval)")
     p.add_argument("--no_words_without_root", action="store_true",
                    help="Leave out the words without root (data/closed_class_words_without_root.tsv, target 'root: none')")
+    p.add_argument("--seed", type=int, default=SEED,
+                   help="Seed of the training run: dropout, data order and the shuffle of the training mixture "
+                        "(default 42). The splits and the dev set do not depend on it")
+    p.add_argument("--dev_gold_only", action="store_true",
+                   help="Select checkpoints on the gold val pairs only (default: gold val plus the unified book val rows)")
+    p.add_argument("--no_unified", action="store_true",
+                   help="Leave out the unified book rows (data/unified/geez_morphology_rows.jsonl, split train)")
+    p.add_argument("--legacy_book_forms", action="store_true",
+                   help="Also read data/lexicon/book_forms.jsonl and the words without root when the unified file "
+                        "is used (by default the unified rows replace them)")
     p.add_argument("--no_book_forms", action="store_true",
                    help="Leave out the forms printed in the other books (data/lexicon/book_forms.jsonl, split train)")
     p.add_argument("--single_prefix", action="store_true",
@@ -442,11 +467,30 @@ def main(argv=None) -> int:
     without_root = [] if args.no_words_without_root else \
         load_words_without_root_samples(args.dataset_dir, without_root_stats, args.single_prefix)
     book_stats = collections.Counter()
-    book_forms = [] if args.no_book_forms else \
-        load_book_form_samples(args.dataset_dir, book_stats, args.single_prefix)
-    if dictionary_train or without_root or book_forms:
-        train_samples = train_samples + dictionary_train + without_root + book_forms
-        random.Random(SEED).shuffle(train_samples)
+    unified_stats = collections.Counter()
+    unified = [] if args.no_unified else load_unified_samples(args.dataset_dir, unified_stats, args.single_prefix)
+    # a word without root that the unified file holds out (split val or test) is never trained on
+    heldout_forms = {p["form"] for sp in ("val", "test") for p in dataset_loader.load_unified(args.dataset_dir, sp, ("book",))}
+    if heldout_forms and without_root:
+        n_before = len(without_root)
+        without_root = [s for s in without_root if s["input_text"].split(":", 1)[-1].strip() not in heldout_forms]
+        if n_before != len(without_root):
+            print(f"{n_before - len(without_root)} word(s) without root dropped: held out in the unified file.")
+    if unified and not args.legacy_book_forms:
+        # the unified rows replace book_forms.jsonl; a word without root is dropped when the unified file has the
+        # same form (the two targets differ: 'root: none' and 'root: none | type: ...')
+        unified_forms = {s["input_text"] for s in unified}
+        n_before = len(without_root)
+        without_root = [s for s in without_root if s["input_text"] not in unified_forms]
+        print(f"Unified rows replace book_forms.jsonl; {n_before - len(without_root)} word(s) without root "
+              "dropped (same form in the unified rows).")
+        book_forms = []
+    else:
+        book_forms = [] if args.no_book_forms else \
+            load_book_form_samples(args.dataset_dir, book_stats, args.single_prefix)
+    if dictionary_train or without_root or book_forms or unified:
+        train_samples = train_samples + dictionary_train + without_root + book_forms + unified
+        random.Random(args.seed).shuffle(train_samples)
     if args.max_eval_samples and args.max_eval_samples < len(eval_samples):
         eval_samples = eval_samples[:args.max_eval_samples]
     if args.max_eval_samples and args.max_eval_samples < len(dictionary_eval):
@@ -469,12 +513,12 @@ def main(argv=None) -> int:
     train_by_source = counts_by_source(train_samples)
     print(f"Synthetic pairs: {n_syn}. Gold-train pairs: {n_gold}. "
           f"Dictionary pairs: {len(dictionary_train)} train, {len(dictionary_eval)} eval. "
-          f"Words without root: {len(without_root)}. Book forms: {len(book_forms)}.")
+          f"Words without root: {len(without_root)}. Book forms: {len(book_forms)}. Unified book rows: {len(unified)}.")
     print(f"Gold upsampling: verbs x{args.gold_upsample}, nouns and adjectives x{args.gold_nominal_upsample}. "
           f"Prefixes: {'analyze: for every task' if args.single_prefix else 'one per task'}.")
     print(f"Train: {len(train_samples)} pairs (" + ", ".join(f"{k} {v}" for k, v in train_by_source.items()) + "). "
           f"Eval: {len(eval_samples)} synthetic pairs; {DICTIONARY_EVAL_NAME}: {len(dictionary_eval)} pairs.")
-    root_items = root_accuracy_items(args.dataset_dir, args.root_accuracy_rows)
+    root_items = root_accuracy_items(args.dataset_dir, args.root_accuracy_rows, args.dev_gold_only)
     if args.root_accuracy_rows:
         print(f"Root accuracy at each evaluation: {len(root_items)} gold val pairs.")
     if args.export_dir:
@@ -540,20 +584,24 @@ def main(argv=None) -> int:
     if not args.no_dictionary_pairs:
         dictionary = os.path.join(args.dataset_dir, dataset_loader.KIDANE_WOLD_FILE)
         data_files["dictionary"] = dictionary if os.path.exists(dictionary) else None
+    if unified:
+        data_files["unified"] = os.path.join(args.dataset_dir, dataset_loader.UNIFIED_FILE)
     if not args.no_words_without_root:
         data_files["words_without_root"] = dataset_loader.WORDS_WITHOUT_ROOT_FILE
     run_info = {
+        "seed": args.seed,
         "started": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         "model_repo": git_commit(SCRIPT_DIR),
         "dataset_repo": git_commit(args.dataset_dir),
         "data_sha256": {k: (sha256_file(v) if v else None) for k, v in data_files.items()},
         "data_files": data_files,
         "counts": {"synthetic": n_syn, "gold_train": n_gold, "dictionary_train": len(dictionary_train),
-                   "words_without_root": len(without_root), "train": len(train_samples),
+                   "words_without_root": len(without_root), "unified_book": len(unified), "train": len(train_samples),
                    "train_by_source": train_by_source, "eval": len(eval_samples),
                    "eval_" + DICTIONARY_EVAL_NAME: len(dictionary_eval), "root_accuracy_pairs": len(root_items)},
         "load_counts": dict(sorted(load_stats.items())),
         "dictionary_load_counts": dict(sorted(dictionary_stats.items())),
+        "unified_load_counts": dict(sorted(unified_stats.items())),
         "words_without_root_load_counts": dict(sorted(without_root_stats.items())),
         "device": device, "n_devices": n_devices, "precision": "fp32",
         "optimizer_steps": total_steps, "warmup_steps": warmup_steps,
@@ -597,7 +645,8 @@ def main(argv=None) -> int:
         fp16=False,
         bf16=False,
         use_cpu=(device == "cpu"),
-        seed=SEED,
+        seed=args.seed,
+        data_seed=args.seed,
         dataloader_num_workers=args.num_workers,
         report_to="none",
     )
