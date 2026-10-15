@@ -11,7 +11,9 @@ letters merged):
           the same root (exit status 1 otherwise). Training roots that differ from a held-out root only by
           folding (a spelling variant, such as ሠ-ሀ-የ and ሰ-ሐ-የ) are counted and reported, not failed: the splits
           are disjoint by exact root.
-Words without root (target 'root: none') are left out of the root check.
+Words without root (target 'root: none') are left out of the root check. generate: pairs are read in reverse
+(root from the input analysis, form from the target); pos: pairs are checked by form only. A training pair whose
+form is a held-out form with any root also fails.
 """
 import argparse
 import collections
@@ -34,6 +36,11 @@ def root_of(target):
         return None
     r = target.split("|", 1)[0][5:].strip()
     return None if r in ("none", "") else r
+
+
+def form_of_analysis(inp):
+    """The analysis of a generate: input ("generate: root: ... | ...")."""
+    return inp.split(":", 1)[1].strip()
 
 
 def form_of(inp):
@@ -59,6 +66,8 @@ def main():
     held = heldout(args.dataset_dir)
     exact_roots = {s: {r for _, r in v if r} for s, v in held.items()}
     exact_pairs = {s: {(f, r) for f, r in v} for s, v in held.items()}
+    exact_forms = {s: {f for f, _ in v} for s, v in held.items()}
+    form_any = collections.Counter()
     folded_roots = {s: {fold(r) for r in rs} for s, rs in exact_roots.items()}
     n = 0
     root_exact, root_variant, form_exact, form_variant = (collections.Counter() for _ in range(4))
@@ -68,8 +77,13 @@ def main():
         for line in f:
             d = json.loads(line)
             n += 1
-            r = root_of(d["target_text"])
-            form = form_of(d["input_text"])
+            if d["input_text"].startswith("generate:"):        # analysis -> form
+                r, form = root_of(form_of_analysis(d["input_text"])), d["target_text"].strip()
+            elif d["input_text"].startswith("pos:"):            # form -> class
+                r, form = None, form_of(d["input_text"])
+            else:
+                r = root_of(d["target_text"])
+                form = form_of(d["input_text"])
             for s in held:
                 if r:
                     train_roots.add(r)
@@ -81,14 +95,17 @@ def main():
                         root_variant[s] += 1
                 if (form, r) in exact_pairs[s]:
                     form_exact[s] += 1
+                if form in exact_forms[s]:
+                    form_any[s] += 1
     print(f"training pairs: {n}; distinct training roots: {len(train_roots)}")
     for s in sorted(held):
         print(f"held-out {s}: {len(held[s])} pairs, {len(exact_roots[s])} roots")
         print(f"   training pairs with the same root: {root_exact[s]}   same form and root: {form_exact[s]}   (must be 0)")
+        print(f"   training pairs with a {s} form (any root): {form_any[s]}   (reported; 0 with the trainer's leak gate)")
         print(f"   training pairs whose root is only a spelling variant of a {s} root (folded): {root_variant[s]}   (reported)")
     for e in examples:
         print("  overlap:", e)
-    bad = sum(root_exact.values()) + sum(form_exact.values())
+    bad = sum(root_exact.values()) + sum(form_exact.values()) + sum(form_any.values())
     print("RESULT:", "CLEAN (exact roots and pairs)" if not bad else f"{bad} overlap(s)")
     sys.exit(1 if bad else 0)
 

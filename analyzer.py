@@ -5,6 +5,7 @@ Tries the class paradigms licensed by the lexicon, then affix stripping with a
 dictionary lookup, then template matching, and (HybridAnalyzer) a ByT5 fallback.
 """
 
+import logging
 import os
 import sys
 import json
@@ -886,7 +887,7 @@ class GeezMorphologicalAnalyzer:
 NEURAL_FIELDS = ("root", "tense", "person", "gender", "number", "stem")   # verb target
 NEURAL_NOMINAL_FIELDS = ("root", "type", "number")                       # + optional gender
 NOMINAL_TYPES = ("noun", "adjective")
-GENERIC_TYPES = dataset_loader.UNIFIED_TYPES          # the generic target shape (dataset_loader.target_text)
+GENERIC_TYPES = dataset_loader.UNIFIED_TYPES + dataset_loader.CLOSED_CLASS_EXTRA_TYPES          # the generic target shape (dataset_loader.target_text)
 GENERIC_KEYS = {"root", "type", "negated"} | set(dataset_loader.GENERIC_FIELDS)
 NO_VALUE = ("", "none", "null")
 ROOT_ONLY = dataset_loader.ROOT_ONLY_TASK   # type of a root-only reply
@@ -929,7 +930,7 @@ def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
     elif keys - {"gender", "possessor", "negated"} == set(NEURAL_NOMINAL_FIELDS) and out["type"] in NOMINAL_TYPES:
         pass
     elif "type" in keys and out["type"] in GENERIC_TYPES and "root" in keys and keys <= GENERIC_KEYS:
-        if out["type"] in dataset_loader.UNIFIED_ROOTLESS_TYPES:
+        if out["type"] in dataset_loader.ROOTLESS_TYPES:
             if out["root"].lower() not in NO_VALUE[1:]:
                 return None                       # a rootless class has no root
             out["root"] = None
@@ -1001,53 +1002,52 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
         return True
 
     def _neural_fallback(self, word: str) -> List[MorphologicalAnalysis]:
-        """Perform neural prediction using ByT5 model."""
+        """The ByT5 model's analysis of `word` ("analyze: " prefix, the training target format), [] when the reply
+        does not parse. A missing torch or transformers raises ImportError instead of being read as "no answer"."""
         if not self._ensure_neural_model():
             return []
+        import torch   # ImportError propagates
 
-        try:
-            import torch
-            inp = self._tokenizer(dataset_loader.input_text(word), return_tensors="pt").to(self.device)
-            with torch.no_grad():
-                out = self._model.generate(**inp, max_length=128, num_beams=2)
-            pred_text = self._tokenizer.decode(out[0], skip_special_tokens=True)
-            
-            parsed = parse_neural_output(pred_text)
-            if parsed is None or (parsed["root"] is None and parsed["type"] not in dataset_loader.UNIFIED_ROOTLESS_TYPES):
-                return []   # malformed output, or root-only no-root: no answer rather than a partial one
-            root_cons = parsed["root_consonants"]
-            root_tuple = tuple(root_cons)
-            root_str = "-".join(root_cons)
+        inp = self._tokenizer(dataset_loader.input_text(word), return_tensors="pt").to(self.device)
+        with torch.no_grad():
+            out = self._model.generate(**inp, max_length=128, num_beams=2)
+        return self._analysis_from_reply(word, self._tokenizer.decode(out[0], skip_special_tokens=True))
 
-            # Lemma synthesis
-            lemma = word
-            if len(root_tuple) == 3 and self.engine is not None and self.lemma_spec is not None:
-                try:
-                    lemma = self.engine.generate(root_tuple, self.lemma_spec)
-                except Exception:
-                    pass
-
-            analysis = MorphologicalAnalysis(
-                surface_form=word,
-                root_consonants=root_tuple,
-                root_string=root_str,
-                canonical_lemma=lemma,
-                tense=TENSE_ALIASES.get(parsed["tense"], parsed["tense"]),
-                person=parsed["person"],
-                number=parsed["number"],
-                gender=parsed["gender"],
-                stem=parsed["stem"],
-                verb_type="neural_prediction",
-                pattern_spec="neural:byt5_fallback",
-                lexicon_entry=None,
-                negative=bool(parsed.get("negated")),
-                object=parsed["object"],
-                pos=parsed["type"] if parsed["type"] in NOMINAL_TYPES + dataset_loader.UNIFIED_TYPES else None,
-                possessor=parsed.get("possessor"),
-            )
-            return [analysis]
-        except Exception:
+    def _analysis_from_reply(self, word: str, pred_text: str) -> List[MorphologicalAnalysis]:
+        """The analysis of one model reply. A "root: none" reply of a rootless class is kept (no root, pos = its
+        class); nominal and non-finite classes keep their type as pos; possessor and negation are copied. A
+        root-only "root: none" reply names no class and gives []."""
+        parsed = parse_neural_output(pred_text)
+        if parsed is None:
             return []
+        if parsed["root"] is None and parsed["type"] not in dataset_loader.ROOTLESS_TYPES:
+            return []
+        root_tuple = tuple(parsed["root_consonants"])
+        lemma = word
+        if len(root_tuple) == 3 and self.engine is not None and self.lemma_spec is not None and parsed["type"] == "verb":
+            try:
+                lemma = self.engine.generate(root_tuple, self.lemma_spec)
+            except (KeyError, ValueError, IndexError) as e:
+                logging.getLogger(__name__).debug("no lemma for %s: %s", root_tuple, e)
+        pos_types = NOMINAL_TYPES + dataset_loader.UNIFIED_TYPES + dataset_loader.CLOSED_CLASS_EXTRA_TYPES
+        return [MorphologicalAnalysis(
+            surface_form=word,
+            root_consonants=root_tuple,
+            root_string="-".join(root_tuple),
+            canonical_lemma=lemma,
+            tense=TENSE_ALIASES.get(parsed["tense"], parsed["tense"]),
+            person=parsed["person"],
+            number=parsed["number"],
+            gender=parsed["gender"],
+            stem=parsed["stem"],
+            verb_type="neural_prediction",
+            pattern_spec="neural:byt5_fallback",
+            lexicon_entry=None,
+            negative=bool(parsed.get("negated")),
+            object=parsed["object"],
+            pos=parsed["type"] if parsed["type"] in pos_types else None,
+            possessor=parsed.get("possessor"),
+        )]
 
     def analyze(self, word: str, lookup_dictionary: bool = True, use_hybrid: bool = True) -> List[MorphologicalAnalysis]:
         """
@@ -1076,15 +1076,21 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
             finally:
                 self._loose_gutturals = False
             results = self._merge(results, loose)
-        if results and not (self.model_dir and all(r.tense is None and r.pos is None for r in results)):
+        if results and not self.model_dir:
             return results
+        if results and any(r.pos is not None for r in results):
+            return results     # the rules already give a nominal or non-finite reading
 
-        # 3. Neural fallback (or disambiguation of unfeatured dictionary headword hits)
+        # 3. Neural model: unseen words, unfeatured dictionary hits, and words the rules read only as verbs.
+        # A neural nominal / non-finite / rootless reading goes first; a neural verb reading goes after featured
+        # rule readings (the rules stay first for verbs).
         neural_res = self._neural_fallback(word)
-        if neural_res:
+        if not neural_res:
+            return results
+        if not results or all(r.tense is None and r.pos is None for r in results) or neural_res[0].pos is not None:
             return neural_res + results
-
-        return results
+        rule_roots = {r.root_string for r in results}
+        return results + [x for x in neural_res if x.root_string not in rule_roots]
 
     @staticmethod
     def _merge(first, more):

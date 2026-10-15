@@ -237,7 +237,14 @@ def test_trainer_flag_and_eval_slice():
         _dataset(tmp)
         train, evals = T.load_dictionary_samples(tmp)
         assert len(train) + len(evals) == 6 and all(s["source"] == "dictionary" for s in train + evals)
-        assert all(s["task"] == D.ROOT_ONLY_TASK and s["target_text"].count("|") == 0 for s in train + evals)
+        assert all(s["task"] == D.ANALYZE_TASK and s["input_text"].startswith("analyze: ")
+                   and " | type: " in s["target_text"] for s in train + evals)
+        T.ROOT_ONLY_TASKS["on"] = True
+        try:
+            old = T.load_dictionary_samples(tmp)
+        finally:
+            T.ROOT_ONLY_TASKS["on"] = False
+        assert all(s["task"] == D.ROOT_ONLY_TASK and s["target_text"].count("|") == 0 for s in old[0] + old[1])
         assert T.parse_args(["--no_dictionary_pairs"]).no_dictionary_pairs and not T.parse_args([]).no_dictionary_pairs
     with tempfile.TemporaryDirectory() as tmp:
         assert T.load_dictionary_samples(tmp) == ([], [])

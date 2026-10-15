@@ -112,7 +112,8 @@ def test_words_without_root_and_their_leak_gate():
         assert {p["form"] for p in pairs} == set(words) - {words[0], words[1]}       # words[2]: gold row without root
         assert all(D.target_text(p) == "root: none" and p["task"] == D.ROOT_ONLY_TASK for p in pairs)
         samples = T.load_words_without_root_samples(tmp)
-        assert all(s["input_text"].startswith("root: ") and s["source"] == "word_without_root" for s in samples)
+        assert all(s["input_text"].startswith("analyze: ") and s["source"] == "word_without_root"
+                   and s["target_text"].startswith("root: none | type: ") for s in samples)
         bad = os.path.join(tmp, "bad.tsv")
         with open(bad, "w", encoding="utf-8") as f:
             f.write("word\tlabel\tkind\tnote\n" + words[3] + "\tx\tname\t\n")
@@ -136,6 +137,10 @@ def test_single_prefix_and_no_extras_give_the_full_analysis_rows_only():
         assert all(set(r) == {"input_text", "target_text", "is_gold"} and r["input_text"].startswith("analyze: ")
                    for r in rows)
         rows = _main_export(tmp, "--no_dictionary_pairs")
+        without_root = [r for r in rows if r["target_text"].startswith("root: none | type: ")]
+        assert len(rows) == 36 + 3 * 4 + 4 * 5 + len(without_root) and len(without_root) == 55
+        assert all(r["input_text"].startswith("analyze: ") for r in without_root)
+        rows = _main_export(tmp, "--no_dictionary_pairs", "--root_only_tasks")
         root_only = [r for r in rows if r.get("task") == D.ROOT_ONLY_TASK]
         assert len(rows) == 36 + 3 * 4 + 4 * 5 + len(root_only) and len(root_only) == 55
         assert all(r["input_text"].startswith("root: ") and r["target_text"] == "root: none" for r in root_only)

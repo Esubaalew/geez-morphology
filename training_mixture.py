@@ -1,0 +1,253 @@
+"""The training mixture of the full fine-tune: every source of the dataset, one target format, one leak gate.
+
+Tasks (input prefix -> target), all trained on the same pairs:
+  analyze:  <form>      -> the full analysis (dataset_loader.target_text), "root: none | type: ..." for a word
+                           without root; the format the analyzer reads at inference
+  generate: <analysis>  -> <form>    (the reverse direction; pairs with a root only)
+  pos:      <form>      -> "type: <class>"
+
+Sources (sample "source" field):
+  synthetic          data/paradigms/synthetic_morphology_train.jsonl (a seeded 2% is kept aside as a loss-only slice)
+  gold_verb, gold_nominal   gold train paradigms
+  unified_book       book rows of the unified file, split train
+  dictionary         Kidane Wold nouns and adjectives, every root length in --dictionary_radicals (2-radical roots
+                     only with --biradical_dictionary), on or off the synthetic allow-list
+  dictionary_verb    Kidane Wold verb headwords that are their root's 3ms perfect
+  word_without_root  data/closed_class_words_without_root.tsv, full target with the word's class
+  extra_synthetic    extra_synthetic.py families, only those named in --extra_synthetic (none by default)
+
+Upsampling: gold verbs x--gold_upsample, gold nominals x--gold_nominal_upsample, unified rows x--unified_upsample,
+and every row of a rare class (RARE_CLASSES) is repeated until its class has at least --rare_class_min rows
+(at most --rare_class_max_factor times).
+
+Leak gate (leak_gate): a training pair is dropped when its form, or its form up to spelling, is a held-out form
+(gold val/test, unified book val/test, the generator's blocked forms), or its root, first-order and folded, is a
+held-out root (gold val/test roots, unified val/test roots, the generator's held-out roots file, the roots of the
+dataset's held-out synthetic lines). This runs on every source, the synthetic one included.
+
+Dev set (dev_samples): gold val plus unified book val, a seeded sample when capped; never trained on.
+"""
+import collections
+import json
+import os
+import random
+
+import dataset_loader
+import geez_script
+from geez_script import to_ethiopic_root
+
+SEED = 42
+GENERATE_TASK = "generate"
+POS_TASK = "pos"
+PREFIXES = {dataset_loader.ANALYZE_TASK: "analyze: ", GENERATE_TASK: "generate: ", POS_TASK: "pos: "}
+RARE_CLASSES = ("gerund", "verbal_noun", "infinitive", "demonstrative", "preposition", "pronoun", "numeral")
+# kind column of the words-without-root file -> class written in the target
+CLOSED_CLASS_TYPE = {"pronoun": "pronoun", "demonstrative": "demonstrative", "preposition": "preposition",
+                     "interrogative": "pronoun", "conjunction": "particle", "relative": "particle",
+                     "negation": "particle", "interjection": "particle", "name": "name", "loan": "loanword"}
+SYNTHETIC_FILE = os.path.join("data", "paradigms", "synthetic_morphology_train.jsonl")
+SYNTHETIC_LOSS_SLICE = 0.02
+
+
+def form_of_input(text):
+    return text.split(":", 1)[1].strip()
+
+
+def sample(pair, source, task=dataset_loader.ANALYZE_TASK):
+    pair = dict(pair, task=dataset_loader.ANALYZE_TASK)
+    analysis = dataset_loader.target_text(pair)
+    if task == GENERATE_TASK:
+        inp, tgt = PREFIXES[GENERATE_TASK] + analysis, pair["form"]
+    elif task == POS_TASK:
+        inp, tgt = PREFIXES[POS_TASK] + pair["form"], f"type: {pair_class(pair)}"
+    else:
+        inp, tgt = PREFIXES[dataset_loader.ANALYZE_TASK] + pair["form"], analysis
+    return {"input_text": inp, "target_text": tgt, "task": task, "source": source, "form": pair["form"],
+            "root": pair.get("root"), "cls": pair_class(pair)}
+
+
+def pair_class(pair):
+    return pair.get("type") or "verb"
+
+
+# ----------------------------------------------------------------------------- held-out words
+
+class HeldOut:
+    def __init__(self, dataset_dir):
+        import generate_synthetic_data
+        import split_heldout_synthetic as sh
+        self.forms = set(sh.gold_eval_forms(dataset_dir)) | generate_synthetic_data.read_blocked_forms_file()
+        roots = set(sh.gold_eval_roots(dataset_dir))
+        for split in ("val", "test"):
+            for p in dataset_loader.load_unified(dataset_dir, split, ("book",)):
+                self.forms.add(p["form"])
+                if p["root"]:
+                    roots.add(geez_script.first_order_root(p["root"]))
+            for p in dataset_loader.load_gold_split(dataset_dir, split):
+                self.forms.add(p["form"])
+                roots.add(geez_script.first_order_root(p["root"]))
+        roots |= {geez_script.first_order_root(to_ethiopic_root("-".join(s)))
+                  for s in generate_synthetic_data.read_held_out_roots_file()}
+        roots |= {r for r in dataset_loader.held_out_synthetic_roots(dataset_dir) if r}
+        self.roots = roots
+        self.folded_forms = {geez_script.fold_spelling(f) for f in self.forms}
+        self.folded_roots = {sh.fold_root(r) for r in roots}
+
+    def leaks(self, form, root):
+        if form in self.forms or geez_script.fold_spelling(form) in self.folded_forms:
+            return "form"
+        if root and root != dataset_loader.NO_ROOT:
+            r = geez_script.first_order_root(root)
+            if r in self.roots or geez_script.fold_spelling(r) in self.folded_roots:
+                return "root"
+        return None
+
+
+def leak_gate(pairs, held, stats, source):
+    kept = []
+    for p in pairs:
+        why = held.leaks(p["form"], p.get("root"))
+        if why:
+            stats[f"{source}: dropped, held-out {why}"] += 1
+        else:
+            kept.append(p)
+    return kept
+
+
+# ----------------------------------------------------------------------------- sources
+
+def synthetic_pairs(dataset_dir, limit=0):
+    with open(os.path.join(dataset_dir, SYNTHETIC_FILE), encoding="utf-8") as f:
+        lines = f.readlines()
+    rng = random.Random(SEED)
+    if limit and limit < len(lines):
+        lines = rng.sample(lines, limit)
+    out = []
+    for line in lines:
+        d = json.loads(line)
+        feat = d.get("features", {})
+        out.append({"form": d.get("surface_form", ""), "root": to_ethiopic_root(feat.get("root", "")), "type": "verb",
+                    "tense": feat.get("tense", ""), "person": feat.get("person", ""), "gender": feat.get("gender", ""),
+                    "number": feat.get("number", ""), "stem": feat.get("stem", ""), "object": feat.get("object") or ""})
+    return out
+
+
+def words_without_root_pairs(stats):
+    import csv
+    out = []
+    with open(dataset_loader.WORDS_WITHOUT_ROOT_FILE, encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f, delimiter="\t", quoting=csv.QUOTE_NONE):
+            cls = CLOSED_CLASS_TYPE.get(r["kind"], "particle")
+            stats[f"word_without_root kind {r['kind']} -> {cls}"] += 1
+            out.append({"form": r["word"], "root": None, "type": cls})
+    return out
+
+
+def dictionary_pairs(dataset_dir, radicals, stats):
+    pairs = dataset_loader.load_dictionary_pairs(dataset_dir, stats, include_forms=True, allowed_roots_only=False,
+                                                 radicals=set(radicals))
+    return [dict(p, task=dataset_loader.ANALYZE_TASK) for p in pairs]
+
+
+def rare_class_upsample(samples, classes, minimum, max_factor, stats):
+    by = collections.defaultdict(list)
+    for s in samples:
+        by[s["cls"]].append(s)
+    extra = []
+    for c in classes:
+        rows = by.get(c, [])
+        if not rows or len(rows) >= minimum:
+            continue
+        factor = min(max_factor, -(-minimum // len(rows)))
+        extra += [s for s in rows for _ in range(factor - 1)]
+        stats[f"rare class {c}: {len(rows)} rows x{factor}"] = len(rows) * factor
+    return samples + extra
+
+
+# ----------------------------------------------------------------------------- the mixture
+
+def build(dataset_dir, opts):
+    """opts: a namespace with the trainer's data flags (see train_tpu.add_data_args). Returns
+    (train samples, synthetic loss slice, report dict)."""
+    import extra_synthetic
+
+    stats = collections.Counter()
+    held = HeldOut(dataset_dir)
+    tasks = [dataset_loader.ANALYZE_TASK] + ([GENERATE_TASK] if opts.generate_task else []) + \
+            ([POS_TASK] if opts.pos_task else [])
+    sources = collections.OrderedDict()
+
+    syn = synthetic_pairs(dataset_dir, opts.sample_limit)
+    rng = random.Random(SEED)
+    rng.shuffle(syn)
+    cut = int(len(syn) * SYNTHETIC_LOSS_SLICE)
+    syn_slice, syn = syn[:cut], syn[cut:]
+    sources["synthetic"] = (leak_gate(syn, held, stats, "synthetic"), 1)
+
+    gold = dataset_loader.load_gold_split(dataset_dir, "train", stats)
+    gold = leak_gate(gold, held, stats, "gold")
+    sources["gold_verb"] = ([p for p in gold if p["type"] not in dataset_loader.NOMINAL_TYPES], opts.gold_upsample)
+    sources["gold_nominal"] = ([p for p in gold if p["type"] in dataset_loader.NOMINAL_TYPES], opts.gold_nominal_upsample)
+    gold_forms = {p["form"] for p in gold}
+
+    unified = [] if opts.no_unified else dataset_loader.load_unified(dataset_dir, "train", ("book",), stats)
+    sources["unified_book"] = (leak_gate(unified, held, stats, "unified_book"), opts.unified_upsample)
+    taken = gold_forms | {p["form"] for p in unified}
+
+    radicals = [int(x) for x in opts.dictionary_radicals.split(",")]
+    if not opts.biradical_dictionary:
+        radicals = [r for r in radicals if r != 2]
+    dic = dictionary_pairs(dataset_dir, radicals, stats)
+    dic = [p for p in leak_gate(dic, held, stats, "dictionary") if p["form"] not in taken]
+    sources["dictionary"] = (dic, 1)
+    dverbs = leak_gate(dataset_loader.load_dictionary_verbs(dataset_dir, stats), held, stats, "dictionary_verb")
+    sources["dictionary_verb"] = ([p for p in dverbs if p["form"] not in taken], 1)
+    taken |= {p["form"] for p in dic} | {p["form"] for p in dverbs}
+
+    wwr = leak_gate(words_without_root_pairs(stats), held, stats, "word_without_root")
+    sources["word_without_root"] = ([p for p in wwr if p["form"] not in taken], 1)
+
+    families = [f for f in (opts.extra_synthetic or "").split(",") if f]
+    extra = extra_synthetic.generate_pairs(families, dataset_dir) if families else []
+    sources["extra_synthetic"] = (leak_gate(extra, held, stats, "extra_synthetic"), 1)
+
+    train, report = [], {"pairs_by_source": {}, "samples_by_source_task": {}}
+    for name, (pairs, times) in sources.items():
+        report["pairs_by_source"][name] = len(pairs)
+        for p in pairs:
+            for task in tasks:
+                if task == GENERATE_TASK and not p.get("root"):
+                    continue          # an analysis without a root names no single form
+                s = sample(p, name, task)
+                train += [s] * times
+    train = rare_class_upsample(train, RARE_CLASSES, opts.rare_class_min, opts.rare_class_max_factor, stats)
+    random.Random(opts.seed).shuffle(train)
+    c = collections.Counter((s["source"], s["task"]) for s in train)
+    report["samples_by_source_task"] = {f"{a}/{b}": n for (a, b), n in sorted(c.items())}
+    report["samples_by_class"] = dict(collections.Counter(s["cls"] for s in train).most_common())
+    report["train_samples"] = len(train)
+    report["load_stats"] = dict(sorted(stats.items()))
+    report["tasks"] = tasks
+    return train, [sample(p, "synthetic_slice") for p in syn_slice], report
+
+
+def dev_samples(dataset_dir, cap=0, gold_only=False, pos_task=True):
+    """Analyze (and pos) samples of the gold val pairs plus the unified book val rows, a seeded sample of `cap`
+    pairs when cap > 0. Each keeps "dev" = gold_val or unified_val."""
+    pairs = [dict(p, dev="gold_val") for p in dataset_loader.load_gold_split(dataset_dir, "val")]
+    if not gold_only:
+        pairs += [dict(p, dev="unified_val") for p in dataset_loader.load_unified(dataset_dir, "val", ("book",))]
+    if cap and cap < len(pairs):
+        keep = sorted(random.Random(SEED).sample(range(len(pairs)), cap))
+        pairs = [pairs[i] for i in keep]
+    out = []
+    for p in pairs:
+        for task in [dataset_loader.ANALYZE_TASK] + ([POS_TASK] if pos_task else []):
+            out.append(dict(sample(p, p["dev"], task), dev=p["dev"]))
+    return out
+
+
+def write_jsonl(path, rows, keys=("input_text", "target_text", "task", "source")):
+    with open(path, "w", encoding="utf-8") as f:
+        for r in rows:
+            f.write(json.dumps({k: r[k] for k in keys}, ensure_ascii=False) + "\n")

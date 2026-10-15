@@ -44,6 +44,9 @@ NOMINAL_TYPES = ("noun", "adjective")
 UNIFIED_ROOTED_TYPES = ("infinitive", "gerund", "verbal_noun", "nominal")
 UNIFIED_ROOTLESS_TYPES = ("pronoun", "demonstrative", "preposition", "particle", "numeral", "adverb")
 UNIFIED_TYPES = UNIFIED_ROOTED_TYPES + UNIFIED_ROOTLESS_TYPES
+# Classes of the words-without-root file that the unified rows do not use; rootless, generic target shape.
+CLOSED_CLASS_EXTRA_TYPES = ("name", "loanword")
+ROOTLESS_TYPES = UNIFIED_ROOTLESS_TYPES + CLOSED_CLASS_EXTRA_TYPES
 UNIFIED_FILE = os.path.join("data", "unified", "geez_morphology_rows.jsonl")
 # Label fields of the generic target shape, in the order they are written.
 GENERIC_FIELDS = ("tense", "person", "gender", "number", "stem", "object", "possessor")
@@ -284,7 +287,7 @@ def target_text(pair):
         return f"root: {pair['root']}"
     tail = (f" | possessor: {pair['possessor']}" if pair.get("possessor") and pair["type"] not in UNIFIED_TYPES else "") + \
            (" | negated: yes" if pair.get("negated") else "")
-    if pair["type"] in UNIFIED_TYPES:
+    if pair["type"] in UNIFIED_TYPES + CLOSED_CLASS_EXTRA_TYPES:
         parts = [f"root: {pair.get('root') or NO_ROOT}", f"type: {pair['type']}"]
         parts += [f"{k}: {pair[k]}" for k in GENERIC_FIELDS if pair.get(k)]
         return " | ".join(parts) + (" | negated: yes" if pair.get("negated") else "")
@@ -389,6 +392,8 @@ def load_words_without_root(dataset_dir, stats=None, path=WORDS_WITHOUT_ROOT_FIL
     folded_eval_forms = split_heldout_synthetic.gold_eval_forms_folded(dataset_dir)
     gold_train = gold_file_path(dataset_dir, "train")
     gold_train_forms = {p["form"] for p in load_gold_split(dataset_dir, "train")} if os.path.exists(gold_train) else set()
+    with open(path, encoding="utf-8", newline="") as f:
+        kinds = {r["word"]: r.get("kind") for r in csv.DictReader(f, delimiter="\t", quoting=csv.QUOTE_NONE)}
     out = []
     for word, label in read_words_without_root(path).items():
         if label != NO_ROOT:
@@ -405,7 +410,7 @@ def load_words_without_root(dataset_dir, stats=None, path=WORDS_WITHOUT_ROOT_FIL
             stats["not loaded: form has a root in the gold train file"] += 1
             continue
         stats["loaded"] += 1
-        out.append({"form": word, "root": NO_ROOT, "task": ROOT_ONLY_TASK})
+        out.append({"form": word, "root": NO_ROOT, "task": ROOT_ONLY_TASK, "kind": kinds.get(word)})
     return out
 
 
@@ -443,7 +448,7 @@ def read_dictionary_entries(dataset_dir):
         return [json.loads(line) for line in f if line.strip()]
 
 
-def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_roots_only=True):
+def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_roots_only=True, radicals=None):
     """Headword-to-root pairs of the nouns and adjectives of data/lexicon/classical_dictionary_kidane_wold.jsonl,
     in file order. Each pair has task ROOT_ONLY_TASK, so its target_text is the root alone. It also keeps the
     entry's labels: type noun or adjective, number from the entry's "number" field or CITATION_NUMBER, gender
@@ -459,7 +464,7 @@ def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_
       5. the root passes the gold check (root_problem) once written in Ge'ez letters, the headword holds
          its radicals in order (carries_root): a root whose letters are not in the headword was misread, and
          the headword is not the root's 3ms perfect (is_root_perfect);
-      6. with allowed_roots_only: the root has 3 or 4 radicals and is on the synthetic generator's allow-list
+      6. `radicals` (a set of radical counts, None for any) keeps only roots of those lengths; with allowed_roots_only: the root has 3 or 4 radicals and is on the synthetic generator's allow-list
          (generate_synthetic_data.ALLOWED_ROOTS_FILE), so a verb backs every root; a noun prefix (m-, t- or a-)
          read as a radical gives a root that fails here;
       7. the root is not a gold val/test root (split_heldout_synthetic.gold_eval_roots), not in the
@@ -557,6 +562,9 @@ def load_dictionary_pairs(dataset_dir, stats=None, include_forms=False, allowed_
     for form, root, entry, from_forms in candidates:
         prefix = "forms: " if from_forms else "not loaded: "
         symbols = geez_script.root_symbols(root)
+        if radicals is not None and len(symbols) not in radicals:
+            stats[f"{prefix}root has {len(symbols)} radicals (not requested)"] += 1
+            continue
         if allowed_roots_only and len(symbols) not in ROOT_RADICALS_KEPT:
             stats[f"{prefix}root has {len(symbols)} radicals"] += 1
             continue
@@ -643,3 +651,38 @@ def split_dictionary_pairs(pairs, fraction=DICTIONARY_EVAL_FRACTION, seed=DICTIO
         eval_roots.add(r)
         n += by_root[r]
     return [p for p in pairs if p["root"] not in eval_roots], [p for p in pairs if p["root"] in eval_roots]
+
+
+def load_dictionary_verbs(dataset_dir, stats=None):
+    """Pairs of the dictionary's verb headwords that are their root's 3ms perfect (is_root_perfect), labelled
+    'past | 3 | m | s | basic', in file order. Only the checks of steps 2-5 of load_dictionary_pairs run here; the
+    held-out roots and forms are dropped later by the training mixture's leak gate."""
+    import verb_classes
+
+    stats = stats if stats is not None else collections.Counter()
+    fixes = verb_classes.root_fixes(dataset_dir)
+    without_root = read_words_without_root()
+    out, seen = [], set()
+    for entry in read_dictionary_entries(dataset_dir):
+        if entry.get("pos") != "verb":
+            continue
+        headword = entry.get("headword_geez") or ""
+        if entry.get("headword_type") in NOT_A_WORD_ENTRY or not is_geez_word(headword) or headword in without_root:
+            stats["not loaded: headword is not one Ge'ez word"] += 1
+            continue
+        value = dictionary_entry_root(entry, fixes)
+        if not value or root_marked_unclear(entry, value):
+            stats["not loaded: no settled root"] += 1
+            continue
+        root = geez_script.to_ethiopic_root(value)
+        if root_problem(root) or not is_root_perfect(headword, root):
+            stats["not loaded: headword is not the root's 3ms perfect"] += 1
+            continue
+        if headword in seen:
+            stats["not loaded: duplicate headword"] += 1
+            continue
+        seen.add(headword)
+        stats["loaded"] += 1
+        out.append({"form": headword, "root": root, "type": "verb", "tense": "past", "person": "3", "gender": "m",
+                    "number": "s", "stem": "basic", "object": "", "record_id": str(entry["id"])})
+    return out

@@ -4,3 +4,5 @@
 torch
 transformers
 accelerate
+# TPU runs (train_tpu.py): torch_xla matching the torch version (preinstalled on Kaggle TPU VMs), safetensors
+safetensors

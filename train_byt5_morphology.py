@@ -158,7 +158,19 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None) ->
     return samples
 
 
+ROOT_ONLY_TASKS = {"on": False}   # set by --root_only_tasks: the old "root: " prefix and root-alone target
+
+
 def root_only_sample(pair: Dict, source: str, single_prefix: bool = False) -> Dict:
+    """A training sample of a dictionary pair, word without root or unified row. By default it has the
+    full-analysis prefix and target the analyzer reads at inference ("analyze: <form>" -> "root: ... | type: ...",
+    "root: none | type: <class>" for a word without root); with --root_only_tasks, the root-only task."""
+    pair = dict(pair)
+    if not ROOT_ONLY_TASKS["on"] and pair.get("root") == dataset_loader.NO_ROOT and "type" not in pair:
+        import training_mixture
+        pair["root"], pair["type"] = None, training_mixture.CLOSED_CLASS_TYPE.get(pair.get("kind"), "particle")
+    if not ROOT_ONLY_TASKS["on"] and pair.get("type"):
+        pair["task"] = dataset_loader.ANALYZE_TASK
     task = dataset_loader.task_of(pair)
     out = {"input_text": dataset_loader.input_text(pair["form"], task, single_prefix),
            "target_text": dataset_loader.target_text(pair), "is_gold": False, "source": source, "task": task}
@@ -452,6 +464,9 @@ def parse_args(argv=None):
     p.add_argument("--metric_for_best_model", default=None,
                    help="Keep and load at the end the checkpoint with the best value of this eval metric, e.g. "
                         "root_accuracy (needs --root_accuracy_rows), loss or dictionary_nominal_loss")
+    p.add_argument("--root_only_tasks", action="store_true",
+                   help="Train dictionary pairs and words without root as the old root-only task ('root: ' prefix, "
+                        "root-alone target) instead of the full analysis")
     p.add_argument("--no_test_inference", action="store_true", help="Skip the sample predictions after training")
     args = p.parse_args(argv)
     if args.grad_accum < 1 or args.batch_size < 1:
@@ -466,6 +481,7 @@ def parse_args(argv=None):
 
 def main(argv=None) -> int:
     args = parse_args(argv)
+    ROOT_ONLY_TASKS["on"] = args.root_only_tasks
     args.dataset_dir = os.path.abspath(args.dataset_dir)
     args.output_dir = os.path.abspath(args.output_dir)
 

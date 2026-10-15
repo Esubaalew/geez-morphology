@@ -176,3 +176,24 @@ GEEZ_DATASET_DIR=../geez-dataset python3 -m pytest tests/ --dataset_dir ../geez-
 ## License and Citation
 
 Code in this repository is licensed under the [Apache License 2.0](LICENSE). Citation metadata: [CITATION.cff](CITATION.cff).
+
+
+## Training on a TPU (train_tpu.py)
+
+`train_tpu.py` trains the same model with PyTorch/XLA, one process per TPU core (data parallel), bf16 autocast,
+Adafactor at a fixed learning rate, and a few static (input, target) byte lengths so XLA compiles each shape once.
+Its training mixture (`training_mixture.py`) reads every source of the dataset with one target format and one leak
+gate, and trains three tasks on the same pairs: `analyze: <form>` (the full analysis, `root: none | type: ...` for a
+word without root), `generate: <analysis>` (the form) and `pos: <form>` (`type: <class>`). Checkpoints are selected on
+the dev set (gold val plus the unified book val rows) by root and exact-match accuracy.
+
+    python3 train_tpu.py --dataset_dir ../geez-dataset --output_dir out --load_only        # counts + leak audit
+    python3 build_dapt_corpus.py --dataset_dir ../geez-dataset --out dapt_corpus.txt
+    python3 train_tpu.py --dataset_dir ../geez-dataset --output_dir out/dapt --stage dapt
+    python3 train_tpu.py --dataset_dir ../geez-dataset --output_dir out/ft --init_from out/dapt/best
+    python3 train_tpu.py --dataset_dir ../geez-dataset --output_dir /tmp/dry --device cpu \
+        --train_limit 400 --dev_cap 24 --report_cap 12 --per_core_batch 8 --max_steps 6 --eval_every 3   # dry run
+
+Off by default: the extra synthetic families of `extra_synthetic.py` (`--extra_synthetic derived_c,hollow,...`) and
+the 2-radical dictionary roots (`--biradical_dictionary`); `python3 extra_synthetic.py --table t.tsv` and
+`scripts/export_biradical_roots.py` write their tables for checking.
