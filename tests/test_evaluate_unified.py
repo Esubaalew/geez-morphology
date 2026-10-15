@@ -26,6 +26,8 @@ def test_negated_and_possessor_are_normalized():
     r = ev.normalize_row({"type": "verb", "negated": True, "possessor": "3ms"})
     assert r["negated"] == "yes" and r["possessor"] == "3ms"
     assert ev.normalize_row({"type": "noun"})["negated"] is None
+    r1 = ev.normalize_row({"type": "verb", "object": "1s", "possessor": "1p"})
+    assert r1["object"] == "1cs" and r1["possessor"] == "1cp"
 
 
 class Oracle:

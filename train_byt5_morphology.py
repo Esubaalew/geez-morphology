@@ -479,9 +479,9 @@ def main(argv=None) -> int:
     if unified and not args.legacy_book_forms:
         # the unified rows replace book_forms.jsonl; a word without root is dropped when the unified file has the
         # same form (the two targets differ: 'root: none' and 'root: none | type: ...')
-        unified_forms = {s["input_text"] for s in unified}
+        unified_forms = {s["input_text"].split(":", 1)[-1].strip() for s in unified}
         n_before = len(without_root)
-        without_root = [s for s in without_root if s["input_text"] not in unified_forms]
+        without_root = [s for s in without_root if s["input_text"].split(":", 1)[-1].strip() not in unified_forms]
         print(f"Unified rows replace book_forms.jsonl; {n_before - len(without_root)} word(s) without root "
               "dropped (same form in the unified rows).")
         book_forms = []

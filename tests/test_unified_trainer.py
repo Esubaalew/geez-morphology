@@ -60,3 +60,14 @@ def test_dev_items_add_unified_val_rows_and_none_root():
         items = trainer.root_accuracy_items(tmp, 100)
         assert sorted(root for _, root in items) == ["none", "ቀ-ተ-ለ"]
         assert trainer.root_accuracy_items(tmp, 100, gold_only=True) == []
+
+
+def test_without_root_deduplicated_against_unified_train_despite_different_prefix():
+    unified = [{"input_text": "analyze: ወ", "target_text": "root: none | type: particle", "source": "unified_book"}]
+    without_root = [
+        {"input_text": "root: ወ", "target_text": "root: none", "source": "word_without_root"},
+        {"input_text": "root: እንዘ", "target_text": "root: none", "source": "word_without_root"},
+    ]
+    seen_forms = {s["input_text"].split(":", 1)[-1].strip() for s in unified}
+    kept = [s for s in without_root if s["input_text"].split(":", 1)[-1].strip() not in seen_forms]
+    assert [s["input_text"] for s in kept] == ["root: እንዘ"]

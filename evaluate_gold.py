@@ -91,6 +91,9 @@ def normalize_row(d):
     out["type"] = out["type"] or "verb"
     if out["person"] == "1" and out["gender"] is None:
         out["gender"] = "c"
+    for k in ("object", "possessor"):
+        if out[k] in ("1s", "1p"):
+            out[k] = "1c" + out[k][1:]
     return out
 
 
