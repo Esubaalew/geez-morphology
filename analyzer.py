@@ -114,7 +114,8 @@ class MorphologicalAnalysis:
     lexicon_entry: Optional[Dict[str, Any]] = None
     negative: bool = False
     object: Optional[str] = None
-    pos: Optional[str] = None        # None = verb; "noun" / "adjective" from a nominal ByT5 target
+    pos: Optional[str] = None        # None = verb; nominal or unified word_class from a ByT5 target
+    possessor: Optional[str] = None
 
 
 @dataclass
@@ -1012,15 +1013,15 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
             pred_text = self._tokenizer.decode(out[0], skip_special_tokens=True)
             
             parsed = parse_neural_output(pred_text)
-            if parsed is None or parsed["root"] is None:
-                return []   # malformed output, or no root: no answer rather than a partial one
+            if parsed is None or (parsed["root"] is None and parsed["type"] not in dataset_loader.UNIFIED_ROOTLESS_TYPES):
+                return []   # malformed output, or root-only no-root: no answer rather than a partial one
             root_cons = parsed["root_consonants"]
             root_tuple = tuple(root_cons)
             root_str = "-".join(root_cons)
 
             # Lemma synthesis
             lemma = word
-            if len(root_tuple) == 3:
+            if len(root_tuple) == 3 and self.engine is not None and self.lemma_spec is not None:
                 try:
                     lemma = self.engine.generate(root_tuple, self.lemma_spec)
                 except Exception:
@@ -1039,8 +1040,10 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
                 verb_type="neural_prediction",
                 pattern_spec="neural:byt5_fallback",
                 lexicon_entry=None,
+                negative=bool(parsed.get("negated")),
                 object=parsed["object"],
-                pos=parsed["type"] if parsed["type"] in NOMINAL_TYPES else None,
+                pos=parsed["type"] if parsed["type"] in NOMINAL_TYPES + dataset_loader.UNIFIED_TYPES else None,
+                possessor=parsed.get("possessor"),
             )
             return [analysis]
         except Exception:
@@ -1073,15 +1076,15 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
             finally:
                 self._loose_gutturals = False
             results = self._merge(results, loose)
-        if results:
+        if results and not (self.model_dir and all(r.tense is None and r.pos is None for r in results)):
             return results
 
-        # 3. Neural fallback
+        # 3. Neural fallback (or disambiguation of unfeatured dictionary headword hits)
         neural_res = self._neural_fallback(word)
         if neural_res:
-            return neural_res
+            return neural_res + results
 
-        return []
+        return results
 
     @staticmethod
     def _merge(first, more):

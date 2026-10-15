@@ -244,8 +244,10 @@ class HybridSystem:
         tier = ("fast_path" if spec.startswith("fast_path") else
                 "neural" if spec.startswith("neural") else "pattern")
         pred = {"type": best.pos, "stem": best.stem, "tense": best.tense, "person": best.person,
-                "gender": best.gender, "number": best.number, "object": best.object}
-        return {"root": best.root_string, **normalize_row(pred), "tier": tier,
+                "gender": best.gender, "number": best.number, "object": best.object,
+                "possessor": getattr(best, "possessor", None),
+                "negated": "yes" if getattr(best, "negative", False) else None}
+        return {"root": best.root_string or None, **normalize_row(pred), "tier": tier,
                 "raw": f"{best.root_string} {best.stem} {best.tense} {best.person}{best.gender or ''}{best.number or ''}"}
 
 

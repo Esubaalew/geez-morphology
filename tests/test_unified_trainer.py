@@ -71,3 +71,21 @@ def test_without_root_deduplicated_against_unified_train_despite_different_prefi
     seen_forms = {s["input_text"].split(":", 1)[-1].strip() for s in unified}
     kept = [s for s in without_root if s["input_text"].split(":", 1)[-1].strip() not in seen_forms]
     assert [s["input_text"] for s in kept] == ["root: እንዘ"]
+
+
+def test_dev_eval_samples_and_unified_upsample():
+    with tempfile.TemporaryDirectory() as tmp:
+        os.makedirs(os.path.join(tmp, "data", "unified"))
+        os.makedirs(os.path.join(tmp, "data", "paradigms"), exist_ok=True)
+        rows = [_row("a", "ቀተለ", split="val"), _row("b", "ወ", split="val", word_class="particle", root=None, stem=None,
+                tense=None, person=None, gender=None, number=None)]
+        with open(os.path.join(tmp, dataset_loader.UNIFIED_FILE), "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        gold = dataset_loader.gold_file_path(tmp, "val")
+        with open(gold, "w", encoding="utf-8") as f:
+            f.write("")
+        dev = trainer.dev_eval_samples(tmp)
+        assert len(dev) == 2 and all(s["source"] == "dev_val" for s in dev)
+        assert trainer.dev_eval_samples(tmp, gold_only=True) == []
+        assert trainer.parse_args(["--unified_upsample", "3"]).unified_upsample == 3

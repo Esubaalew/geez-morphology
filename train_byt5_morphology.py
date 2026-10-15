@@ -247,6 +247,18 @@ def root_in_output(text: str) -> str:
     return m.group(1).strip() if m else ""
 
 
+def dev_eval_samples(dataset_dir: str, gold_only: bool = False) -> List[Dict]:
+    """Full-analysis eval samples from gold val plus (unless gold_only) unified book val rows."""
+    if not os.path.exists(dataset_loader.gold_file_path(dataset_dir, "val")):
+        return []
+    pairs = dataset_loader.load_gold_split(dataset_dir, "val")
+    if not gold_only:
+        pairs = pairs + dataset_loader.load_unified(dataset_dir, "val", ("book",))
+    return [{"input_text": dataset_loader.input_text(p["form"]),
+             "target_text": dataset_loader.target_text(p), "is_gold": True,
+             "task": dataset_loader.ANALYZE_TASK, "source": "dev_val"} for p in pairs]
+
+
 def root_accuracy_items(dataset_dir: str, n: int, gold_only: bool = False) -> List[tuple]:
     """(input text, gold root) of up to n dev pairs (a seeded sample in file order when there are more), with the
     full-analysis prefix, for eval_root_accuracy. The dev pairs are the gold val pairs plus, unless gold_only, the
@@ -430,6 +442,8 @@ def parse_args(argv=None):
                    help="Times each gold-train verb pair appears in training (1 = once, no upsampling)")
     p.add_argument("--gold_nominal_upsample", type=int, default=DEFAULT_GOLD_NOMINAL_UPSAMPLE,
                    help="Times each gold-train noun or adjective pair appears in training (1 = once)")
+    p.add_argument("--unified_upsample", type=int, default=1,
+                   help="Times each unified book train row appears in training (1 = once)")
     p.add_argument("--root_accuracy_rows", type=int, default=0,
                    help="At each evaluation, generate the root of up to N gold val pairs and log the exact-match "
                         "share as eval_root_accuracy (0 = off)")
@@ -442,8 +456,8 @@ def parse_args(argv=None):
     args = p.parse_args(argv)
     if args.grad_accum < 1 or args.batch_size < 1:
         p.error("--batch_size and --grad_accum must be >= 1")
-    if args.gold_upsample < 1 or args.gold_nominal_upsample < 1:
-        p.error("--gold_upsample and --gold_nominal_upsample must be >= 1")
+    if args.gold_upsample < 1 or args.gold_nominal_upsample < 1 or args.unified_upsample < 1:
+        p.error("--gold_upsample, --gold_nominal_upsample and --unified_upsample must be >= 1")
     if args.metric_for_best_model and args.metric_for_best_model.removeprefix("eval_") == "root_accuracy" \
             and args.root_accuracy_rows < 1:
         p.error("--metric_for_best_model root_accuracy needs --root_accuracy_rows")
@@ -499,8 +513,9 @@ def main(argv=None) -> int:
     else:
         book_forms = [] if args.no_book_forms else \
             load_book_form_samples(args.dataset_dir, book_stats, args.single_prefix)
-    if dictionary_train or without_root or book_forms or unified:
-        train_samples = train_samples + dictionary_train + without_root + book_forms + unified
+    unified_upsampled = [x for x in unified for _ in range(args.unified_upsample)]
+    if dictionary_train or without_root or book_forms or unified_upsampled:
+        train_samples = train_samples + dictionary_train + without_root + book_forms + unified_upsampled
         random.Random(args.seed).shuffle(train_samples)
     if args.max_eval_samples and args.max_eval_samples < len(eval_samples):
         eval_samples = eval_samples[:args.max_eval_samples]
@@ -529,6 +544,9 @@ def main(argv=None) -> int:
           f"Prefixes: {'analyze: for every task' if args.single_prefix else 'one per task'}.")
     print(f"Train: {len(train_samples)} pairs (" + ", ".join(f"{k} {v}" for k, v in train_by_source.items()) + "). "
           f"Eval: {len(eval_samples)} synthetic pairs; {DICTIONARY_EVAL_NAME}: {len(dictionary_eval)} pairs.")
+    dev_eval = dev_eval_samples(args.dataset_dir, args.dev_gold_only)
+    if args.max_eval_samples and args.max_eval_samples < len(dev_eval):
+        dev_eval = dev_eval[:args.max_eval_samples]
     root_items = root_accuracy_items(args.dataset_dir, args.root_accuracy_rows, args.dev_gold_only)
     if args.root_accuracy_rows:
         print(f"Root accuracy at each evaluation: {len(root_items)} gold val pairs.")
@@ -678,6 +696,9 @@ def main(argv=None) -> int:
         (eval_root_accuracy, and eval_root_accuracy_seconds for the time it took)."""
         def evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix="eval", **kwargs):
             metrics = super().evaluate(eval_dataset, ignore_keys, metric_key_prefix, **kwargs)
+            if eval_dataset is None and metric_key_prefix == "eval" and dev_eval:
+                metrics.update(super().evaluate(GeezDataset(dev_eval, tokenizer), ignore_keys,
+                                                "eval_dev", **kwargs))
             if eval_dataset is None and metric_key_prefix == "eval" and dictionary_eval:
                 metrics.update(super().evaluate(GeezDataset(dictionary_eval, tokenizer), ignore_keys,
                                                 f"eval_{DICTIONARY_EVAL_NAME}", **kwargs))

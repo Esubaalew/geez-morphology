@@ -87,3 +87,36 @@ def test_dev_unified_flag_and_source_groups(dataset_dir):
     totals, _ = ev.score(pairs, Oracle(pairs))
     assert totals["source:gold"]["rows"][1] == len(gold) and totals["source:book"]["rows"][1] == len(book)
     assert totals["ALL"]["rows"][1] == len(pairs)
+
+
+def test_hybrid_neural_fallback_preserves_unified_classes_possessor_and_negated():
+    import analyzer
+    a = analyzer.HybridAnalyzer.__new__(analyzer.HybridAnalyzer)
+    a._ensure_neural_model = lambda: True
+
+    class _Inputs(dict):
+        def to(self, dev):
+            return self
+
+    class _Tok:
+        def __init__(self, text):
+            self.text = text
+        def __call__(self, *args, **kw):
+            return _Inputs()
+        def decode(self, *args, **kw):
+            return self.text
+
+    class _Model:
+        def generate(self, **kw):
+            return [[0]]
+
+    a._model, a.device, a.engine, a.lemma_spec = _Model(), "cpu", None, None
+    a._tokenizer = _Tok("root: ቀ-ተ-ለ | type: infinitive | stem: basic | possessor: 3ms | negated: yes")
+    res = a._neural_fallback("ኢቀቲሎቱ")
+    assert len(res) == 1
+    assert res[0].pos == "infinitive" and res[0].possessor == "3ms" and res[0].negative is True
+
+    a._tokenizer = _Tok("root: none | type: pronoun | person: 3 | gender: m | number: s")
+    res_pro = a._neural_fallback("ውእቱ")
+    assert len(res_pro) == 1
+    assert res_pro[0].pos == "pronoun" and res_pro[0].root_string == "" and res_pro[0].person == "3"
