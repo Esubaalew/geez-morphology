@@ -31,7 +31,7 @@ import split_heldout_synthetic as H  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
 ALLOWED_SHA256 = "84fc1851d7d731eadaa0aaca179ee003be717114af410a50168659dd6df58fc1"
-BLOCKED_SHA256 = "5966f03ede248970a007e1fbea5b6e093dabf078b20ab59dfc3398aef37c397e"
+BLOCKED_SHA256 = "e4224b346fe632f4ba2f5a66308fe3742846e11ad5887ea648403863439dff2f"
 TRILITERAL = ["q-t-l", "g-b-r", "n-g-r", "s-b-r", "k-t-b", "d-m-r", "f-t-l", "m-s-l"]
 QUADRILITERAL = ["d-n-g-s", "s-n-b-t", "t-r-g-m", "m-s-k-r", "q-n-d-l", "b-r-b-r"]
 BLOCKED_HEADER = "geez_form\tsplit\trecord_id\trow\tvariant\n"
@@ -75,15 +75,15 @@ def test_allow_list_has_1234_roots():
 
 def test_blocked_forms_file_has_every_val_and_test_row():
     forms = gen.read_blocked_forms_file()
-    assert len(forms) == 2854
+    assert len(forms) == 2839
     with open(gen.BLOCKED_FORMS_FILE, encoding="utf-8") as f:
         rows = [line.rstrip("\n").split("\t") for line in f if not line.startswith("#")]
     header, rows = rows[0], rows[1:]
     assert header == ["geez_form", "split", "record_id", "row", "variant", "source_row", "source_variant", "root", "cell"]
-    assert len(rows) == 2934
+    assert len(rows) == 2900
     assert len({tuple(r[1:5]) for r in rows}) == len(rows)          # key: split + record_id + row + variant
     assert {r[1] for r in rows} == {"val", "test"}
-    assert sum(1 for r in rows if not r[7]) == 203                     # rows with no root are in
+    assert sum(1 for r in rows if not r[7]) == 204                     # rows with no root are in
 
 
 def test_missing_files_stop_the_generator():

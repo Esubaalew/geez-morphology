@@ -43,7 +43,7 @@ def test_loader_counts_match_check_dataset(gold):
 
 def test_flagged_rows_do_not_load(gold):
     flagged = G.read_flagged_rows(DATASET)
-    assert flagged
+    assert isinstance(flagged, set)
     loaded = {(s, p["record_id"], p["row"], p["form"]) for s, pairs in gold.items() for p in pairs}
     assert not loaded & flagged
 
