@@ -1,12 +1,12 @@
 # Every gold val and test form of geez-dataset (after the master audit and flagged-rows resolution). generate_synthetic_fixed.py leaves out every
 # synthetic line whose surface_form is exactly one of these forms, and stops if this file is missing.
-# Gold files: merho_ges_gold_val.jsonl sha256 f95460f9ed38ed0a48af44e783070b4dd6bbd1b1223be55c965e1759fc04066e, merho_ges_gold_test.jsonl sha256 dc5960f9bfb4773ac039c8df6131d77df7e17599b717cff7bb65ce5cdc145bba.
+# Gold files: merho_ges_gold_val.jsonl sha256 f95460f9ed38ed0a48af44e783070b4dd6bbd1b1223be55c965e1759fc04066e, merho_ges_gold_test.jsonl sha256 bca8f5429fc0f59bac400d2e9eac7dd8ae63d613c0b6029a984fe9ac65b7ab5a.
 # One line per form of a row, rows with no root included. geez_form is one "/"-spelling of the cell with "(...)" notes
 # dropped, as scripts/check_dataset.py loads it; cell is the geez_form field as written in the gold file.
 # Key: split + record_id + row + variant. row = index of the row in the record's table_data, from 0 (as in
 # merho_ges_gold_flagged_rows.tsv); variant = index of the spelling in the cell, from 0; source_row and source_variant
 # are the row's own fields (empty when the row has none). root = the row's root, else the record's; empty = no root yet.
-# 2,900 entries, 2,839 distinct forms; 204 entries have no root.
+# 2,916 entries, 2,855 distinct forms; 204 entries have no root.
 geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 ስሕ	val	ef094bb2db48	0	0			ሰ-ሐ	ስሕ
 ረምሐ	val	c8b96d6ae77b	0	0			ረ-መ-ሐ	ረምሐ
@@ -2908,3 +2908,19 @@ geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 ታኅሣሣት	test	7916e0bee52f	11	0			ኀ-ሠ-ሠ	ታኅሣሣት
 ማዕሰበ	test	7edeb867af70	0	0			መ-ዐ-ሰ-በ	ማዕሰበ
 መዓስብት	test	7edeb867af70	1	0			መ-ዐ-ሰ-በ	መዓስብት
+ወፅአ	test	acc4f9cac1b0	0	0			ወ-ፀ-አ	ወፅአ
+ይወፅእ	test	acc4f9cac1b0	1	0			ወ-ፀ-አ	ይወፅእ
+ውፅእት	test	acc4f9cac1b0	2	0			ወ-ፀ-አ	ውፅእት
+ውፁኣት	test	acc4f9cac1b0	3	0			ወ-ፀ-አ	ውፁኣት
+መወፅእ	test	acc4f9cac1b0	4	0			ወ-ፀ-አ	መወፅእ
+መስተወፅእ	test	acc4f9cac1b0	5	0			ወ-ፀ-አ	መስተወፅእ
+ወፃእት	test	acc4f9cac1b0	6	0			ወ-ፀ-አ	ወፃእት
+መውፅኢት	test	acc4f9cac1b0	7	0			ወ-ፀ-አ	መውፅኢት
+ሙፃእ	test	acc4f9cac1b0	8	0			ወ-ፀ-አ	ሙፃእ
+ፀንሰ	test	110f07e7667d	0	0			ፀ-ነ-ሰ	ፀንሰ
+ትፅንሶ	test	110f07e7667d	1	0			ፀ-ነ-ሰ	ትፅንሶ
+ፅኑስ	test	110f07e7667d	2	0			ፀ-ነ-ሰ	ፅኑስ
+መፅንስ	test	110f07e7667d	3	0			ፀ-ነ-ሰ	መፅንስ
+ፀነስት	test	110f07e7667d	4	0			ፀ-ነ-ሰ	ፀነስት
+ፅንሰት	test	110f07e7667d	5	0			ፀ-ነ-ሰ	ፅንሰት
+ፅንስ	test	110f07e7667d	6	0			ፀ-ነ-ሰ	ፅንስ
