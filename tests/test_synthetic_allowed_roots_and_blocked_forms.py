@@ -31,7 +31,7 @@ import split_heldout_synthetic as H  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
 ALLOWED_SHA256 = "84fc1851d7d731eadaa0aaca179ee003be717114af410a50168659dd6df58fc1"
-BLOCKED_SHA256 = "43400ba94340e341d524a9b8f8619235de437387512a1915a2d600011c024317"
+BLOCKED_SHA256 = "cca19abd85b6329afc0fc03547a576e37ff1df3ee8ec3bc89cfe199ceae658f7"
 TRILITERAL = ["q-t-l", "g-b-r", "n-g-r", "s-b-r", "k-t-b", "d-m-r", "f-t-l", "m-s-l"]
 QUADRILITERAL = ["d-n-g-s", "s-n-b-t", "t-r-g-m", "m-s-k-r", "q-n-d-l", "b-r-b-r"]
 BLOCKED_HEADER = "geez_form\tsplit\trecord_id\trow\tvariant\n"

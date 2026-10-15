@@ -1,6 +1,6 @@
 # Every gold val and test form of geez-dataset (after the master audit and flagged-rows resolution). generate_synthetic_fixed.py leaves out every
 # synthetic line whose surface_form is exactly one of these forms, and stops if this file is missing.
-# Gold files: merho_ges_gold_val.jsonl sha256 f95460f9ed38ed0a48af44e783070b4dd6bbd1b1223be55c965e1759fc04066e, merho_ges_gold_test.jsonl sha256 bca8f5429fc0f59bac400d2e9eac7dd8ae63d613c0b6029a984fe9ac65b7ab5a.
+# Gold files: merho_ges_gold_val.jsonl sha256 f95460f9ed38ed0a48af44e783070b4dd6bbd1b1223be55c965e1759fc04066e, merho_ges_gold_test.jsonl sha256 3a7bb1bafa502222a6d2fb2ec257c6f47b420cfdcc1554d29b9121510d57ba61.
 # One line per form of a row, rows with no root included. geez_form is one "/"-spelling of the cell with "(...)" notes
 # dropped, as scripts/check_dataset.py loads it; cell is the geez_form field as written in the gold file.
 # Key: split + record_id + row + variant. row = index of the row in the record's table_data, from 0 (as in
