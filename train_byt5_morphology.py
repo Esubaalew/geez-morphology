@@ -477,13 +477,24 @@ def main(argv=None) -> int:
         if n_before != len(without_root):
             print(f"{n_before - len(without_root)} word(s) without root dropped: held out in the unified file.")
     if unified and not args.legacy_book_forms:
-        # the unified rows replace book_forms.jsonl; a word without root is dropped when the unified file has the
-        # same form (the two targets differ: 'root: none' and 'root: none | type: ...')
+        # the unified rows replace book_forms.jsonl; words without root and dictionary pairs whose form is already
+        # in the unified rows are dropped so the full-analysis unified target is not duplicated by a root-only target,
+        # and synthetic pairs whose surface form is a held-out unified val/test book form are dropped
         unified_forms = {s["input_text"].split(":", 1)[-1].strip() for s in unified}
+        all_unified_forms = unified_forms | heldout_forms
+        if heldout_forms:
+            train_samples = [s for s in train_samples
+                             if s["is_gold"] or s["input_text"].split(":", 1)[-1].strip() not in heldout_forms]
+            eval_samples = [s for s in eval_samples
+                            if s["input_text"].split(":", 1)[-1].strip() not in heldout_forms]
         n_before = len(without_root)
         without_root = [s for s in without_root if s["input_text"].split(":", 1)[-1].strip() not in unified_forms]
-        print(f"Unified rows replace book_forms.jsonl; {n_before - len(without_root)} word(s) without root "
-              "dropped (same form in the unified rows).")
+        n_dict_tr_before, n_dict_ev_before = len(dictionary_train), len(dictionary_eval)
+        dictionary_train = [s for s in dictionary_train if s["input_text"].split(":", 1)[-1].strip() not in all_unified_forms]
+        dictionary_eval = [s for s in dictionary_eval if s["input_text"].split(":", 1)[-1].strip() not in all_unified_forms]
+        print(f"Unified rows replace book_forms.jsonl; dropped {n_before - len(without_root)} word(s) without root, "
+              f"{n_dict_tr_before - len(dictionary_train)} dictionary train pair(s), and "
+              f"{n_dict_ev_before - len(dictionary_eval)} dictionary eval pair(s) (same form in the unified rows).")
         book_forms = []
     else:
         book_forms = [] if args.no_book_forms else \
