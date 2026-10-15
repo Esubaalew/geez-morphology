@@ -546,7 +546,7 @@ def main(argv=None) -> int:
           f"Eval: {len(eval_samples)} synthetic pairs; {DICTIONARY_EVAL_NAME}: {len(dictionary_eval)} pairs.")
     dev_eval = dev_eval_samples(args.dataset_dir, args.dev_gold_only)
     if args.max_eval_samples and args.max_eval_samples < len(dev_eval):
-        dev_eval = dev_eval[:args.max_eval_samples]
+        dev_eval = random.Random(args.seed).sample(dev_eval, args.max_eval_samples)
     root_items = root_accuracy_items(args.dataset_dir, args.root_accuracy_rows, args.dev_gold_only)
     if args.root_accuracy_rows:
         print(f"Root accuracy at each evaluation: {len(root_items)} gold val pairs.")

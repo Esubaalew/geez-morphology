@@ -1,6 +1,6 @@
 """Dictionary roots and the training file, checked against the dataset checkout.
 
-- RULED: the inferred_root of 232 Kidane Wold entries, in both dictionary files (None = no root). The
+- CHECKED_ROOTS: the inferred_root of 232 Kidane Wold entries, in both dictionary files (None = no root). The
   generator reads the same root (verb_classes.entry_root with the root fixes).
 - Entry 2194 is an adverb: its root w-s-T is not on the allow-list and has no synthetic lines.
 - No line of the training file has a gold val/test root (computed from the gold files), and none has one of
@@ -30,7 +30,7 @@ from conftest import DATASET_DIR  # noqa: E402
 DICTIONARIES = ["data/lexicon/classical_dictionary_kidane_wold.jsonl", "data/geez_amharic_dictionary.jsonl"]
 TRAIN_FILE = os.path.join(DATASET_DIR, "data", "paradigms", "synthetic_morphology_train.jsonl")
 
-RULED = {
+CHECKED_ROOTS = {
     361: "q-h2-m", 364: "q-h2-m", 494: "q-T-f", 495: "q-T-f", 618: "q-y-a", 729: "a-kh2-t", 930: "q-y-m", 931: "q-y-m",
     933: "q-y-m", 935: "q-y-m", 977: "q-S-b", 1139: "q-l-l", 1235: "n-q-l-q-l", 1261: "q-r-b", 1329: "q-m-h2", 1355: "w-S2-a",
     1360: "w-S2-a", 1362: "w-S2-a", 1363: "w-S2-a", 1365: "S2-a-S2-a", 1366: "S2-a-S2-a", 1367: "S2-a-S2-a", 1368: "S2-a-S2-a",
@@ -92,7 +92,7 @@ def _train_lines():
 def test_ruled_roots_are_in_the_dictionary(rel):
     _need_dataset()
     entries = _entries(rel)
-    wrong = {i: entries[i].get("inferred_root") for i, r in RULED.items() if entries[i].get("inferred_root") != r}
+    wrong = {i: entries[i].get("inferred_root") for i, r in CHECKED_ROOTS.items() if entries[i].get("inferred_root") != r}
     assert wrong == {}
 
 
@@ -100,7 +100,7 @@ def test_generator_reads_the_ruled_roots():
     _need_dataset()
     fixes = verb_classes.root_fixes(DATASET_DIR)
     entries = _entries("data/geez_amharic_dictionary.jsonl")
-    wrong = {i: verb_classes.entry_root(entries[i], fixes) for i, r in RULED.items() if verb_classes.entry_root(entries[i], fixes) != r}
+    wrong = {i: verb_classes.entry_root(entries[i], fixes) for i, r in CHECKED_ROOTS.items() if verb_classes.entry_root(entries[i], fixes) != r}
     assert wrong == {}
 
 

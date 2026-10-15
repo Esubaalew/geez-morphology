@@ -1,12 +1,12 @@
-# Every gold val and test form of geez-dataset (after the master audit and flagged-rows resolution). generate_synthetic_fixed.py leaves out every
+# Every gold val and test form of geez-dataset. generate_synthetic_fixed.py leaves out every
 # synthetic line whose surface_form is exactly one of these forms, and stops if this file is missing.
 # One line per form of a row, rows with no root included. geez_form is one "/"-spelling of the cell with "(...)" notes
 # dropped, as scripts/check_dataset.py loads it; cell is the geez_form field as written in the gold file.
 # Key: split + record_id + row + variant. row = index of the row in the record's table_data, from 0 (as in
 # merho_ges_gold_flagged_rows.tsv); variant = index of the spelling in the cell, from 0; source_row and source_variant
 # are the row's own fields (empty when the row has none). root = the row's root, else the record's; empty = no root yet.
-# 2,907 entries, 2,853 distinct forms; 204 entries have no root.
-# Gold files: merho_ges_gold_val.jsonl sha256 e9baa63c208bf2821112f2370d94f9d4ea12f18b8f4d5b0e93d97ef11c9e7040, merho_ges_gold_test.jsonl sha256 de235c32a7dfa2b1f5bdcf7262d53701d89d3f64f5573c316e5f83d88af10b2a.
+# 2,911 entries, 2,854 distinct forms; 204 entries have no root.
+# Gold files: merho_ges_gold_val.jsonl sha256 4c02d18434fafd5ecdfb65b3e29018cb6b0133a34774bc4ac1e38f853ccdb8bb, merho_ges_gold_test.jsonl sha256 bffedec44b0cd83a547d62231edd41eba9c1835792cd8e9054a91b0775755af7.
 geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 ስሕ	val	ef094bb2db48	0	0			ሰ-ሐ	ስሕ
 ረምሐ	val	c8b96d6ae77b	0	0			ረ-መ-ሐ	ረምሐ
@@ -400,12 +400,13 @@ geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 ራሕባት	val	ba7368a455c6	12	0	8	2	ረ-ሐ-በ	ራሕባት
 አርሕብት	val	ba7368a455c6	13	0	8	3	ረ-ሐ-በ	አርሕብት
 ርሕበት	val	ba7368a455c6	14	0	9		ረ-ሐ-በ	ርሕበት
-መርሕብ	val	ba7368a455c6	15	0	10	0	ረ-ሐ-በ	መርሕብ
+መርብብ	val	ba7368a455c6	15	0	10	0	ረ-ሐ-በ	መርብብ
 ምርሓብ	val	ba7368a455c6	16	0	10	1	ረ-ሐ-በ	ምርሓብ
 አራኅ	val	ba7368a455c6	17	0	10	2	ረ-ኀ-በ	አራኅ
 መራሕብት	val	ba7368a455c6	18	0	11	0	ረ-ሐ-በ	መራሕብት
 ምርሓባት	val	ba7368a455c6	19	0	11	1	ረ-ሐ-በ	ምርሓባት
 አራኃት	val	ba7368a455c6	20	0	11	2	ረ-ኀ-በ	አራኃት
+መርኀብ	val	ba7368a455c6	21	0			ረ-ኀ-በ	መርኀብ
 ከረበ	val	57074233aac4	0	0			ከ-ረ-በ	ከረበ
 ክሩብ	val	57074233aac4	1	0			ከ-ረ-በ	ክሩብ
 መክርብ	val	57074233aac4	2	0			ከ-ረ-በ	መክርብ
@@ -538,9 +539,10 @@ geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 ውዱይ	val	a04247609c25	3	0	3		ወ-ደ-የ	ውዱይ
 መወድይ	val	a04247609c25	4	0	4	0	ወ-ደ-የ	መወድይ
 ሙዳይ	val	a04247609c25	5	0	4	1	ወ-ደ-የ	ሙዳይ
-ወደዮት	val	a04247609c25	6	0	5		ወ-ደ-የ	ወደዮት / ውድየት / ውዴት
-ውድየት	val	a04247609c25	6	1	5		ወ-ደ-የ	ወደዮት / ውድየት / ውዴት
-ውዴት	val	a04247609c25	6	2	5		ወ-ደ-የ	ወደዮት / ውድየት / ውዴት
+ወደዮት	val	a04247609c25	6	0	5		ወ-ደ-የ	ወደዮት / ውዴታት / ውድየት / ውዴት
+ውዴታት	val	a04247609c25	6	1	5		ወ-ደ-የ	ወደዮት / ውዴታት / ውድየት / ውዴት
+ውድየት	val	a04247609c25	6	2	5		ወ-ደ-የ	ወደዮት / ውዴታት / ውድየት / ውዴት
+ውዴት	val	a04247609c25	6	3	5		ወ-ደ-የ	ወደዮት / ውዴታት / ውድየት / ውዴት
 ወደይት	val	a04247609c25	7	0			ወ-ደ-የ	ወደይት
 ውድየታት	val	a04247609c25	8	0			ወ-ደ-የ	ውድየታት
 ውዴታት	val	a04247609c25	9	0			ወ-ደ-የ	ውዴታት
@@ -1197,17 +1199,17 @@ geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 ያዕ ዘእል	val	27123060503a	26	0				ያዕ ዘእል
 ዮሴ	val	27123060503a	27	0				ዮሴ
 ኪዳ	val	27123060503a	28	0				ኪዳ
-ኖመ	val	223deb92b1a5	0	0			ነ-ወ-መ	ኖመ / ነወመ / ነውመ
-ነወመ	val	223deb92b1a5	0	1			ነ-ወ-መ	ኖመ / ነወመ / ነውመ
-ነውመ	val	223deb92b1a5	0	2			ነ-ወ-መ	ኖመ / ነወመ / ነውመ
-ንውማን	val	223deb92b1a5	1	0			ነ-ወ-መ	ንውማን
-ንዋም	val	223deb92b1a5	2	0			ነ-ወ-መ	ንዋም
-አንዋም	val	223deb92b1a5	3	0			ነ-ወ-መ	አንዋም
-ንዋማት	val	223deb92b1a5	4	0			ነ-ወ-መ	ንዋማት
-ምንዋም	val	223deb92b1a5	5	0			ነ-ወ-መ	ምንዋም
-ምንዋማት	val	223deb92b1a5	6	0			ነ-ወ-መ	ምንዋማት
-መስተነውም	val	223deb92b1a5	7	0			ነ-ወ-መ	መስተነውም
-መስተናውም	val	223deb92b1a5	8	0			ነ-ወ-መ	መስተናውም
+ንውማን	val	223deb92b1a5	0	0			ነ-ወ-መ	ንውማን
+ንዋም	val	223deb92b1a5	1	0			ነ-ወ-መ	ንዋም
+አንዋም	val	223deb92b1a5	2	0			ነ-ወ-መ	አንዋም
+ንዋማት	val	223deb92b1a5	3	0			ነ-ወ-መ	ንዋማት
+ምንዋም	val	223deb92b1a5	4	0			ነ-ወ-መ	ምንዋም
+ምንዋማት	val	223deb92b1a5	5	0			ነ-ወ-መ	ምንዋማት
+መስተነውም	val	223deb92b1a5	6	0			ነ-ወ-መ	መስተነውም
+መስተናውም	val	223deb92b1a5	7	0			ነ-ወ-መ	መስተናውም
+ኖመ	val	223deb92b1a5	8	0			ነ-ወ-መ	ኖመ / ነወመ / ነውመ
+ነወመ	val	223deb92b1a5	8	1			ነ-ወ-መ	ኖመ / ነወመ / ነውመ
+ነውመ	val	223deb92b1a5	8	2			ነ-ወ-መ	ኖመ / ነወመ / ነውመ
 ኰረበ	val	b2ef80cc6adf	0	0			ኰ-ረ-በ	ኰረበ
 ኩሩብ	val	b2ef80cc6adf	1	0			ኰ-ረ-በ	ኩሩብ
 መኵረብ	val	b2ef80cc6adf	2	0			ኰ-ረ-በ	መኵረብ
@@ -2250,7 +2252,8 @@ geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 ኂሩት	test	f66813ec5502	3	1			ኀ-ረ-ወ	ኂርውት / ኂሩት
 ኂርዋት	test	f66813ec5502	4	0			ኀ-ረ-ወ	ኂርዋት / ኄራት
 ኄራት	test	f66813ec5502	4	1			ኀ-ረ-ወ	ኂርዋት / ኄራት
-ኄርት	test	f66813ec5502	5	0			ኀ-ረ-ወ	ኄርት
+ኄራት	test	f66813ec5502	5	0			ኀ-ረ-ወ	ኄራት / ኄርት
+ኄርት	test	f66813ec5502	5	1			ኀ-ረ-ወ	ኄራት / ኄርት
 መኄርው	test	f66813ec5502	6	0			ኀ-ረ-ወ	መኄርው
 መስተኄርው	test	f66813ec5502	7	0			ኀ-ረ-ወ	መስተኄርው
 መስተኄያርው	test	f66813ec5502	8	0			ኀ-ረ-ወ	መስተኄያርው
@@ -2566,7 +2569,8 @@ geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 ሕንጼ	test	ad98fa097eb1	8	2			ሐ-ነ-ጸ	ሕንጸት / ሕንጸ / ሕንጼ
 ሕኑጻት	test	ad98fa097eb1	9	0			ሐ-ነ-ጸ	ሕኑጻት
 መስተሐንጽ	test	ad98fa097eb1	10	0			ሐ-ነ-ጸ	መስተሐንጽ
-ሕንጻት	test	ad98fa097eb1	11	0			ሐ-ነ-ጸ	ሕንጻት
+ሕንጸት	test	ad98fa097eb1	11	0			ሐ-ነ-ጸ	ሕንጸት / ሕንጻት
+ሕንጻት	test	ad98fa097eb1	11	1			ሐ-ነ-ጸ	ሕንጸት / ሕንጻት
 ሕንጼያት	test	ad98fa097eb1	12	0			ሐ-ነ-ጸ	ሕንጼያት
 ማሕነጽ	test	ad98fa097eb1	13	0			ሐ-ነ-ጸ	ማሕነጽ
 ወፈጠ	test	10913180048b	0	0			ወ-ፈ-ጠ	ወፈጠ
