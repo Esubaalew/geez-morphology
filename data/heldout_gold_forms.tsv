@@ -1,12 +1,12 @@
 # Every gold val and test form of geez-dataset (after the master audit and flagged-rows resolution). generate_synthetic_fixed.py leaves out every
 # synthetic line whose surface_form is exactly one of these forms, and stops if this file is missing.
-# Gold files: merho_ges_gold_val.jsonl sha256 f95460f9ed38ed0a48af44e783070b4dd6bbd1b1223be55c965e1759fc04066e, merho_ges_gold_test.jsonl sha256 3a7bb1bafa502222a6d2fb2ec257c6f47b420cfdcc1554d29b9121510d57ba61.
+# Gold files: merho_ges_gold_val.jsonl sha256 f95460f9ed38ed0a48af44e783070b4dd6bbd1b1223be55c965e1759fc04066e, merho_ges_gold_test.jsonl sha256 dbe228c9140c762a50d3dc2dff96355adb0a6e4bd5ea5821af5dae611d12bb19.
 # One line per form of a row, rows with no root included. geez_form is one "/"-spelling of the cell with "(...)" notes
 # dropped, as scripts/check_dataset.py loads it; cell is the geez_form field as written in the gold file.
 # Key: split + record_id + row + variant. row = index of the row in the record's table_data, from 0 (as in
 # merho_ges_gold_flagged_rows.tsv); variant = index of the spelling in the cell, from 0; source_row and source_variant
 # are the row's own fields (empty when the row has none). root = the row's root, else the record's; empty = no root yet.
-# 2,916 entries, 2,855 distinct forms; 204 entries have no root.
+# 2,917 entries, 2,856 distinct forms; 204 entries have no root.
 geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 ስሕ	val	ef094bb2db48	0	0			ሰ-ሐ	ስሕ
 ረምሐ	val	c8b96d6ae77b	0	0			ረ-መ-ሐ	ረምሐ
@@ -1513,6 +1513,7 @@ geez_form	split	record_id	row	variant	source_row	source_variant	root	cell
 መፈጽም	test	a308cec52106	2	0			ፈ-ጸ-መ	መፈጽም
 ፈጸምት	test	a308cec52106	3	0			ፈ-ጸ-መ	ፈጸምት
 ፍጽምና	test	a308cec52106	4	0			ፈ-ጸ-መ	ፍጽምና
+ፍጽማት	test	a308cec52106	5	0			ፈ-ጸ-መ	ፍጽማት
 ተኀሥሦ	test	4e8f85ee882f	0	0	1		ኀ-ሠ-ሠ	ተኀሥሦ
 የኀሡ	test	4e8f85ee882f	1	0	3		ኀ-ሠ-ሠ	የኀሡ
 ኢትኅሥሥ	test	4e8f85ee882f	2	0	5		ኀ-ሠ-ሠ	ኢትኅሥሥ
