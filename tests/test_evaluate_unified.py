@@ -90,6 +90,7 @@ def test_dev_unified_flag_and_source_groups(dataset_dir):
 
 
 def test_hybrid_neural_fallback_preserves_unified_classes_possessor_and_negated():
+    pytest.importorskip("torch")   # _neural_fallback imports torch and returns [] without it
     import analyzer
     a = analyzer.HybridAnalyzer.__new__(analyzer.HybridAnalyzer)
     a._ensure_neural_model = lambda: True
