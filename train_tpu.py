@@ -465,7 +465,9 @@ def run(rank, args):
                     f"elapsed {el / 3600:.2f}h")
                 t_log = time.time()
             last = state["step"] >= total
-            out_of_time = time.time() - START > budget
+            out_of_time = False
+            if state["step"] % args.log_every == 0 or last:
+                out_of_time = bool(all_sum(torch.tensor(int(time.time() - START > budget), device=device)).item() > 0)
             if args.stage == "finetune" and dev and (state["step"] % args.eval_every == 0 or last or out_of_time):
                 m = evaluate()
                 m["step"] = state["step"]
@@ -497,8 +499,10 @@ def run(rank, args):
                        "total_steps": total, "world": world, "bf16": use_bf16, "hours": (time.time() - START) / 3600,
                        "torch": torch.__version__, "transformers": __import__("transformers").__version__,
                        "dataset_commit": git_head(args.dataset_dir), "model_commit": git_head(HERE)}, f, indent=1)
-    if args.stage == "finetune" and dev and master and not STOP["signal"] and os.path.exists(os.path.join(args.output_dir, "best")):
-        final_report(args, dev, torch, device, sync)
+    has_best = bool(all_sum(torch.tensor(int(os.path.exists(os.path.join(args.output_dir, "best"))), device=device)).item() > 0)
+    has_stop = bool(all_sum(torch.tensor(int(bool(STOP["signal"])), device=device)).item() > 0)
+    if args.stage == "finetune" and dev and not has_stop and has_best:
+        final_report(args, dev, torch, device, sync, rank=rank, world=world, master=master, xm=xm if xla else None)
     barrier("end")
 
 
@@ -509,39 +513,52 @@ def git_head(d):
         return None
 
 
-def final_report(args, dev, torch, device, sync):
-    """Greedy-decoded dev scores of best/ per dev slice and class, with the pos: task's class confusion."""
+def final_report(args, dev, torch, device, sync, rank=0, world=1, master=True, xm=None):
+    """Greedy-decoded dev scores of best/ per dev slice and class, sharded across all ranks in lockstep."""
     from transformers import AutoModelForSeq2SeqLM
     import analyzer
     model = AutoModelForSeq2SeqLM.from_pretrained(os.path.join(args.output_dir, "best"), dtype=torch.float32)
     model.to(device).eval()
     rows = dev if not args.report_cap else dev[:0] + [dev[i] for i in sorted(
         random.Random(0).sample(range(len(dev)), min(args.report_cap, len(dev))))]
-    per = collections.defaultdict(collections.Counter)
-    confusion = collections.defaultdict(collections.Counter)
     bs = args.per_core_batch
+    global_bs = bs * world
+    local_decoded = []
     with torch.no_grad():
-        for k in range(0, len(rows), bs):
-            chunk = rows[k:k + bs]
-            n = len(chunk)
-            chunk = chunk + [chunk[-1]] * (bs - n)
-            a = max(bucket(len(s["input_text"].encode()) + 1, INPUT_BUCKETS) for s in chunk)
+        for k in range(0, len(rows), global_bs):
+            gchunk = list(range(k, min(k + global_bs, len(rows))))
+            gchunk_pad = gchunk + [gchunk[-1]] * (global_bs - len(gchunk))
+            mine_idx = gchunk_pad[rank * bs:(rank + 1) * bs]
+            a = max(bucket(len(rows[i]["input_text"].encode()) + 1, INPUT_BUCKETS) for i in gchunk_pad)
             inp = torch.full((bs, a), PAD, dtype=torch.long)
-            for r, s in enumerate(chunk):
-                x = encode(s["input_text"], a)
+            for r, i in enumerate(mine_idx):
+                x = encode(rows[i]["input_text"], a)
                 inp[r, :len(x)] = torch.tensor(x)
             outs = greedy(model, inp.to(device), (inp != PAD).long().to(device), 129, torch, sync)
-            for s, o in zip(chunk[:n], outs[:n]):
-                text = decode(o)
-                c = per[f"{s['dev']}/{s['task']}/{s['cls']}"]
-                c["n"] += 1
-                c["exact"] += text == s["target_text"]
-                if s["task"] == tm.POS_TASK:
-                    confusion[s["cls"]][text.replace("type:", "").strip() or "?"] += 1
-                else:
-                    c["root"] += text.split("|")[0].strip() == s["target_text"].split("|")[0].strip()
-                    parsed = analyzer.parse_neural_output(text)
-                    c["parsed"] += parsed is not None
+            for pos_in_mine, o in enumerate(outs):
+                global_pos = k + rank * bs + pos_in_mine
+                if global_pos < len(rows):
+                    local_decoded.append((global_pos, decode(o)))
+    if xm is not None and world > 1:
+        gathered = xm.rendezvous("final_report_gather", json.dumps(local_decoded, ensure_ascii=False).encode("utf-8"))
+        all_decoded = [item for payload in gathered for item in json.loads(payload.decode("utf-8"))]
+    else:
+        all_decoded = local_decoded
+    if not master:
+        return
+    per = collections.defaultdict(collections.Counter)
+    confusion = collections.defaultdict(collections.Counter)
+    for idx, text in sorted(all_decoded, key=lambda x: x[0]):
+        s = rows[idx]
+        c = per[f"{s['dev']}/{s['task']}/{s['cls']}"]
+        c["n"] += 1
+        c["exact"] += text == s["target_text"]
+        if s["task"] == tm.POS_TASK:
+            confusion[s["cls"]][text.replace("type:", "").strip() or "?"] += 1
+        else:
+            c["root"] += text.split("|")[0].strip() == s["target_text"].split("|")[0].strip()
+            parsed = analyzer.parse_neural_output(text)
+            c["parsed"] += parsed is not None
     report = {"rows": len(rows), "by_slice_task_class": {k: dict(v) for k, v in sorted(per.items())},
               "pos_confusion": {k: dict(v) for k, v in sorted(confusion.items())}}
     tot = collections.Counter()

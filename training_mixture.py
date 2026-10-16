@@ -146,7 +146,13 @@ def words_without_root_pairs(stats):
 def dictionary_pairs(dataset_dir, radicals, stats):
     pairs = dataset_loader.load_dictionary_pairs(dataset_dir, stats, include_forms=True, allowed_roots_only=False,
                                                  radicals=set(radicals))
-    return [dict(p, task=dataset_loader.ANALYZE_TASK) for p in pairs]
+    out = []
+    for p in pairs:
+        if p.get("from_forms"):
+            out.append(dict(p, type="nominal", gender="", number="", task=dataset_loader.ANALYZE_TASK))
+        else:
+            out.append(dict(p, task=dataset_loader.ANALYZE_TASK))
+    return out
 
 
 def rare_class_upsample(samples, classes, minimum, max_factor, stats):
@@ -216,8 +222,8 @@ def build(dataset_dir, opts):
         report["pairs_by_source"][name] = len(pairs)
         for p in pairs:
             for task in tasks:
-                if task == GENERATE_TASK and not p.get("root"):
-                    continue          # an analysis without a root names no single form
+                if task == GENERATE_TASK and (not p.get("root") or p.get("from_forms")):
+                    continue          # an analysis without a root or from unlabelled sub-forms names no single form
                 s = sample(p, name, task)
                 train += [s] * times
     train = rare_class_upsample(train, RARE_CLASSES, opts.rare_class_min, opts.rare_class_max_factor, stats)
