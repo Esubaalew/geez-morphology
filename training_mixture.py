@@ -163,15 +163,18 @@ DICTIONARY_ROOT_CHECK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file
 
 def dictionary_root_check(pairs, stats):
     """Drop the dictionary pairs whose root a Ge'ez reader checked and did not pass (DICTIONARY_ROOT_CHECK_FILE:
-    verdict FIX, CHECK or DROP). Those are roots off the generator's allow-list (and all 5-radical roots); a
-    pair is matched by record_id, from_forms and form. Pairs not in the file (allow-list roots) are kept."""
+    verdict FIX, CHECK, DROP or VERB). Those are roots off the generator's allow-list, all 5-radical roots, and
+    words of an entry's forms list that are not nouns or adjectives (the related verb, for example); a
+    pair is matched by record_id, from_forms and form. A headword pair not in the file (an allow-list root) is
+    kept; a forms-list word is kept only when the file passes it as OK."""
     verdict = {}
     with open(DICTIONARY_ROOT_CHECK_FILE, encoding="utf-8") as f:
         for r in csv.DictReader(f, delimiter="\t"):
             verdict[(r["record_id"], r["from_forms"] == "True", r["form"])] = r["verdict"]
     out = []
     for p in pairs:
-        v = verdict.get((p["record_id"], bool(p.get("from_forms")), p["form"]), "OK")
+        key = (p["record_id"], bool(p.get("from_forms")), p["form"])
+        v = verdict.get(key, "NOT CHECKED" if p.get("from_forms") else "OK")
         if v == "OK":
             out.append(p)
         else:
