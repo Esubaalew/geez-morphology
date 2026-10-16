@@ -18,7 +18,7 @@ The class comes only from the written imperfect/subjunctive of the entry:
               subjunctive varies, so the generator copies each triple's vowels)
 OCR gate: a triple is used only if all three forms show the same radicals in
 the same order (w/y may be missing) and the perfect ends in a 1st-order letter.
-Failing triples are logged in kidane_wold_verb_triples_rejected.jsonl.
+Failing triples are written to kidane_wold_build/.
 Anything else is "unclear" and gets no class. Nothing is guessed from the
 perfect's spelling; the perfect is only used to confirm the radicals.
 
@@ -337,17 +337,21 @@ def parse_args(argv=None):
 if __name__ == "__main__":
     ds = parse_args().dataset_dir
     lex = os.path.join(ds, "data", "lexicon")
-    fixes_file = os.path.join(lex, "kidane_wold_root_fixes.jsonl")
-    # the decisions of the current fixes file are read before it is rewritten
+    # The dataset's dictionary already carries the corrected roots (inferred_root), so a rebuild writes into a
+    # separate folder: the triples to compare with lexicon/kidane_wold_verb_triples.jsonl, the rejected triples
+    # and any further root fixes. Nothing in the dataset folder is overwritten.
+    out_dir = "kidane_wold_build"
+    os.makedirs(out_dir, exist_ok=True)
+    fixes_file = os.path.join(out_dir, "kidane_wold_root_fixes.jsonl")
     n_verbs, n_trip, fixes = build(os.path.join(lex, "classical_dictionary_kidane_wold.jsonl"),
-                                   os.path.join(lex, "kidane_wold_verb_triples.jsonl"),
+                                   os.path.join(out_dir, "kidane_wold_verb_triples.jsonl"),
                                    fixes_file, previous_fixes_path=fixes_file)
     from collections import Counter
     print(f"verb entries: {n_verbs}; accepted triples: {n_trip}")
-    with open(os.path.join(lex, "kidane_wold_verb_triples_rejected.jsonl"), encoding="utf-8") as f:
+    with open(os.path.join(out_dir, "kidane_wold_verb_triples_rejected.jsonl"), encoding="utf-8") as f:
         rej = [json.loads(l) for l in f]
     print(f"triples rejected by the OCR gate: {len(rej)}",
           dict(Counter(r["reason"].split(":")[0] for r in rej)))
-    with open(os.path.join(lex, "kidane_wold_verb_triples.jsonl"), encoding="utf-8") as f:
+    with open(os.path.join(out_dir, "kidane_wold_verb_triples.jsonl"), encoding="utf-8") as f:
         print("accepted triples by class:", dict(Counter(json.loads(l)["verb_class"] for l in f)))
     print("root fixes:", dict(Counter(x["method"] for x in fixes)))

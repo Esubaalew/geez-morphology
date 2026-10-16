@@ -3,9 +3,9 @@
 
     python3 build_dapt_corpus.py --dataset_dir D --out dapt_corpus.txt [--report dapt_report.json]
 
-Sources: data/geez_literature_corpus.txt and data/corpora/*.txt (books as text), the Ge'ez fields (headword_geez,
+Sources: data/corpora/*.txt (books as text), the Ge'ez fields (headword_geez,
 geez_explanation, geez_phrase, citations, forms) of data/corpora/*.jsonl, data/parallel/*.jsonl,
-data/true_parallel_pairs.jsonl and the two dictionaries. Amharic glosses and definitions are not read.
+and the two dictionaries. Amharic glosses and definitions are not read.
 Lines are split on newlines and on the sentence mark ።, whitespace-normalized, and a line is kept once however many
 files hold it (the literature corpus repeats the book texts, the two true_parallel_pairs files overlap).
 A line is dropped when one of its words (split on spaces and ፡) is a held-out form (training_mixture.HeldOut:
@@ -28,15 +28,14 @@ MIN_ETHIOPIC = 8
 
 
 def text_files(d):
-    return [os.path.join(d, "data", "geez_literature_corpus.txt")] + sorted(glob.glob(os.path.join(d, "data", "corpora", "*.txt")))
+    return sorted(glob.glob(os.path.join(d, "data", "corpora", "*.txt")))
 
 
 def jsonl_files(d):
     return (sorted(glob.glob(os.path.join(d, "data", "corpora", "*.jsonl"))) +
             sorted(glob.glob(os.path.join(d, "data", "parallel", "*.jsonl"))) +
-            [os.path.join(d, "data", "true_parallel_pairs.jsonl"),
-             os.path.join(d, "data", "lexicon", "classical_dictionary_kidane_wold.jsonl"),
-             os.path.join(d, "data", "geez_amharic_dictionary.jsonl")])
+            [os.path.join(d, "data", "lexicon", "classical_dictionary_kidane_wold.jsonl"),
+             os.path.join(d, "data", "lexicon", "geez_amharic_dictionary.jsonl")])
 
 
 def pieces(text):

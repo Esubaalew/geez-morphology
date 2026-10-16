@@ -337,7 +337,7 @@ def is_geez_word(s):
 
 def dictionary_entry_root(entry, fixes):
     """The root of a dictionary entry in Latin notation ("q-t-l"), or None. An entry with a row in the dataset's
-    kidane_wold_root_fixes.jsonl takes that row's new_root (null there means no root), as the verb generator
+    an optional root-fixes file overrides inferred_root (null means no root), as the verb generator
     does (verb_classes.entry_root); otherwise its inferred_root. The Ge'ez `root` field is not read."""
     import verb_classes
     if entry.get("id") in fixes:

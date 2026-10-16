@@ -16,7 +16,7 @@ synthetic_morphology_analyze.jsonl (the same lines keyed by surface form). They 
    (verb_classes.type_b_derived_rows); the other classes have the basic stem only.
    Classes come from the Kidane Wold verb triples (kidane_wold_triples.py), Merho
    Ges (the corrected gold train file, verb_classes.GOLD_TRAIN_FILE) and the class lemmas; roots come from the dictionary with the
-   kidane_wold_root_fixes.jsonl corrections applied.
+   corrected roots (inferred_root) used.
 
 Roots of the gold test split are left out (see --keep_test_roots), so the
 gold score measures unseen roots. By default these are the 185 roots in
@@ -326,7 +326,7 @@ def load_held_out_roots(test_file: Optional[str]) -> set:
 def load_dictionary_and_patterns(dataset_dir: str):
     dict_candidates = [
         os.path.join(dataset_dir, "dictionary.jsonl"),
-        os.path.join(dataset_dir, "data", "geez_amharic_dictionary.jsonl"),
+        os.path.join(dataset_dir, "data", "lexicon", "geez_amharic_dictionary.jsonl"),
         os.path.join(dataset_dir, "output", "dictionary_with_roots.jsonl"),
     ]
     dict_path = None

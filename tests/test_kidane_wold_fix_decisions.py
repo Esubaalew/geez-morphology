@@ -78,19 +78,13 @@ def test_rows_without_a_decision_are_not_carried(tmp_path):
     assert run(tmp_path, [entry(1, hw, None)], prev) == []
 
 
-FIXES = os.path.join(DATASET_DIR, "data", "lexicon", "kidane_wold_root_fixes.jsonl")
 KW = os.path.join(DATASET_DIR, "data", "lexicon", "classical_dictionary_kidane_wold.jsonl")
 
 
-@pytest.mark.skipif(not os.path.exists(FIXES), reason="no geez-dataset checkout")
-def test_rebuild_on_the_dataset_keeps_the_7546_row(tmp_path):
-    with open(FIXES, encoding="utf-8") as f:
-        committed = {json.loads(l)["id"]: l.rstrip("\n") for l in f}
-    out = tmp_path / "fixes.jsonl"
-    kw.build(KW, str(tmp_path / "triples.jsonl"), str(out), previous_fixes_path=FIXES)
-    rebuilt = {json.loads(l)["id"]: l for l in out.read_text(encoding="utf-8").splitlines()}
-    assert rebuilt[7546] == committed[7546]
-    row = json.loads(rebuilt[7546])
-    # The root is left unknown: the entry is merged with another, and its gloss is the verb m-kh-S2.
-    assert row["new_root"] is None
-    assert "merged entry" in row["root_notes"] and "(m-kh-S2)" in row["root_notes"]
+@pytest.mark.skipif(not os.path.exists(KW), reason="no geez-dataset checkout")
+def test_dataset_keeps_the_7546_decision():
+    # The fixes are written into the dictionary: entry 7546 keeps no root and says why.
+    with open(KW, encoding="utf-8") as f:
+        e = next(x for x in map(json.loads, f) if x["id"] == 7546)
+    assert e["inferred_root"] is None and e["root"] is None
+    assert "merged entry" in e["root_notes"] and "(m-kh-S2)" in e["root_notes"]

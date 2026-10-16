@@ -187,4 +187,4 @@ dictionary. A triple is used only if both of these hold:
 - the perfect ends in a 1st-order letter.
 
 Accepted triples are in `geez-dataset/data/lexicon/kidane_wold_verb_triples.jsonl`. The
-rejected ones, with the reason for each, are in `kidane_wold_verb_triples_rejected.jsonl`.
+rejected ones, with the reason for each, are in `kidane_wold_build/` (written by `kidane_wold_triples.py`).
