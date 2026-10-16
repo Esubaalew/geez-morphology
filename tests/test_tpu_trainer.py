@@ -135,3 +135,17 @@ def test_full_mixture_is_leak_free(tmp_path):
     assert {s["dev"] for s in dev} == {"gold_val", "unified_val"}
     # 2-radical dictionary roots stay out unless asked for
     assert all(len(s["root"].split("-")) != 2 for s in train if s["source"] == "dictionary" and s["root"])
+
+
+def test_clean_tpu_env_drops_preset_addresses():
+    import train_tpu
+    env = {"TPU_PROCESS_ADDRESSES": "local", "TPU_ACCELERATOR_TYPE": "v5litepod-8"}
+    assert train_tpu.clean_tpu_env(env) == ["TPU_PROCESS_ADDRESSES"]
+    assert env == {"TPU_ACCELERATOR_TYPE": "v5litepod-8", "PJRT_DEVICE": "TPU"}
+    assert train_tpu.clean_tpu_env({"PJRT_DEVICE": "CPU"}) == []
+
+
+def test_xla_launch_flag():
+    import train_tpu
+    assert train_tpu.parse_args(["--output_dir", "o", "--xla_launch", "single"]).xla_launch == "single"
+    assert train_tpu.parse_args(["--output_dir", "o"]).xla_launch == "multi"

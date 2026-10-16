@@ -170,6 +170,8 @@ def parse_args(argv=None):
     p.add_argument("--init_from", default=None, help="Start from this model folder (e.g. the dapt stage's best/)")
     p.add_argument("--resume_from", default=None, help="A previous run's output folder (its resume/ is used)")
     p.add_argument("--device", choices=["auto", "xla", "cuda", "cpu"], default="auto")
+    p.add_argument("--xla_launch", choices=["multi", "single"], default="multi",
+                   help="multi: one process per TPU chip; single: one process on one chip (fallback)")
     p.add_argument("--bf16", choices=["auto", "yes", "no"], default="auto")
     p.add_argument("--per_core_batch", type=int, default=64)
     p.add_argument("--lr", type=float, default=1e-3)
@@ -556,6 +558,42 @@ def _mp_fn(index, args):
     run(index, args)
 
 
+# Kaggle TPU VMs preset TPU_PROCESS_ADDRESSES for a single process; with it set, every spawned
+# worker sees one address instead of one per chip and TPU init fails with
+# "Expected 8 worker addresses, got 1". Removing it lets PJRT build the local topology itself.
+PRESET_TPU_ENV = ("TPU_PROCESS_ADDRESSES",)
+
+
+def clean_tpu_env(env=None):
+    env = os.environ if env is None else env
+    removed = [k for k in PRESET_TPU_ENV if env.pop(k, None) is not None]
+    env.setdefault("PJRT_DEVICE", "TPU")
+    return removed
+
+
+def _launch_xla(args, argv):
+    removed = clean_tpu_env()
+    if removed:
+        print("removed preset env " + ",".join(removed), flush=True)
+    import torch_xla
+    single = args.xla_launch == "single"
+    try:
+        if hasattr(torch_xla, "launch"):
+            torch_xla.launch(_mp_fn, args=(args,), debug_single_process=single)
+        else:
+            import torch_xla.distributed.xla_multiprocessing as xmp
+            xmp.spawn(_mp_fn, args=(args,), nprocs=1 if single else None)
+        return 0
+    except Exception as e:  # noqa: BLE001
+        if single:
+            raise
+        print(f"multiprocess TPU launch failed ({type(e).__name__}: {e}); retrying with one process", flush=True)
+    # A failed runtime init cannot be reset in this process, so retry in a fresh one.
+    cmd = [sys.executable, os.path.abspath(__file__)] + list(sys.argv[1:] if argv is None else argv)
+    cmd += ["--xla_launch", "single"]
+    return subprocess.call(cmd)
+
+
 def main(argv=None):
     args = parse_args(argv)
     args.dataset_dir = os.path.abspath(args.dataset_dir)
@@ -576,12 +614,7 @@ def main(argv=None):
         prepare(args, write=True)
         return 0
     if args.device == "xla":
-        import torch_xla
-        if hasattr(torch_xla, "launch"):
-            torch_xla.launch(_mp_fn, args=(args,))
-        else:
-            import torch_xla.distributed.xla_multiprocessing as xmp
-            xmp.spawn(_mp_fn, args=(args,))
+        return _launch_xla(args, argv)
     else:
         run(0, args)
     return 0
