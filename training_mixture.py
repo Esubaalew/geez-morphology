@@ -15,7 +15,7 @@ Sources (sample "source" field):
                      whose root was checked and not passed (data/dictionary_root_check.tsv) is left out
   dictionary_verb    Kidane Wold verb headwords that are their root's 3ms perfect
   word_without_root  data/closed_class_words_without_root.tsv, full target with the word's class
-  extra_synthetic    extra_synthetic.py families, only those named in --extra_synthetic (none by default);
+  extra_synthetic    extra_synthetic.py families, only those named in --extra_synthetic (default checked);
                      "checked" gives only the checked cells of data/extra_synthetic_checked.tsv
 
 Upsampling: gold verbs x--gold_upsample, gold nominals x--gold_nominal_upsample, unified rows x--unified_upsample,

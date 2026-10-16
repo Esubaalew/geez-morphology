@@ -111,7 +111,7 @@ def test_neural_nominal_goes_before_verb_only_rule_readings():
 
 def test_extra_synthetic_off_by_default_and_check_table_rows(tmp_path):
     a = TT.parse_args(["--output_dir", str(tmp_path)])
-    assert a.extra_synthetic == "" and not a.biradical_dictionary
+    assert a.extra_synthetic == "checked" and not a.biradical_dictionary
     rows = X.rows_for("hollow", "ቀወመ")
     forms = {(r[0], r[3]): r[7] for r in rows if r[4] == "" or r[4] == "m"}
     assert X.rows_for("nominal", "ቀተለ")[0][7] == "ቀቲል"
@@ -128,7 +128,7 @@ def test_full_mixture_is_leak_free(tmp_path):
     args.dataset_dir = os.path.abspath(args.dataset_dir)
     train, dev, report = TT.prepare(args, write=True)
     assert "CLEAN" in (tmp_path / "leak_audit.txt").read_text()
-    assert report["pairs_by_source"]["extra_synthetic"] == 0
+    assert report["pairs_by_source"]["extra_synthetic"] == 247
     held = TM.HeldOut(DATASET_DIR)
     assert not any(held.leaks(s["form"], s["root"]) for s in train)
     assert {s["task"] for s in train} == {D.ANALYZE_TASK, TM.GENERATE_TASK, TM.POS_TASK}
