@@ -25,3 +25,4 @@ wandb/
 
 # Training logs
 *.log
+kidane_wold_build/

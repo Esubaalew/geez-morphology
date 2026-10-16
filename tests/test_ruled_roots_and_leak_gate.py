@@ -27,7 +27,7 @@ import split_heldout_synthetic as H  # noqa: E402
 import verb_classes  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
-DICTIONARIES = ["data/lexicon/classical_dictionary_kidane_wold.jsonl", "data/geez_amharic_dictionary.jsonl"]
+DICTIONARIES = ["data/lexicon/classical_dictionary_kidane_wold.jsonl", "data/lexicon/geez_amharic_dictionary.jsonl"]
 TRAIN_FILE = os.path.join(DATASET_DIR, "data", "paradigms", "synthetic_morphology_train.jsonl")
 
 CHECKED_ROOTS = {
@@ -99,7 +99,7 @@ def test_ruled_roots_are_in_the_dictionary(rel):
 def test_generator_reads_the_ruled_roots():
     _need_dataset()
     fixes = verb_classes.root_fixes(DATASET_DIR)
-    entries = _entries("data/geez_amharic_dictionary.jsonl")
+    entries = _entries("data/lexicon/geez_amharic_dictionary.jsonl")
     wrong = {i: verb_classes.entry_root(entries[i], fixes) for i, r in CHECKED_ROOTS.items() if verb_classes.entry_root(entries[i], fixes) != r}
     assert wrong == {}
 

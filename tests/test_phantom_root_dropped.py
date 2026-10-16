@@ -41,8 +41,8 @@ def test_qh_h2_m_off_the_list():
 
 
 KW_TABLES = [os.path.join("data", "lexicon", "kidane_wold_verb_triples.jsonl"),
-             os.path.join("data", "lexicon", "kidane_wold_verb_triples_rejected.jsonl"),
-             os.path.join("data", "lexicon", "kidane_wold_root_fixes.jsonl")]
+             os.path.join("data", "lexicon", "classical_dictionary_kidane_wold.jsonl"),
+             os.path.join("data", "lexicon", "geez_amharic_dictionary.jsonl")]
 
 
 def root_values(path):
@@ -82,8 +82,8 @@ def test_no_qh_h2_m_in_kidane_wold_tables(rel):
 def test_entry_360_is_q_h2_m():
     """The book source of the phantom: entry 360's triple ቀሐመ ይቅሕም ይቅሐም gives q-h2-m."""
     triples = os.path.join(DATASET_DIR, KW_TABLES[0])
-    fixes = os.path.join(DATASET_DIR, KW_TABLES[2])
-    if not (os.path.exists(triples) and os.path.exists(fixes)):
+    dictionary = os.path.join(DATASET_DIR, KW_TABLES[1])
+    if not (os.path.exists(triples) and os.path.exists(dictionary)):
         pytest.skip("no geez-dataset checkout")
     assert "q-h2-m" in root_values(triples)[360]
-    assert "q-h2-m" in root_values(fixes)[360]
+    assert "q-h2-m" in root_values(dictionary)[360]

@@ -326,7 +326,7 @@ def load_held_out_roots(test_file: Optional[str]) -> set:
 def load_dictionary_and_patterns(dataset_dir: str):
     dict_candidates = [
         os.path.join(dataset_dir, "dictionary.jsonl"),
-        os.path.join(dataset_dir, "data", "geez_amharic_dictionary.jsonl"),
+        os.path.join(dataset_dir, "data", "lexicon", "geez_amharic_dictionary.jsonl"),
         os.path.join(dataset_dir, "output", "dictionary_with_roots.jsonl"),
     ]
     dict_path = None

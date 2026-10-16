@@ -19,7 +19,7 @@ import verb_classes  # noqa: E402
 from conftest import DATASET_DIR  # noqa: E402
 
 BAD = {"CHECK", "check", "null", "None", "none", ""}
-DICTIONARY = os.path.join(DATASET_DIR, "data", "geez_amharic_dictionary.jsonl")
+DICTIONARY = os.path.join(DATASET_DIR, "data", "lexicon", "geez_amharic_dictionary.jsonl")
 
 
 @pytest.mark.parametrize("placeholder", ["CHECK", "null", "None", "", "  "])
@@ -61,9 +61,11 @@ def test_fix_wins():
 
 @pytest.mark.skipif(not os.path.exists(DICTIONARY), reason="no geez-dataset checkout")
 def test_no_dictionary_entry_gives_a_placeholder_root():
-    fixes = verb_classes.root_fixes(DATASET_DIR)
-    assert fixes and not {v for v in fixes.values() if isinstance(v, str) and v.strip() in BAD}
-    assert sorted(i for i, v in fixes.items() if v is None) == [7546]   # the only "root unknown" fix row
+    # the corrected roots are written into the dictionary's inferred_root (no separate fixes file)
+    with open(DICTIONARY, encoding="utf-8") as f:
+        values = {json.loads(line).get("inferred_root") for line in f}
+    assert not {v for v in values if isinstance(v, str) and v.strip() in BAD}
+    fixes = verb_classes.root_fixes(DATASET_DIR)   # empty: no fixes file in the dataset
     seen = 0
     with open(DICTIONARY, encoding="utf-8") as f:
         for line in f:

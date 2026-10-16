@@ -23,7 +23,7 @@ TENSE_ALIASES = {"jussive": "subjunctive"}
 
 
 # The dictionary the analyzer reads, inside the geez-dataset checkout.
-DICTIONARY_FILE = os.path.join("data", "geez_amharic_dictionary.jsonl")
+DICTIONARY_FILE = os.path.join("data", "lexicon", "geez_amharic_dictionary.jsonl")
 
 
 def find_model_dir(model_dir: Optional[str] = None) -> str:
@@ -139,7 +139,7 @@ class GeezMorphologicalAnalyzer:
                  dataset_dir: Optional[str] = None):
         """dataset_dir: the geez-dataset checkout (the scripts' --dataset_dir). When it is None the
         usual default is used: $GEEZ_DATASET_DIR, else ../geez-dataset. The dictionary
-        (<dataset_dir>/data/geez_amharic_dictionary.jsonl, or dictionary_path) must exist:
+        (<dataset_dir>/data/lexicon/geez_amharic_dictionary.jsonl, or dictionary_path) must exist:
         without it the analyzer would run with no lexicon and give much worse answers, so a
         missing dictionary is an error, not a silent fallback."""
         base_dir = os.path.dirname(os.path.abspath(__file__))   # holds the template files
