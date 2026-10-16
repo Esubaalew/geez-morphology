@@ -197,3 +197,28 @@ if __name__ == "__main__":
     ap.add_argument("--table", required=True, help="TSV to write")
     export_check_table(ap.parse_args().table)
     sys.exit(0)
+
+
+CHECKED_FILE = "data/extra_synthetic_checked.tsv"
+
+
+def checked_pairs(path=None):
+    """Pairs for the generated cells a Ge'ez reader checked and passed (CHECKED_FILE), and only those: each row
+    names the template cell (labels: template, person-gender-number, root) and the form to train, which is the
+    corrected spelling where the template's own output was wrong. Each row is matched to exactly one cell of
+    rows_for(family, root); a row that matches none or several raises ValueError."""
+    import os
+    path = path or os.path.join(os.path.dirname(os.path.abspath(__file__)), CHECKED_FILE)
+    out = []
+    with open(path, encoding="utf-8") as f:
+        for r in csv.DictReader(f, delimiter="\t"):
+            template, pgn, _, root = r["labels"].split(" ")
+            family = template.split(":")[0]
+            cells = [c for c in rows_for(family, root.split("-"))
+                     if template.startswith(c[0]) and c[7] == r["template_form"] and pgn.endswith(c[3] + c[4] + c[5])]
+            if len(cells) != 1:
+                raise ValueError(f"{r['labels']} {r['template_form']}: {len(cells)} matching cells")
+            _, stem, tense, person, gender, number, typ, _, _ = cells[0]
+            out.append({"form": r["form"], "root": root, "type": typ, "tense": tense or None, "person": person,
+                        "gender": gender, "number": number, "stem": stem or None, "object": ""})
+    return out

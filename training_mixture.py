@@ -11,10 +11,12 @@ Sources (sample "source" field):
   gold_verb, gold_nominal   gold train paradigms
   unified_book       book rows of the unified file, split train
   dictionary         Kidane Wold nouns and adjectives, every root length in --dictionary_radicals (2-radical roots
-                     only with --biradical_dictionary), on or off the synthetic allow-list
+                     only with --biradical_dictionary; default 3,4), on or off the synthetic allow-list; a pair
+                     whose root was checked and not passed (data/dictionary_root_check.tsv) is left out
   dictionary_verb    Kidane Wold verb headwords that are their root's 3ms perfect
   word_without_root  data/closed_class_words_without_root.tsv, full target with the word's class
-  extra_synthetic    extra_synthetic.py families, only those named in --extra_synthetic (none by default)
+  extra_synthetic    extra_synthetic.py families, only those named in --extra_synthetic (none by default);
+                     "checked" gives only the checked cells of data/extra_synthetic_checked.tsv
 
 Upsampling: gold verbs x--gold_upsample, gold nominals x--gold_nominal_upsample, unified rows x--unified_upsample,
 and every row of a rare class (RARE_CLASSES) is repeated until its class has at least --rare_class_min rows
@@ -28,6 +30,7 @@ dataset's held-out synthetic lines). This runs on every source, the synthetic on
 Dev set (dev_samples): gold val plus unified book val, a seeded sample when capped; never trained on.
 """
 import collections
+import csv
 import json
 import os
 import random
@@ -155,6 +158,27 @@ def dictionary_pairs(dataset_dir, radicals, stats):
     return out
 
 
+DICTIONARY_ROOT_CHECK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "dictionary_root_check.tsv")
+
+
+def dictionary_root_check(pairs, stats):
+    """Drop the dictionary pairs whose root a Ge'ez reader checked and did not pass (DICTIONARY_ROOT_CHECK_FILE:
+    verdict FIX, CHECK or DROP). Those are roots off the generator's allow-list (and all 5-radical roots); a
+    pair is matched by record_id, from_forms and form. Pairs not in the file (allow-list roots) are kept."""
+    verdict = {}
+    with open(DICTIONARY_ROOT_CHECK_FILE, encoding="utf-8") as f:
+        for r in csv.DictReader(f, delimiter="\t"):
+            verdict[(r["record_id"], r["from_forms"] == "True", r["form"])] = r["verdict"]
+    out = []
+    for p in pairs:
+        v = verdict.get((p["record_id"], bool(p.get("from_forms")), p["form"]), "OK")
+        if v == "OK":
+            out.append(p)
+        else:
+            stats[f"dictionary root check: not loaded, {v}"] += 1
+    return out
+
+
 def rare_class_upsample(samples, classes, minimum, max_factor, stats):
     by = collections.defaultdict(list)
     for s in samples:
@@ -204,6 +228,7 @@ def build(dataset_dir, opts):
     if not opts.biradical_dictionary:
         radicals = [r for r in radicals if r != 2]
     dic = dictionary_pairs(dataset_dir, radicals, stats)
+    dic = dictionary_root_check(dic, stats)
     dic = [p for p in leak_gate(dic, held, stats, "dictionary") if p["form"] not in taken]
     sources["dictionary"] = (dic, 1)
     dverbs = leak_gate(dataset_loader.load_dictionary_verbs(dataset_dir, stats), held, stats, "dictionary_verb")
@@ -214,7 +239,10 @@ def build(dataset_dir, opts):
     sources["word_without_root"] = ([p for p in wwr if p["form"] not in taken], 1)
 
     families = [f for f in (opts.extra_synthetic or "").split(",") if f]
-    extra = extra_synthetic.generate_pairs(families, dataset_dir) if families else []
+    extra = extra_synthetic.checked_pairs() if "checked" in families else []
+    families = [f for f in families if f != "checked"]
+    extra += extra_synthetic.generate_pairs(families, dataset_dir) if families else []
+    stats["extra_synthetic pairs"] = len(extra)
     sources["extra_synthetic"] = (leak_gate(extra, held, stats, "extra_synthetic"), 1)
 
     train, report = [], {"pairs_by_source": {}, "samples_by_source_task": {}}

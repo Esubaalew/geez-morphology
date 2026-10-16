@@ -151,10 +151,10 @@ def add_data_args(p):
     p.add_argument("--rare_class_min", type=int, default=400, help="Rare classes are repeated up to this many rows")
     p.add_argument("--rare_class_max_factor", type=int, default=20)
     p.add_argument("--no_unified", action="store_true")
-    p.add_argument("--dictionary_radicals", default="2,3,4,5", help="Root lengths of the dictionary pairs")
+    p.add_argument("--dictionary_radicals", default="3,4", help="Root lengths of the dictionary pairs")
     p.add_argument("--biradical_dictionary", action="store_true",
                    help="Also train the 2-radical dictionary roots (off until the 2-radical table (scripts/export_biradical_roots.py) is checked)")
-    p.add_argument("--extra_synthetic", default="", help="Comma list of extra_synthetic.FAMILIES (default none)")
+    p.add_argument("--extra_synthetic", default="", help="Comma list of extra_synthetic.FAMILIES, or checked for only the checked cells (default none)")
     p.add_argument("--no_generate_task", dest="generate_task", action="store_false")
     p.add_argument("--no_pos_task", dest="pos_task", action="store_false")
     p.add_argument("--seed", type=int, default=42)
