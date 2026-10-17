@@ -149,3 +149,29 @@ def test_xla_launch_flag():
     import train_tpu
     assert train_tpu.parse_args(["--output_dir", "o", "--xla_launch", "single"]).xla_launch == "single"
     assert train_tpu.parse_args(["--output_dir", "o"]).xla_launch == "multi"
+
+
+def test_empty_worker_loss_is_finite_with_zero_gradient():
+    torch = pytest.importorskip("torch")
+    logits = torch.randn(2, 4, 10, requires_grad=True)
+    labels = torch.full((2, 4), -100)
+    loss = TT.token_loss(logits, labels, torch)
+    assert loss.item() == 0
+    loss.backward()
+    assert torch.equal(logits.grad, torch.zeros_like(logits))
+
+
+def test_sharded_token_loss_matches_unsharded_gradient():
+    torch = pytest.importorskip("torch")
+    torch.manual_seed(1)
+    whole = torch.randn(3, 4, 10, requires_grad=True)
+    labels = torch.tensor([[1, 2, -100, -100], [3, 4, 5, -100], [-100] * 4])
+    reference = TT.token_loss(whole, labels, torch)
+    ref_grad, = torch.autograd.grad(reference, whole)
+    shards = whole.detach().clone().requires_grad_()
+    total_count = (labels != -100).sum().float()
+    sharded = sum(TT.token_loss(shards[i:i+1], labels[i:i+1], torch,
+                               lambda _: total_count, world=3) for i in range(3)) / 3
+    sharded.backward()
+    assert torch.allclose(sharded, reference)
+    assert torch.allclose(shards.grad, ref_grad)

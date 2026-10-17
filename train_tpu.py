@@ -172,6 +172,10 @@ def parse_args(argv=None):
     p.add_argument("--device", choices=["auto", "xla", "cuda", "cpu"], default="auto")
     p.add_argument("--xla_launch", choices=["multi", "single"], default="multi",
                    help="multi: one process per TPU chip; single: one process on one chip (fallback)")
+    p.add_argument("--expected_world_size", type=int, default=0,
+                   help="Fail if the runtime uses a different number of workers (0 disables the check)")
+    p.add_argument("--max_grad_norm", type=float, default=1.0)
+    p.add_argument("--skip_final_report", action="store_true", help="Skip slow autoregressive report in a runtime pilot")
     p.add_argument("--bf16", choices=["auto", "yes", "no"], default="auto")
     p.add_argument("--per_core_batch", type=int, default=64)
     p.add_argument("--lr", type=float, default=1e-3)
@@ -259,6 +263,15 @@ def score_batch(logits, labels, torch):
     return exact, root
 
 
+def token_loss(logits, labels, torch, all_sum=lambda x: x, world=1):
+    """Global token-mean CE, including workers with no non-padding targets."""
+    loss_sum = torch.nn.functional.cross_entropy(
+        logits.float().reshape(-1, logits.size(-1)), labels.reshape(-1),
+        ignore_index=-100, reduction="sum")
+    count = all_sum((labels != -100).sum().float()).clamp_min(1)
+    return loss_sum * world / count
+
+
 def greedy(model, inp, att, max_len, torch, sync=None):
     """Greedy decoding at a fixed decoder length. The step index is a device tensor, so on XLA every step runs the
     same compiled graph."""
@@ -298,6 +311,10 @@ def run(rank, args):
         device = torch.device("cuda" if args.device == "cuda" else "cpu")
         sync = None
     master = rank == 0
+    if args.expected_world_size and world != args.expected_world_size:
+        raise RuntimeError(f"expected {args.expected_world_size} workers, got {world}; refusing a changed protocol")
+    random.seed(args.seed)
+    torch.manual_seed(args.seed)
     use_bf16 = args.bf16 == "yes" or (args.bf16 == "auto" and args.device in ("xla", "cuda"))
 
     def log(*a):
@@ -447,12 +464,24 @@ def run(rank, args):
             for g in opt.param_groups:
                 g["lr"] = lr_at(state["step"])
             with autocast():
-                loss = model(input_ids=inp, attention_mask=att, labels=lab).loss
+                logits = model(input_ids=inp, attention_mask=att, labels=lab).logits
+                # A short bucket can give a worker only padding. Mean CE on that
+                # worker is NaN. Normalize by the global count, accounting for
+                # XLA's subsequent mean gradient reduction across workers.
+                loss = token_loss(logits, lab, torch, all_sum, world)
+            finite = all_sum(torch.isfinite(loss.detach()).to(torch.int32)).item()
+            if finite != world:
+                raise FloatingPointError(f"non-finite loss at step {state['step'] + 1}; stopped before optimizer update")
             loss.backward()
             if xla:
-                xm.optimizer_step(opt)
+                xm.reduce_gradients(opt)
+                if args.max_grad_norm > 0:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm, error_if_nonfinite=True)
+                opt.step()
                 sync()
             else:
+                if args.max_grad_norm > 0:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm, error_if_nonfinite=True)
                 opt.step()
             opt.zero_grad(set_to_none=True)
             state["step"] += 1
@@ -501,7 +530,10 @@ def run(rank, args):
                        "dataset_commit": git_head(args.dataset_dir), "model_commit": git_head(HERE)}, f, indent=1)
     has_best = bool(all_sum(torch.tensor(int(os.path.exists(os.path.join(args.output_dir, "best"))), device=device)).item() > 0)
     has_stop = bool(all_sum(torch.tensor(int(bool(STOP["signal"])), device=device)).item() > 0)
-    if args.stage == "finetune" and dev and not has_stop and has_best:
+    if args.stage == "finetune" and dev and not has_stop and has_best and not args.skip_final_report:
+        del opt, model
+        import gc
+        gc.collect()
         final_report(args, dev, torch, device, sync, rank=rank, world=world, master=master, xm=xm if xla else None)
     barrier("end")
 
@@ -594,21 +626,14 @@ def _launch_xla(args, argv):
         print("removed preset env " + ",".join(removed), flush=True)
     import torch_xla
     single = args.xla_launch == "single"
-    try:
-        if hasattr(torch_xla, "launch"):
-            torch_xla.launch(_mp_fn, args=(args,), debug_single_process=single)
-        else:
-            import torch_xla.distributed.xla_multiprocessing as xmp
-            xmp.spawn(_mp_fn, args=(args,), nprocs=1 if single else None)
-        return 0
-    except Exception as e:  # noqa: BLE001
-        if single:
-            raise
-        print(f"multiprocess TPU launch failed ({type(e).__name__}: {e}); retrying with one process", flush=True)
-    # A failed runtime init cannot be reset in this process, so retry in a fresh one.
-    cmd = [sys.executable, os.path.abspath(__file__)] + list(sys.argv[1:] if argv is None else argv)
-    cmd += ["--xla_launch", "single"]
-    return subprocess.call(cmd)
+    # A worker can die after training starts. Retrying silently on one chip
+    # changes batch size and schedule and can overwrite a valid checkpoint.
+    if hasattr(torch_xla, "launch"):
+        torch_xla.launch(_mp_fn, args=(args,), debug_single_process=single)
+    else:
+        import torch_xla.distributed.xla_multiprocessing as xmp
+        xmp.spawn(_mp_fn, args=(args,), nprocs=1 if single else None)
+    return 0
 
 
 def main(argv=None):
