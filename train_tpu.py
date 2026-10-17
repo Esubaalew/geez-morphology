@@ -178,6 +178,7 @@ def parse_args(argv=None):
     p.add_argument("--skip_final_report", action="store_true", help="Skip slow autoregressive report in a runtime pilot")
     p.add_argument("--bf16", choices=["auto", "yes", "no"], default="auto")
     p.add_argument("--per_core_batch", type=int, default=64)
+    p.add_argument("--gradient_accumulation", type=int, default=1)
     p.add_argument("--lr", type=float, default=1e-3)
     p.add_argument("--warmup_steps", type=int, default=500)
     p.add_argument("--epochs", type=float, default=6)
@@ -352,7 +353,8 @@ def run(rank, args):
         opt.load_state_dict(ck["opt"])
         del ck
 
-    rows = args.per_core_batch * world
+    physical_rows = args.per_core_batch * world
+    rows = physical_rows * args.gradient_accumulation
     if args.stage == "dapt":
         n_items = len(dapt_samples(args.dapt_corpus, 0, args.seed))
     else:
@@ -375,7 +377,7 @@ def run(rank, args):
         return contextlib.nullcontext()
 
     # ---- dev scoring (teacher forced), sharded over the cores
-    dev_batches = make_batches(dev, rows, 0, 0, drop_last=False) if dev else []
+    dev_batches = make_batches(dev, physical_rows, 0, 0, drop_last=False) if dev else []
 
     def evaluate():
         model.eval()
@@ -449,30 +451,42 @@ def run(rank, args):
             batches = make_batches(train, rows, args.seed, state["epoch"])
         for bi in range(state["batch"], len(batches)):
             chunk, a, b = batches[bi]
-            mine = chunk[rank * args.per_core_batch:(rank + 1) * args.per_core_batch]
-            if args.stage == "dapt":
-                inp = torch.full((len(mine), a), PAD, dtype=torch.long)
-                lab = torch.full((len(mine), b), -100, dtype=torch.long)
-                for r, i in enumerate(mine):
-                    x, y = items[i]
-                    inp[r, :len(x)] = torch.tensor(x)
-                    lab[r, :len(y)] = torch.tensor(y)
-                att = (inp != PAD).long()
-            else:
-                inp, att, lab = tensors(train, mine, a, b, torch)
-            inp, att, lab = inp.to(device), att.to(device), lab.to(device)
+            micro_batches = []
+            for accum in range(args.gradient_accumulation):
+                start = accum * physical_rows + rank * args.per_core_batch
+                mine = chunk[start:start + args.per_core_batch]
+                if args.stage == "dapt":
+                    inp = torch.full((len(mine), a), PAD, dtype=torch.long)
+                    lab = torch.full((len(mine), b), -100, dtype=torch.long)
+                    for r, i in enumerate(mine):
+                        x, y = items[i]
+                        inp[r, :len(x)] = torch.tensor(x)
+                        lab[r, :len(y)] = torch.tensor(y)
+                    att = (inp != PAD).long()
+                else:
+                    inp, att, lab = tensors(train, mine, a, b, torch)
+                micro_batches.append((inp, att, lab))
+            # Normalize all microbatches by one global target-token count.
+            local_count = sum((lab != -100).sum() for _, _, lab in micro_batches)
+            global_count = all_sum(local_count.to(device).float()).clamp_min(1)
             for g in opt.param_groups:
                 g["lr"] = lr_at(state["step"])
-            with autocast():
-                logits = model(input_ids=inp, attention_mask=att, labels=lab).logits
-                # A short bucket can give a worker only padding. Mean CE on that
-                # worker is NaN. Normalize by the global count, accounting for
-                # XLA's subsequent mean gradient reduction across workers.
-                loss = token_loss(logits, lab, torch, all_sum, world)
-            finite = all_sum(torch.isfinite(loss.detach()).to(torch.int32)).item()
-            if finite != world:
-                raise FloatingPointError(f"non-finite loss at step {state['step'] + 1}; stopped before optimizer update")
-            loss.backward()
+            loss = torch.zeros((), device=device)
+            for inp, att, lab in micro_batches:
+                inp, att, lab = inp.to(device), att.to(device), lab.to(device)
+                with autocast():
+                    logits = model(input_ids=inp, attention_mask=att, labels=lab).logits
+                    numerator = torch.nn.functional.cross_entropy(
+                        logits.float().reshape(-1, logits.size(-1)), lab.reshape(-1),
+                        ignore_index=-100, reduction="sum")
+                    micro_loss = numerator * world / global_count
+                finite = all_sum(torch.isfinite(micro_loss.detach()).to(torch.int32)).item()
+                if finite != world:
+                    raise FloatingPointError(f"non-finite loss at step {state['step'] + 1}; stopped before optimizer update")
+                micro_loss.backward()
+                loss = loss + micro_loss.detach()
+                if sync:
+                    sync()
             if xla:
                 xm.reduce_gradients(opt)
                 if args.max_grad_norm > 0:
