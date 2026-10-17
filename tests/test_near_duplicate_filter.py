@@ -27,7 +27,7 @@ GOLD_FOLD_PAIRS = [
     (("624fff1d0291", 1, 0), ("7a01b50bb505", 1, 0)),   # q-S-l train / qh-S-l test: labiovelar 6th order
     (("4ae71fecf407", 0, 0), ("a588575abb7f", 0, 0)),   # g-r-h1 train / gw-r-h2 test: labiovelar 1st order and h1/h2
     (("662ebd7932ec", 0, 0), ("7908db250bfb", 1, 0)),   # h2 against the labiovelar of kh
-    (("d1693b26c18e", 0, 1), ("d1693b26c18e", 0, 2)),   # s2 / s, two spellings of one cell
+    (("d1693b26c18e", 28, 0), ("d1693b26c18e", 29, 0)),  # s2 / s, two spellings of one entry
     (("a2d0b6feed4e", 2, 0), ("9761133fe07c", 5, 0)),   # h2 / kh
     (("f69e0ca24611", 1, 0), ("084c4e9397e6", 0, 0)),   # a / a2
     (("3e3c776de4ca", 1, 0), ("e35dfd544f74", 5, 0)),   # S / S2
