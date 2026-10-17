@@ -31,6 +31,7 @@ import json
 import math
 import os
 import random
+import re
 import signal
 import subprocess
 import sys
@@ -172,15 +173,21 @@ def parse_args(argv=None):
     p.add_argument("--device", choices=["auto", "xla", "cuda", "cpu"], default="auto")
     p.add_argument("--xla_launch", choices=["multi", "single"], default="multi",
                    help="multi: one process per TPU chip; single: one process on one chip (fallback)")
-    p.add_argument("--expected_world_size", type=int, default=0,
-                   help="Fail if the runtime uses a different number of workers (0 disables the check)")
-    p.add_argument("--max_grad_norm", type=float, default=1.0)
+    p.add_argument("--expected_world_size", type=int, default=-1,
+                   help="Fail unless the runtime uses exactly this many workers. Default -1: the detected TPU chip "
+                        "count (8 on a TPU v3-8), or 1 off TPU; 0 disables the check")
+    p.add_argument("--max_grad_norm", type=float, default=1.0,
+                   help="Clip the gradient norm to this (0 = no clipping; the norm is still checked for NaN/inf)")
+    p.add_argument("--skip_nonfinite_batches", type=int, default=0,
+                   help="Skip up to N optimizer steps whose loss or gradient is NaN/inf (no update), then stop; "
+                        "0 = stop at the first one")
     p.add_argument("--skip_final_report", action="store_true", help="Skip slow autoregressive report in a runtime pilot")
     p.add_argument("--bf16", choices=["auto", "yes", "no"], default="auto")
     p.add_argument("--per_core_batch", type=int, default=64)
     p.add_argument("--gradient_accumulation", type=int, default=1)
     p.add_argument("--lr", type=float, default=1e-3)
-    p.add_argument("--warmup_steps", type=int, default=500)
+    p.add_argument("--warmup_steps", type=int, default=500,
+                   help="Linear warmup length in optimizer steps (one step = --gradient_accumulation microbatches)")
     p.add_argument("--epochs", type=float, default=6)
     p.add_argument("--max_steps", type=int, default=0)
     p.add_argument("--eval_every", type=int, default=1000)
@@ -264,13 +271,146 @@ def score_batch(logits, labels, torch):
     return exact, root
 
 
-def token_loss(logits, labels, torch, all_sum=lambda x: x, world=1):
-    """Global token-mean CE, including workers with no non-padding targets."""
+def token_loss(logits, labels, torch, all_sum=lambda x: x, world=1, count=None):
+    """Global token-mean CE, including workers with no non-padding targets. `count` is the global target-token
+    count when it is already known (e.g. summed over all microbatches of an optimizer step)."""
     loss_sum = torch.nn.functional.cross_entropy(
         logits.float().reshape(-1, logits.size(-1)), labels.reshape(-1),
         ignore_index=-100, reduction="sum")
-    count = all_sum((labels != -100).sum().float()).clamp_min(1)
-    return loss_sum * world / count
+    if count is None:
+        count = all_sum((labels != -100).sum().float())
+    return loss_sum * world / count.clamp_min(1)
+
+
+def dapt_tensors(items, chunk, a, b, torch):
+    """Span-corruption rows of `items` (id lists); index -1 is a padding row (all PAD input, all -100 labels)."""
+    inp = torch.full((len(chunk), a), PAD, dtype=torch.long)
+    lab = torch.full((len(chunk), b), -100, dtype=torch.long)
+    for r, i in enumerate(chunk):
+        if i < 0:
+            continue
+        x, y = items[i]
+        inp[r, :len(x)] = torch.tensor(x)
+        lab[r, :len(y)] = torch.tensor(y)
+    return inp, (inp != PAD).long(), lab
+
+
+def detect_chip_count(env=None):
+    """Number of local TPU chips, or None if unknown. A Kaggle TPU v3-8 has 8."""
+    env = os.environ if env is None else env
+    try:
+        import torch_xla.runtime as xr
+        for name in ("global_runtime_device_count", "global_device_count"):
+            if hasattr(xr, name):
+                n = int(getattr(xr, name)())
+                if n > 0:
+                    return n
+    except Exception:
+        pass
+    acc = env.get("TPU_ACCELERATOR_TYPE", "")
+    if acc.startswith("v3-8") or acc.startswith("v2-8") or (env.get("KAGGLE_KERNEL_RUN_TYPE") and env.get("TPU_NAME")):
+        return 8
+    m = re.match(r"v\d+\w*-(\d+)$", acc)
+    if m:
+        return int(m.group(1))
+    return None
+
+
+def check_world_size(expected, world, detected):
+    """Return the required world size (None = not checked); raise if the runtime differs."""
+    if expected == 0:
+        return None
+    if expected < 0:
+        if detected is None:
+            raise RuntimeError(f"cannot detect the TPU chip count (runtime has {world} workers); "
+                               "pass --expected_world_size N, or 0 to skip the check")
+        expected = detected
+    if world != expected:
+        raise RuntimeError(f"expected {expected} workers, got {world}; refusing a changed protocol "
+                           "(set --expected_world_size to override)")
+    return expected
+
+
+RESUME_KEYS = ("gradient_accumulation", "world", "rows")
+
+
+def check_resume(ck, protocol):
+    """Refuse to resume when the saved batch protocol differs from this run's."""
+    saved = ck.get("protocol")
+    if saved is None:
+        raise RuntimeError("resume/state.pt has no saved batch protocol (gradient_accumulation, world, rows); "
+                           "it cannot be checked, so it is not resumed. Start a new --output_dir")
+    diff = [f"{k}: saved {saved.get(k)}, now {protocol[k]}" for k in RESUME_KEYS if saved.get(k) != protocol[k]]
+    if diff:
+        raise RuntimeError("refusing to resume with a different batch protocol (" + "; ".join(diff) + "). "
+                           "Rerun with the saved settings or start a new --output_dir")
+
+
+def nonfinite_flags(micro_losses, grad_norm, torch):
+    """One device vector per optimizer step: 1 per non-finite microbatch loss, then 1 if the grad norm is."""
+    return torch.stack([(~torch.isfinite(l.detach())).to(torch.int32) for l in micro_losses] +
+                       [(~torch.isfinite(grad_norm.detach())).to(torch.int32)])
+
+
+def grad_norm(model, max_norm, torch):
+    """Total grad norm (clipping to max_norm when > 0). Never raises on NaN/inf; the caller checks the result."""
+    params = [p for p in model.parameters() if p.grad is not None]
+    if not params:
+        return torch.zeros(())
+    return torch.nn.utils.clip_grad_norm_(params, max_norm if max_norm > 0 else float("inf"),
+                                          error_if_nonfinite=False)
+
+
+def train_step(model, opt, micro_batches, *, torch, device, world, all_sum, autocast, max_norm,
+               sync=None, reduce_gradients=None):
+    """Forward/backward all microbatches, then step once unless any worker saw a NaN/inf loss or grad norm.
+    The finiteness check is one host read per optimizer step. Returns (summed loss, flags list or None);
+    flags is None when the step was taken, else the all-reduced per-microbatch flags (last = grad norm)
+    and the gradients are dropped without stepping."""
+    local_count = sum((lab != -100).sum() for _, _, lab in micro_batches)
+    global_count = all_sum(local_count.to(device).float())
+    loss = torch.zeros((), device=device)
+    micro_losses = []
+    for inp, att, lab in micro_batches:
+        inp, att, lab = inp.to(device), att.to(device), lab.to(device)
+        with autocast():
+            logits = model(input_ids=inp, attention_mask=att, labels=lab).logits
+            micro_loss = token_loss(logits, lab, torch, world=world, count=global_count)
+        micro_loss.backward()
+        micro_losses.append(micro_loss.detach())
+        loss = loss + micro_loss.detach()
+        if sync:
+            sync()
+    if reduce_gradients:
+        reduce_gradients(opt)
+    norm = grad_norm(model, max_norm, torch).to(device)
+    flags = all_sum(nonfinite_flags(micro_losses, norm, torch)).cpu().tolist()
+    if any(flags):
+        opt.zero_grad(set_to_none=True)
+        return loss, flags
+    opt.step()
+    if sync:
+        sync()
+    opt.zero_grad(set_to_none=True)
+    return loss, None
+
+
+def skip_or_raise(msg, skipped, limit):
+    """Count one more skipped batch, or raise once `limit` skips are used up (limit 0: never skip)."""
+    if skipped >= limit:
+        raise FloatingPointError(msg + "; stopped before optimizer update")
+    return skipped + 1
+
+
+def describe_nonfinite(flags, step, epoch, batch):
+    bad_micro = [i for i, f in enumerate(flags[:-1]) if f]
+    what = []
+    if bad_micro:
+        what.append(f"loss at micro-step(s) {bad_micro} on {max(flags[:-1])} worker(s)")
+    if flags[-1]:
+        what.append(f"grad norm on {flags[-1]} worker(s)")
+    return (f"non-finite {' and '.join(what)} at optimizer step {step} (epoch {epoch}, batch index {batch}, "
+            f"micro-steps {len(flags) - 1})")
 
 
 def greedy(model, inp, att, max_len, torch, sync=None):
@@ -312,8 +452,7 @@ def run(rank, args):
         device = torch.device("cuda" if args.device == "cuda" else "cpu")
         sync = None
     master = rank == 0
-    if args.expected_world_size and world != args.expected_world_size:
-        raise RuntimeError(f"expected {args.expected_world_size} workers, got {world}; refusing a changed protocol")
+    check_world_size(args.expected_world_size, world, detect_chip_count() if xla else 1)
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     use_bf16 = args.bf16 == "yes" or (args.bf16 == "auto" and args.device in ("xla", "cuda"))
@@ -342,8 +481,12 @@ def run(rank, args):
             resume_dir = d
             break
     state = {"step": 0, "epoch": 0, "batch": 0, "best": -1.0, "history": []}
+    physical_rows = args.per_core_batch * world
+    rows = physical_rows * args.gradient_accumulation
+    protocol = {"gradient_accumulation": args.gradient_accumulation, "world": world, "rows": rows}
     if resume_dir:
         ck = torch.load(os.path.join(resume_dir, "state.pt"), map_location="cpu", weights_only=False)
+        check_resume(ck, protocol)
         model.load_state_dict(ck["model"])
         state = ck["state"]
         log(f"resumed from {resume_dir} at step {state['step']}")
@@ -353,8 +496,6 @@ def run(rank, args):
         opt.load_state_dict(ck["opt"])
         del ck
 
-    physical_rows = args.per_core_batch * world
-    rows = physical_rows * args.gradient_accumulation
     if args.stage == "dapt":
         n_items = len(dapt_samples(args.dapt_corpus, 0, args.seed))
     else:
@@ -415,7 +556,7 @@ def run(rank, args):
         if master:
             d = os.path.join(args.output_dir, "resume")
             os.makedirs(d, exist_ok=True)
-            torch.save({"model": cpu, "opt": optsd, "state": state}, os.path.join(d, "state.pt.tmp"))
+            torch.save({"model": cpu, "opt": optsd, "state": state, "protocol": protocol}, os.path.join(d, "state.pt.tmp"))
             os.replace(os.path.join(d, "state.pt.tmp"), os.path.join(d, "state.pt"))
         barrier("resume")
 
@@ -440,6 +581,7 @@ def run(rank, args):
     model.train()
     budget = args.time_budget_hours * 3600
     loss_acc, n_acc, t_log = 0.0, 0, time.time()
+    skipped = len(state.get("skipped", []))
     done = state["step"] >= total
     while not done:
         if args.stage == "dapt":
@@ -456,48 +598,23 @@ def run(rank, args):
                 start = accum * physical_rows + rank * args.per_core_batch
                 mine = chunk[start:start + args.per_core_batch]
                 if args.stage == "dapt":
-                    inp = torch.full((len(mine), a), PAD, dtype=torch.long)
-                    lab = torch.full((len(mine), b), -100, dtype=torch.long)
-                    for r, i in enumerate(mine):
-                        x, y = items[i]
-                        inp[r, :len(x)] = torch.tensor(x)
-                        lab[r, :len(y)] = torch.tensor(y)
-                    att = (inp != PAD).long()
+                    inp, att, lab = dapt_tensors(items, mine, a, b, torch)
                 else:
                     inp, att, lab = tensors(train, mine, a, b, torch)
                 micro_batches.append((inp, att, lab))
-            # Normalize all microbatches by one global target-token count.
-            local_count = sum((lab != -100).sum() for _, _, lab in micro_batches)
-            global_count = all_sum(local_count.to(device).float()).clamp_min(1)
             for g in opt.param_groups:
                 g["lr"] = lr_at(state["step"])
-            loss = torch.zeros((), device=device)
-            for inp, att, lab in micro_batches:
-                inp, att, lab = inp.to(device), att.to(device), lab.to(device)
-                with autocast():
-                    logits = model(input_ids=inp, attention_mask=att, labels=lab).logits
-                    numerator = torch.nn.functional.cross_entropy(
-                        logits.float().reshape(-1, logits.size(-1)), lab.reshape(-1),
-                        ignore_index=-100, reduction="sum")
-                    micro_loss = numerator * world / global_count
-                finite = all_sum(torch.isfinite(micro_loss.detach()).to(torch.int32)).item()
-                if finite != world:
-                    raise FloatingPointError(f"non-finite loss at step {state['step'] + 1}; stopped before optimizer update")
-                micro_loss.backward()
-                loss = loss + micro_loss.detach()
-                if sync:
-                    sync()
-            if xla:
-                xm.reduce_gradients(opt)
-                if args.max_grad_norm > 0:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm, error_if_nonfinite=True)
-                opt.step()
-                sync()
-            else:
-                if args.max_grad_norm > 0:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm, error_if_nonfinite=True)
-                opt.step()
-            opt.zero_grad(set_to_none=True)
+            # All microbatches are normalized by one global target-token count (token_loss).
+            loss, flags = train_step(model, opt, micro_batches, torch=torch, device=device, world=world,
+                                     all_sum=all_sum, autocast=autocast, max_norm=args.max_grad_norm, sync=sync,
+                                     reduce_gradients=xm.reduce_gradients if xla else None)
+            if flags is not None:
+                msg = describe_nonfinite(flags, state["step"] + 1, state["epoch"], bi)
+                skipped = skip_or_raise(msg, skipped, args.skip_nonfinite_batches)
+                state["skipped"] = state.get("skipped", []) + [[state["step"] + 1, state["epoch"], bi]]
+                log(f"[!] {msg}; batch skipped without an update ({skipped}/{args.skip_nonfinite_batches})")
+                state["batch"] = bi + 1
+                continue
             state["step"] += 1
             state["batch"] = bi + 1
             if state["step"] % args.log_every == 0 or state["step"] == 1:
