@@ -18,7 +18,7 @@ The class comes only from the written imperfect/subjunctive of the entry:
               subjunctive varies, so the generator copies each triple's vowels)
 OCR gate: a triple is used only if all three forms show the same radicals in
 the same order (w/y may be missing) and the perfect ends in a 1st-order letter.
-Failing triples are logged in kidane_wold_verb_triples_rejected.jsonl.
+Failing triples are written to kidane_wold_build/.
 Anything else is "unclear" and gets no class. Nothing is guessed from the
 perfect's spelling; the perfect is only used to confirm the radicals.
 

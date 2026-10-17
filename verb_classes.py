@@ -59,7 +59,7 @@ TRIPLE_PARADIGM_CLASSES = ("type_b", "type_c", "final_w", "final_y", "initial_w_
 TRIPLE_OTHER_CLASSES = ("type_a", "hollow", "type_b_final_w", "final_y_other",
                         "initial_w_drop_other", "quadriliteral")
 TRIPLES_FILE = os.path.join("data", "lexicon", "kidane_wold_verb_triples.jsonl")
-ROOT_FIXES_FILE = os.path.join("data", "lexicon", "kidane_wold_root_fixes.jsonl")
+ROOT_FIXES_FILE = os.path.join("data", "lexicon", "kidane_wold_root_fixes.jsonl")  # optional; corrections now live in inferred_root
 GOLD_TRAIN_FILE = os.path.join("data", "paradigms", "merho_ges_gold_train.jsonl")
 MAIN_CLASS_NAMES = ("ቀተለ", "ቀደሰ", "ባረከ")
 WEAK = ("w", "y")
