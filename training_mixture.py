@@ -199,6 +199,32 @@ def rare_class_upsample(samples, classes, minimum, max_factor, stats):
 
 # ----------------------------------------------------------------------------- the mixture
 
+CLITIC_FILE = os.path.join("data", "clitics", "clitic_forms.jsonl")
+
+
+def extra_rootless_pairs(path, stats):
+    """Names and primary nouns without a root from a review table (word, word_class, review_note): a proper name
+    gets type "name"; a primary noun keeps type "noun" with the number the note gives (singular / plural), and is
+    left out when the note gives none."""
+    import re
+    out = []
+    with open(path, encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f, delimiter="\t"):
+            note = (r.get("review_note") or "").lower()
+            if "proper noun" in note or "(name)" in note or "name)" in note:
+                out.append({"form": r["word"], "root": None, "type": "name"})
+                stats["extra_rootless: name"] += 1
+                continue
+            num = "p" if re.search(r"\bplural\b|broken pl", note) else "s" if re.search(r"\bsingular\b|\bcollective\b", note) else ""
+            if not num:
+                stats["extra_rootless: noun without number, left out"] += 1
+                continue
+            out.append({"form": r["word"], "root": None, "type": "noun", "number": num, "gender": "", "tense": None,
+                        "person": None, "stem": None, "object": ""})
+            stats["extra_rootless: primary noun"] += 1
+    return out
+
+
 def build(dataset_dir, opts):
     """opts: a namespace with the trainer's data flags (see train_tpu.add_data_args). Returns
     (train samples, synthetic loss slice, report dict)."""
@@ -215,6 +241,10 @@ def build(dataset_dir, opts):
     rng.shuffle(syn)
     cut = int(len(syn) * SYNTHETIC_LOSS_SLICE)
     syn_slice, syn = syn[:cut], syn[cut:]
+    frac = getattr(opts, "synthetic_fraction", 1.0)
+    if frac < 1.0:                       # fine-tune: a seeded share of the synthetic pairs
+        syn = syn[:int(len(syn) * frac)]
+        stats["synthetic: kept share"] = round(frac, 3)
     sources["synthetic"] = (leak_gate(syn, held, stats, "synthetic"), 1)
 
     gold = dataset_loader.load_gold_split(dataset_dir, "train", stats)
@@ -238,8 +268,16 @@ def build(dataset_dir, opts):
     sources["dictionary_verb"] = ([p for p in dverbs if p["form"] not in taken], 1)
     taken |= {p["form"] for p in dic} | {p["form"] for p in dverbs}
 
-    wwr = leak_gate(words_without_root_pairs(stats), held, stats, "word_without_root")
-    sources["word_without_root"] = ([p for p in wwr if p["form"] not in taken], 1)
+    wwr = words_without_root_pairs(stats)
+    if getattr(opts, "extra_rootless", None):
+        known = {p["form"] for p in wwr}
+        wwr += [p for p in extra_rootless_pairs(opts.extra_rootless, stats) if p["form"] not in known]
+    wwr = leak_gate(wwr, held, stats, "word_without_root")
+    sources["word_without_root"] = ([p for p in wwr if p["form"] not in taken], getattr(opts, "rootless_upsample", 1))
+
+    if getattr(opts, "clitic_forms", False):
+        cl = dataset_loader.load_unified(dataset_dir, "train", ("clitic_rule",), stats, path=CLITIC_FILE)
+        sources["clitic"] = (leak_gate(cl, held, stats, "clitic"), getattr(opts, "clitic_upsample", 1))
 
     families = [f for f in (opts.extra_synthetic or "").split(",") if f]
     extra = extra_synthetic.checked_pairs() if "checked" in families else []
@@ -253,8 +291,9 @@ def build(dataset_dir, opts):
         report["pairs_by_source"][name] = len(pairs)
         for p in pairs:
             for task in tasks:
-                if task == GENERATE_TASK and (not p.get("root") or p.get("from_forms")):
-                    continue          # an analysis without a root or from unlabelled sub-forms names no single form
+                if task == GENERATE_TASK and (not p.get("root") or p.get("from_forms") or name == "clitic"):
+                    continue          # an analysis without a root, from unlabelled sub-forms, or of a clitic form
+                                      # (the analysis does not name the clitic) names no single form
                 s = sample(p, name, task)
                 train += [s] * times
     train = rare_class_upsample(train, RARE_CLASSES, opts.rare_class_min, opts.rare_class_max_factor, stats)

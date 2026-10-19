@@ -159,6 +159,15 @@ def add_data_args(p):
     p.add_argument("--no_generate_task", dest="generate_task", action="store_false")
     p.add_argument("--no_pos_task", dest="pos_task", action="store_false")
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--unified_file", default=None,
+                   help="Unified rows file inside the dataset (default data/unified/geez_morphology_rows.jsonl), "
+                        "e.g. data/unified/geez_morphology_rows_reviewed.jsonl")
+    p.add_argument("--clitic_forms", action="store_true", help="Add data/clitics/clitic_forms.jsonl (train split)")
+    p.add_argument("--clitic_upsample", type=int, default=1)
+    p.add_argument("--extra_rootless", default=None,
+                   help="Review table of names and primary nouns without a root (word, word_class, review_note)")
+    p.add_argument("--rootless_upsample", type=int, default=1)
+    p.add_argument("--synthetic_fraction", type=float, default=1.0, help="Share of the synthetic pairs to keep")
 
 
 def parse_args(argv=None):
@@ -216,6 +225,8 @@ def prepare(args, write=True):
                 json.dump(rep, f, ensure_ascii=False, indent=1)
         args.dapt_corpus = corpus
         return [], [], {}
+    if getattr(args, "unified_file", None):      # one unified file for training, the held-out gate and dev
+        tm.dataset_loader.UNIFIED_FILE = args.unified_file
     train, _, report = tm.build(args.dataset_dir, args)
     if args.train_limit and args.train_limit < len(train):      # dry runs: a seeded sample of the mixture
         train = random.Random(args.seed).sample(train, args.train_limit)

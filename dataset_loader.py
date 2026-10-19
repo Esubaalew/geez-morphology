@@ -220,7 +220,7 @@ def load_book_forms(dataset_dir, split, stats=None):
 
 # ------------------------------------------------------------------ the unified rows (all books and the gold, one schema)
 
-def load_unified(dataset_dir, split, sources=("book",), stats=None):
+def load_unified(dataset_dir, split, sources=("book",), stats=None, path=None):
     """Pairs of data/unified/geez_morphology_rows.jsonl for one split ("train", "val" or "test"). Only rows with an
     empty status load (CHECK, CONFLICT, NO_ROOT, FLAGGED and EXCLUDED rows stay in the file). `sources` picks
     "book" rows, "gold" rows or both (the gold rows are also read by load_gold_split; the trainer takes the
@@ -230,7 +230,7 @@ def load_unified(dataset_dir, split, sources=("book",), stats=None):
     if split not in SPLITS:
         raise ValueError(f"split must be one of {SPLITS}, not {split!r}")
     stats = stats if stats is not None else collections.Counter()
-    path = os.path.join(dataset_dir, UNIFIED_FILE)
+    path = os.path.join(dataset_dir, path or UNIFIED_FILE)
     if not os.path.exists(path):
         return []
     pairs = []
