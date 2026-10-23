@@ -49,6 +49,20 @@ def test_scoring_of_nominal_and_object_pairs():
     assert totals["type:noun"]["exact"] == [1, 1]
 
 
+def test_noun_gender_is_scored_only_when_the_reply_gives_one():
+    noun = {"surface": "ድምፅ", "root": "ደ-መ-ፀ", "verb_class": None, **E.normalize_row({"type": "noun", "gender": "m", "number": "s"})}
+    reply = lambda **kw: {"root": "ደ-መ-ፀ", **E.normalize_row({"type": "noun", "number": "s", **kw}), "tier": "byt5", "raw": ""}
+    totals, _ = E.score([noun], _Fixed(reply()))                 # the noun target has no gender
+    assert totals["type:noun"]["gender"] == [0, 0] and totals["type:noun"]["exact"] == [1, 1]
+    totals, _ = E.score([noun], _Fixed(reply(gender="f")))       # a wrong gender given is a miss
+    assert totals["type:noun"]["gender"] == [0, 1] and totals["type:noun"]["exact"] == [0, 1]
+    totals, _ = E.score([noun], _Fixed(reply(gender="m")))
+    assert totals["type:noun"]["gender"] == [1, 1]
+    adj = {**noun, **E.normalize_row({"type": "adjective", "gender": "m", "number": "s"})}
+    totals, _ = E.score([adj], _Fixed({**reply(), "type": "adjective"}))   # adjectives still need it
+    assert totals["type:adjective"]["gender"] == [0, 1]
+
+
 def test_root_accuracy_is_an_exact_match():
     assert E.root_matches("ቀ-ተ-ለ", "ቀ-ተ-ለ")
     assert E.root_matches("q-t-l", "ቀ-ተ-ለ")                 # the analyzer's symbols, written in Ethiopic

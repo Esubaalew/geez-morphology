@@ -64,7 +64,13 @@ def test_oracle_scores_100_percent_on_unified_splits(dataset_dir, split):
     root_c, root_n = totals["ALL"]["root"]
     ex_c, ex_n = totals["ALL"]["exact"]
     assert root_c == root_n == len(pairs)
-    assert ex_n - ex_c == ev.duplicate_surplus(pairs)   # the only misses are spellings with two analyses
+    # the only misses are spellings with two analyses (two noun analyses that differ only in gender both count,
+    # since a noun reply has no gender), so the misses are at most the surplus and every unique spelling is exact
+    assert ex_n - ex_c <= ev.duplicate_surplus(pairs)
+    once = {s for s, n in collections.Counter(p["surface"] for p in pairs).items() if n == 1}
+    scored = []
+    ev.score([p for p in pairs if p["surface"] in once], Oracle(pairs), scored)
+    assert all(x["correct"]["exact"] for x in scored)
     assert any(g.startswith("book:") for g in totals)
 
 

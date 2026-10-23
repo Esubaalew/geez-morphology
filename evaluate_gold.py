@@ -263,6 +263,8 @@ def score(pairs, system, predictions=None):
             # possessor and negated count where the pair has them or the reply gives them (a wrong extra one is a miss)
             if f in ("possessor", "negated"):
                 ok[f] = (pred[f] == item[f]) if (item[f] is not None or pred[f] is not None) else None
+            elif f == "gender" and item["type"] == "noun" and pred[f] is None:
+                ok[f] = None    # the noun target has no gender; a reply without one is not scored on it
             else:
                 ok[f] = (pred[f] == item[f]) if item[f] is not None else None
         # exact: every field this pair should carry is labeled and right (verbs need root, stem,
