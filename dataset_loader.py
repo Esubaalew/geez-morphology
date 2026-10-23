@@ -301,6 +301,15 @@ def read_rootless_derived(unified_dir):
         return {l.split("\t")[0] for l in f.read().splitlines()[1:] if l.strip()}
 
 
+def _unified_forms(dataset_dir):
+    """{id: form} of data/unified/geez_morphology_rows.jsonl ({} when the file is missing)."""
+    path = os.path.join(dataset_dir, UNIFIED_FILE)
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        return {r["id"]: r["form"] for r in map(json.loads, f)}
+
+
 def load_unified(dataset_dir, split, sources=("book",), stats=None, path=None):
     """Pairs of data/unified/geez_morphology_rows.jsonl for one split ("train", "val" or "test"). Only rows with an
     empty status load (CHECK, CONFLICT, NO_ROOT, FLAGGED and EXCLUDED rows stay in the file). `sources` picks
@@ -314,7 +323,8 @@ def load_unified(dataset_dir, split, sources=("book",), stats=None, path=None):
     path = os.path.join(dataset_dir, path or UNIFIED_FILE)
     if not os.path.exists(path):
         return []
-    derived = read_rootless_derived(os.path.dirname(path))
+    derived = read_rootless_derived(os.path.join(dataset_dir, os.path.dirname(UNIFIED_FILE)))
+    base_forms = None        # {unified id: form}, read only when a derived row (a clitic form) names its base row
     pairs = []
     with open(path, encoding="utf-8") as f:
         for line in f:
@@ -330,6 +340,13 @@ def load_unified(dataset_dir, split, sources=("book",), stats=None, path=None):
                 continue
             if t in UNIFIED_ROOTLESS_TYPES + NAME_TYPES:
                 root = None
+            elif not r.get("root") and t == "adjective" and r.get("base_id") and r["form"] not in derived:
+                if base_forms is None:
+                    base_forms = _unified_forms(dataset_dir)
+                if base_forms.get(r["base_id"]) not in derived:
+                    stats["not loaded: row has no root"] += 1
+                    continue
+                root = None          # a clitic form of an adjective of rootless_derived.tsv
             elif not r.get("root") and (t == "noun" or (t == "adjective" and r["form"] in derived)):
                 root = None          # a noun of rootless_nouns.tsv, or an adjective of rootless_derived.tsv
             elif not r.get("root"):
