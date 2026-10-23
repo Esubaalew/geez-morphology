@@ -251,32 +251,67 @@ class HybridSystem:
                 "raw": f"{best.root_string} {best.stem} {best.tense} {best.person}{best.gender or ''}{best.number or ''}"}
 
 
+def readings_key(item):
+    """The labels that make one reading of a spelling: root, class and every scored field."""
+    return (item["root"], item["type"]) + tuple(item.get(f) for f in FIELDS[1:])
+
+
+def homograph_groups(pairs):
+    """[(surface, [pairs])] in first-seen order: the pairs of one split that share a spelling. A group whose pairs
+    differ in root, class or labels is a homograph (two or more readings)."""
+    groups = {}
+    for p in pairs:
+        groups.setdefault((p.get("split"), p["surface"]), []).append(p)
+    return [(k[1], v) for k, v in groups.items()]
+
+
+def is_homograph(group):
+    return len({readings_key(p) for p in group}) > 1
+
+
+def score_reading(item, pred):
+    """{field: True/False/None} of one reply against one reading; "exact" as in score."""
+    ok = {"root": root_matches(pred["root"], item["root"])}
+    for f in FIELDS[1:]:
+        # possessor and negated count where the pair has them or the reply gives them (a wrong extra one is a miss)
+        if f in ("possessor", "negated"):
+            ok[f] = (pred[f] == item[f]) if (item[f] is not None or pred[f] is not None) else None
+        elif f == "gender" and item["type"] == "noun" and pred[f] is None:
+            ok[f] = None    # the noun target has no gender; a reply without one is not scored on it
+        else:
+            ok[f] = (pred[f] == item[f]) if item[f] is not None else None
+    # exact: every field this pair should carry is labeled and right (verbs need root, stem,
+    # tense, person, gender, number; nominals need root and number; type, gender, object as labeled)
+    if item["type"] == "verb":
+        needed = ["root", "number", "stem", "tense", "person", "gender"]
+    elif item["root"] is None:
+        needed = ["root"]                      # a word without root: the reply must say 'root: none'
+    else:
+        needed = ["root"] + (["number"] if item["number"] is not None else [])
+    labeled_all = all(ok[f] is not None for f in needed)
+    ok["exact"] = all(v for v in ok.values() if v is not None) if labeled_all else None
+    return ok
+
+
+def best_reading(group, pred):
+    """(item, ok) of the reading the reply matches best: exact first, then the root, then the most right fields;
+    ties go to the first reading."""
+    scored = [(p, score_reading(p, pred)) for p in group]
+    return max(scored, key=lambda x: (bool(x[1]["exact"]), bool(x[1]["root"]),
+                                      sum(1 for v in x[1].values() if v)))
+
+
 def score(pairs, system, predictions=None):
-    """-> (totals, examples). totals: group -> field -> [correct, scored]. `predictions` (a list)
-    gets one row per pair: the gold labels, the prediction and which fields were right."""
+    """-> (totals, examples). totals: group -> field -> [correct, scored]. The pairs of one split that share a
+    spelling are one item: the system is asked once and the reply counts as right if it matches any reading
+    (the best-matching reading is scored). Spellings with two or more readings also count in the "homograph" group.
+    `predictions` (a list) gets one row per spelling: the matched reading, all readings, the prediction and which
+    fields were right."""
     totals = defaultdict(lambda: defaultdict(lambda: [0, 0]))
     examples = []
-    for item in pairs:
-        pred = system.predict(item["surface"])
-        ok = {"root": root_matches(pred["root"], item["root"])}
-        for f in FIELDS[1:]:
-            # possessor and negated count where the pair has them or the reply gives them (a wrong extra one is a miss)
-            if f in ("possessor", "negated"):
-                ok[f] = (pred[f] == item[f]) if (item[f] is not None or pred[f] is not None) else None
-            elif f == "gender" and item["type"] == "noun" and pred[f] is None:
-                ok[f] = None    # the noun target has no gender; a reply without one is not scored on it
-            else:
-                ok[f] = (pred[f] == item[f]) if item[f] is not None else None
-        # exact: every field this pair should carry is labeled and right (verbs need root, stem,
-        # tense, person, gender, number; nominals need root and number; type, gender, object as labeled)
-        if item["type"] == "verb":
-            needed = ["root", "number", "stem", "tense", "person", "gender"]
-        elif item["root"] is None:
-            needed = ["root"]                      # a word without root: the reply must say 'root: none'
-        else:
-            needed = ["root"] + (["number"] if item["number"] is not None else [])
-        labeled_all = all(ok[f] is not None for f in needed)
-        ok["exact"] = all(v for v in ok.values() if v is not None) if labeled_all else None
+    for surface, group in homograph_groups(pairs):
+        pred = system.predict(surface)
+        item, ok = best_reading(group, pred)
         groups = ["ALL", "type:" + item["type"], "tier:" + pred["tier"]]
         groups.append("source:" + ("book" if item.get("book") else "gold"))
         if item.get("book"):
@@ -285,6 +320,8 @@ def score(pairs, system, predictions=None):
             groups.append("rootvar:" + item["rootvar"])
         if item["type"] == "verb":
             groups += ["class:" + str(item["verb_class"] or "unknown"), "tense:" + str(item["tense"])]
+        if is_homograph(group):
+            groups.append("homograph")
         for g in groups:
             totals[g]["rows"][1] += 1
             for f, v in ok.items():
@@ -294,7 +331,7 @@ def score(pairs, system, predictions=None):
         if len(examples) < 15 and not ok.get("exact"):
             examples.append((item, pred))
         if predictions is not None:
-            predictions.append({"gold": item, "predicted": pred, "correct": ok})
+            predictions.append({"gold": item, "readings": group, "predicted": pred, "correct": ok})
     return totals, examples
 
 
@@ -396,8 +433,9 @@ def main():
             tag_root_variants(pairs, train_folded)
         surplus = duplicate_surplus(pairs)
         if surplus:
-            print(f"{surplus} pair(s) repeat a spelling that has another analysis in this split: exact accuracy of a "
-                  f"single-answer system cannot exceed {100 * (1 - surplus / len(pairs)):.1f}%")
+            homs = sum(is_homograph(g) for _, g in homograph_groups(pairs))
+            print(f"{len(pairs)} pairs, {len(pairs) - surplus} spellings: a spelling is scored once and a reply that "
+                  f"matches any of its readings is right ({homs} spelling(s) with two or more readings)")
         scored = []
         totals, examples = score(pairs, system, scored)
         if predictions is not None:
@@ -423,6 +461,7 @@ def main():
         show(["ALL"])
         show(["type:" + t for t in dataset_loader.TYPES + dataset_loader.UNIFIED_TYPES])
         show(sorted(g for g in totals if g.startswith("source:")))
+        show(["homograph"])
         show(sorted(g for g in totals if g.startswith("book:")))
         show(sorted(g for g in totals if g.startswith("rootvar:")))
         show(["class:" + c for c in CLASS_ORDER])

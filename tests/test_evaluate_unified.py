@@ -63,14 +63,10 @@ def test_oracle_scores_100_percent_on_unified_splits(dataset_dir, split):
     totals, _ = ev.score(pairs, Oracle(pairs))
     root_c, root_n = totals["ALL"]["root"]
     ex_c, ex_n = totals["ALL"]["exact"]
-    assert root_c == root_n == len(pairs)
-    # the only misses are spellings with two analyses (two noun analyses that differ only in gender both count,
-    # since a noun reply has no gender), so the misses are at most the surplus and every unique spelling is exact
-    assert ex_n - ex_c <= ev.duplicate_surplus(pairs)
-    once = {s for s, n in collections.Counter(p["surface"] for p in pairs).items() if n == 1}
-    scored = []
-    ev.score([p for p in pairs if p["surface"] in once], Oracle(pairs), scored)
-    assert all(x["correct"]["exact"] for x in scored)
+    spellings = len({p["surface"] for p in pairs})
+    # a spelling is scored once and a reply matching any of its readings is right, so the oracle is exact everywhere
+    assert root_c == root_n == spellings == len(pairs) - ev.duplicate_surplus(pairs)
+    assert ex_c == ex_n
     assert any(g.startswith("book:") for g in totals)
 
 
@@ -81,7 +77,9 @@ def test_root_variant_groups(dataset_dir):
     kinds = collections.Counter(p["rootvar"] for p in pairs)
     assert kinds["disjoint"] > 0 and set(kinds) <= {"disjoint", "variant_in_train"}
     totals, _ = ev.score(pairs, Oracle(pairs))
-    assert totals["rootvar:disjoint"]["rows"][1] == kinds["disjoint"]
+    # one item per spelling; the oracle answers a spelling's first reading, which is the one scored
+    first = [g[0] for _, g in ev.homograph_groups(pairs)]
+    assert totals["rootvar:disjoint"]["rows"][1] == sum(p["rootvar"] == "disjoint" for p in first)
 
 
 def test_dev_unified_flag_and_source_groups(dataset_dir):
@@ -91,8 +89,10 @@ def test_dev_unified_flag_and_source_groups(dataset_dir):
         p["split"] = "val"
     pairs = gold + book
     totals, _ = ev.score(pairs, Oracle(pairs))
-    assert totals["source:gold"]["rows"][1] == len(gold) and totals["source:book"]["rows"][1] == len(book)
-    assert totals["ALL"]["rows"][1] == len(pairs)
+    # one item per spelling: a spelling in both the gold and the book rows counts once, under its first reading
+    assert totals["ALL"]["rows"][1] == len({p["surface"] for p in pairs})
+    assert totals["source:gold"]["rows"][1] == len({p["surface"] for p in gold})
+    assert totals["source:gold"]["rows"][1] + totals["source:book"]["rows"][1] == totals["ALL"]["rows"][1]
 
 
 def test_hybrid_neural_fallback_preserves_unified_classes_possessor_and_negated():

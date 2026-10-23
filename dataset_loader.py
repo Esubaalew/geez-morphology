@@ -131,9 +131,10 @@ def read_flagged_rows(dataset_dir):
 
 
 def read_rootless_gold(dataset_dir, split):
-    """{form: unified row} of the gold rows of the unified file (data/unified/geez_morphology_rows.jsonl) in `split`
+    """{form: [unified rows]} of the gold rows of the unified file (data/unified/geez_morphology_rows.jsonl) in `split`
     that load (empty status) with no root: names, nouns listed in rootless_nouns.tsv and the rootless classes. The
-    gold paradigm file often leaves their class out; the unified row carries the reviewed class and labels."""
+    gold paradigm file often leaves their class out; the unified row carries the reviewed class and labels. A spelling
+    with two readings (a homograph) keeps both, in file order."""
     path = os.path.join(dataset_dir, UNIFIED_FILE)
     out = {}
     if not os.path.exists(path):
@@ -142,13 +143,25 @@ def read_rootless_gold(dataset_dir, split):
         for line in f:
             r = json.loads(line)
             if r.get("source") == "gold" and r.get("split") == split and not r.get("status") and not r.get("root"):
-                out.setdefault(r["form"], r)
+                out.setdefault(r["form"], []).append(r)
     return out
 
 
 def read_records(path):
     with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
+
+
+def readings(v):
+    """The unified rows of one rootless spelling: a list (read_rootless_gold) or a single row."""
+    return v if isinstance(v, list) else [v]
+
+
+def rootless_labels(u):
+    """The class and labels a rootless pair takes from its unified row."""
+    return {"type": u["word_class"], "gender": u.get("gender") or "", "number": u.get("number") or "",
+            "tense": u.get("tense"), "person": u.get("person"), "stem": u.get("stem"),
+            "object": u.get("object") or "", "possessor": u.get("possessor") or ""}
 
 
 def file_pairs(records, split, flagged=(), stats=None, rootless=None):
@@ -190,11 +203,12 @@ def file_pairs(records, split, flagged=(), stats=None, rootless=None):
                 pair = {"form": v, "root": root, "type": typ, "gender": row.get("gender") or "",
                         "number": row.get("number") or "", "record": rec, "record_id": rid, "row": j}
                 if root is None:
-                    u = rootless[v]
-                    pair.update(type=u["word_class"], gender=u.get("gender") or "", number=u.get("number") or "",
-                                tense=u.get("tense"), person=u.get("person"), stem=u.get("stem"),
-                                object=u.get("object") or "", possessor=u.get("possessor") or "")
-                elif typ in NOMINAL_TYPES:
+                    # every reading of the spelling loads (a homograph has two or more unified rows)
+                    for u in readings(rootless[v]):
+                        out.append({**pair, **rootless_labels(u)})
+                        stats["loaded"] += 1
+                    continue
+                if typ in NOMINAL_TYPES:
                     pair.update(tense=None, person=None, stem=None, object=None)
                 else:
                     pair.update(tense=row.get("tense") or "", person=row.get("person") or "",
@@ -217,26 +231,24 @@ def load_gold_split(dataset_dir, split, stats=None):
         if other == split:
             continue
         rid_rows = {}
-        for form, u in rootless.items():
+        for form, us in rootless.items():
             if form in have:
                 continue
-            rid, _, row = (u.get("source_ref") or "").partition(":")
-            rid_rows[form] = (rid, int(row) if row.isdigit() else None, u)
+            for k, u in enumerate(readings(us)):
+                rid, _, row = (u.get("source_ref") or "").partition(":")
+                rid_rows[(form, k)] = (rid, int(row) if row.isdigit() else None, u)
         if not rid_rows:
             break
         if not os.path.exists(gold_file_path(dataset_dir, other)):
             continue
         for rec in read_records(gold_file_path(dataset_dir, other)):
             rid = record_id(rec)
-            for form, (want, row, u) in list(rid_rows.items()):
+            for (form, k), (want, row, u) in list(rid_rows.items()):
                 if rid == want:
-                    pairs.append({"form": form, "root": None, "type": u["word_class"], "gender": u.get("gender") or "",
-                                  "number": u.get("number") or "", "tense": u.get("tense"), "person": u.get("person"),
-                                  "stem": u.get("stem"), "object": u.get("object") or "",
-                                  "possessor": u.get("possessor") or "", "record": rec, "record_id": rid, "row": row})
+                    pairs.append({"form": form, "root": None, **rootless_labels(u),
+                                  "record": rec, "record_id": rid, "row": row})
                     stats["loaded"] += 1
-                    have.add(form)
-                    del rid_rows[form]
+                    del rid_rows[(form, k)]
     return pairs
 
 
