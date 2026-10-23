@@ -301,15 +301,36 @@ def best_reading(group, pred):
                                       sum(1 for v in x[1].values() if v)))
 
 
-def score(pairs, system, predictions=None):
-    """-> (totals, examples). totals: group -> field -> [correct, scored]. The pairs of one split that share a
+class CachedSystem:
+    """Wraps a system so each spelling is asked only once; the any-reading and the strict
+    scores then share the same replies."""
+    def __init__(self, system):
+        self.system, self.cache = system, {}
+
+    def predict(self, surface):
+        if surface not in self.cache:
+            self.cache[surface] = self.system.predict(surface)
+        return dict(self.cache[surface])
+
+
+def score(pairs, system, predictions=None, strict=False):
+    """-> (totals, examples). With strict=True this is the old per-row score instead: every pair is one item,
+    scored against its own reading only (a reply matching a homograph's other reading is a miss there). totals: group -> field -> [correct, scored]. The pairs of one split that share a
     spelling are one item: the system is asked once and the reply counts as right if it matches any reading
     (the best-matching reading is scored). Spellings with two or more readings also count in the "homograph" group.
     `predictions` (a list) gets one row per spelling: the matched reading, all readings, the prediction and which
     fields were right."""
     totals = defaultdict(lambda: defaultdict(lambda: [0, 0]))
     examples = []
-    for surface, group in homograph_groups(pairs):
+    groups_by_spelling = homograph_groups(pairs)
+    if strict:
+        # one item per pair; still tag it "homograph" when its spelling has two or more readings
+        hom = {s for s, g in groups_by_spelling if is_homograph(g)}
+        units = [(p["surface"], [p], p["surface"] in hom) for p in pairs]
+    else:
+        # one item per spelling, scored against its best-matching reading
+        units = [(s, g, is_homograph(g)) for s, g in groups_by_spelling]
+    for surface, group, homograph in units:
         pred = system.predict(surface)
         item, ok = best_reading(group, pred)
         groups = ["ALL", "type:" + item["type"], "tier:" + pred["tier"]]
@@ -320,7 +341,7 @@ def score(pairs, system, predictions=None):
             groups.append("rootvar:" + item["rootvar"])
         if item["type"] == "verb":
             groups += ["class:" + str(item["verb_class"] or "unknown"), "tense:" + str(item["tense"])]
-        if is_homograph(group):
+        if homograph:
             groups.append("homograph")
         for g in groups:
             totals[g]["rows"][1] += 1
@@ -333,6 +354,11 @@ def score(pairs, system, predictions=None):
         if predictions is not None:
             predictions.append({"gold": item, "readings": group, "predicted": pred, "correct": ok})
     return totals, examples
+
+
+def score_strict(pairs, system):
+    """The old strict per-row score (kept so numbers stay comparable): -> totals as in score, one item per pair."""
+    return score(pairs, system, strict=True)[0]
 
 
 def no_root_report(scored):
@@ -395,11 +421,15 @@ def main():
     ap.add_argument("--predictions_out", default=None,
                     help="Write one line per scored pair (gold, prediction, correct fields) to this JSONL file, "
                          "e.g. gold_eval_byt5_predictions.jsonl")
+    ap.add_argument("--strict", action="store_true",
+                    help="Make the old strict per-row score the main one (each pair against its own reading only). "
+                         "Both scores are always reported; this only picks which one fills the tables")
     args = ap.parse_args()
     args.dataset_dir = os.path.abspath(args.dataset_dir)
 
     # The system first: the hybrid analyzer stops with a clear error when the dataset has no dictionary.
     system = ByT5System(args.model_dir) if args.system == "byt5" else HybridSystem(args.dataset_dir, args.model_dir, args.no_neural)
+    system = CachedSystem(system)   # both scores below reuse one reply per spelling
     for split in args.split:
         path = (os.path.join(args.dataset_dir, dataset_loader.BOOK_FORMS_FILE) if split == "books"
                 else os.path.join(args.dataset_dir, dataset_loader.UNIFIED_FILE) if split in UNIFIED_SPLITS
@@ -409,6 +439,8 @@ def main():
     name = args.system + (" (no neural)" if args.no_neural else "")
     cols = ["root", "type", "stem", "tense", "person", "gender", "number", "object", "possessor", "negated", "exact"]
     results, predictions = {}, ([] if args.predictions_out else None)
+    other_results = {}   # the score not chosen as main, kept so numbers stay comparable
+    main_mode, other_mode = ("strict", "any_reading") if args.strict else ("any_reading", "strict")
     no_root = {}
 
     train_folded = folded_train_roots(args.dataset_dir) if os.path.exists(dataset_loader.gold_file_path(args.dataset_dir, "train")) else None
@@ -437,7 +469,9 @@ def main():
             print(f"{len(pairs)} pairs, {len(pairs) - surplus} spellings: a spelling is scored once and a reply that "
                   f"matches any of its readings is right ({homs} spelling(s) with two or more readings)")
         scored = []
-        totals, examples = score(pairs, system, scored)
+        totals, examples = score(pairs, system, scored, strict=args.strict)
+        other = score(pairs, system, strict=not args.strict)[0]
+        other_results[split] = {g: dict(t) for g, t in other.items()}
         if predictions is not None:
             predictions += scored
         no_root[split] = no_root_report(scored)
@@ -445,7 +479,7 @@ def main():
         results[split] = {g: dict(t) for g, t in totals.items()}
 
         print("=" * 72)
-        print(f"GOLD {split.upper()} RESULTS: {name}   (accuracy over pairs where gold has the field)")
+        print(f"GOLD {split.upper()} RESULTS: {name}   [{main_mode} score]   (accuracy over pairs where gold has the field)")
         print("=" * 72)
 
         def show(group_names):
@@ -468,6 +502,11 @@ def main():
         show(sorted(g for g in totals if g.startswith("tense:")))
         show(sorted(g for g in totals if g.startswith("tier:")))
 
+        print(f"\n[ALL, {other_mode} score]  items={other['ALL']['rows'][1]}")
+        for c in cols:
+            if c in other["ALL"]:
+                print(f"   {c:8s} {pct(*other['ALL'][c])}")
+
         print_no_root_report(no_root[split])
 
         print("\nSample misses:")
@@ -477,12 +516,14 @@ def main():
                   f"[{item['verb_class'] or item['type']}]  -> {pred['raw']}")
 
     print("\nRoot accuracy (exact match):")
-    for split, totals in results.items():
-        lo, hi = wilson(*totals['ALL']['root'])
-        print(f"  {split:12s} {pct(*totals['ALL']['root'])}" + (f"  95% CI {100 * lo:.1f}-{100 * hi:.1f}" if lo is not None else ""))
+    for mode, res in ((main_mode, results), (other_mode, other_results)):
+        for split, totals in res.items():
+            lo, hi = wilson(*totals['ALL']['root'])
+            print(f"  {split:12s} {mode:11s} {pct(*totals['ALL']['root'])}" + (f"  95% CI {100 * lo:.1f}-{100 * hi:.1f}" if lo is not None else ""))
 
     if args.out_json:
-        summary = {split: {"pairs": t["ALL"]["rows"][1], "root_correct": t["ALL"]["root"][0],
+        def summarize(results):
+            return {split: {"pairs": t["ALL"]["rows"][1], "root_correct": t["ALL"]["root"][0],
                            "root_accuracy": t["ALL"]["root"][0] / max(1, t["ALL"]["root"][1]),
                            "root_wilson95": wilson(*t["ALL"]["root"]),
                            "exact_correct": t["ALL"].get("exact", [0, 0])[0],
@@ -490,9 +531,13 @@ def main():
                            "exact_accuracy": t["ALL"].get("exact", [0, 0])[0] / max(1, t["ALL"].get("exact", [0, 0])[1]),
                            "exact_wilson95": wilson(*t["ALL"].get("exact", [0, 0]))}
                    for split, t in results.items()}
+        summary = summarize(results)
         with open(args.out_json, "w", encoding="utf-8") as f:
             json.dump({"system": name, "model_dir": args.model_dir if args.system == "byt5" else None,
                        "dataset_dir": os.path.abspath(args.dataset_dir), "root_exact_match": summary,
+                       "scoring": main_mode,
+                       "root_exact_match_by_scoring": {main_mode: summary, other_mode: summarize(other_results)},
+                       "by_group_" + other_mode: other_results,
                        "no_root": no_root,
                        "by_group": results}, f, ensure_ascii=False, indent=1)
     if args.predictions_out:

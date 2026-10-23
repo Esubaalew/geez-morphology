@@ -96,3 +96,49 @@ def test_loader_keeps_every_rootless_reading():
     # the form shows up again in a later row: its readings are not loaded twice
     rec["table_data"].append({"geez_form": "ትካት", "type": "noun", "number": "s"})
     assert len(G.file_pairs([rec], "test", rootless={"ትካት": [one, two]})) == 2
+
+
+# --- any-reading vs the old strict per-row score (ካዕበት: singular under ከ-ዐ-በ, plural under ከ-ዐ-በ-ተ) ---
+
+def two_reading_pairs():
+    return [noun("ካዕበት", "ከ-ዐ-በ"), noun("ካዕበት", "ከ-ዐ-በ-ተ", number="p")]
+
+
+def test_two_reading_form_is_right_for_either_reading():
+    for pred in (reply("ከ-ዐ-በ"), {**reply("ከ-ዐ-በ-ተ"), "number": "p"}):
+        totals, _ = E.score(two_reading_pairs(), Replies({"ካዕበት": pred}))
+        assert totals["ALL"]["rows"] == [0, 1]
+        assert totals["ALL"]["root"] == [1, 1] and totals["ALL"]["exact"] == [1, 1]
+        # strict: one row per reading, so the same reply is right on one and wrong on the other
+        strict = E.score_strict(two_reading_pairs(), Replies({"ካዕበት": pred}))
+        assert strict["ALL"]["rows"] == [0, 2]
+        assert strict["ALL"]["root"] == [1, 2] and strict["ALL"]["exact"] == [1, 2]
+        assert strict["homograph"]["rows"] == [0, 2]
+
+
+def test_wrong_prediction_is_still_wrong():
+    for strict in (False, True):
+        totals, _ = E.score(two_reading_pairs(), Replies({"ካዕበት": reply("ቀ-ተ-ለ")}), strict=strict)
+        assert totals["ALL"]["root"][0] == 0 and totals["ALL"]["exact"][0] == 0
+    # right root but the singular/plural mix-up of the wrong reading: root right, exact still matches singular
+    totals, _ = E.score(two_reading_pairs(), Replies({"ካዕበት": {**reply("ከ-ዐ-በ"), "number": "p"}}))
+    assert totals["ALL"]["root"] == [1, 1] and totals["ALL"]["exact"] == [0, 1]
+
+
+def test_single_reading_forms_score_the_same_both_ways():
+    pairs = [noun("ንጉሥ", "ነ-ገ-ሠ"), noun("ቤት", "ቤ-ተ")]
+    table = {"ንጉሥ": reply("ነ-ገ-ሠ"), "ቤት": reply("ቀ-ተ-ለ")}
+    any_reading, _ = E.score(pairs, Replies(table))
+    strict = E.score_strict(pairs, Replies(table))
+    for f in ("rows", "root", "exact", "number"):
+        assert any_reading["ALL"][f] == strict["ALL"][f]
+    assert any_reading["ALL"]["root"] == [1, 2]
+    assert "homograph" not in strict
+
+
+def test_cached_system_asks_each_spelling_once():
+    inner = Replies({"ካዕበት": reply("ከ-ዐ-በ")})
+    cached = E.CachedSystem(inner)
+    E.score(two_reading_pairs(), cached)
+    E.score_strict(two_reading_pairs(), cached)
+    assert inner.calls == ["ካዕበት"]
