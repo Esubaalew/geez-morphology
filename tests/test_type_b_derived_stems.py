@@ -30,7 +30,7 @@ from engine import InterdigitationEngine, slots_from_spec  # noqa: E402
 
 GOLD_TRAIN = os.path.join(DATASET_DIR, verb_classes.GOLD_TRAIN_FILE)
 
-# (record_id, root, stem, tense, person, gender, number) of gold train cells of Type B roots
+# (record_id, root, stem, tense, person, gender, number) of gold cells of Type B roots
 GOLD_CELLS = [
     ("624fff1d0291", "q-S-l", "passive", "past", "3", "m", "s"),
     ("a2f0a250c95a", "f-s2-h2", "passive", "past", "3", "m", "s"),
@@ -60,8 +60,11 @@ def _form(root, stem, tense, person, gender, number):
 def gold_records():
     if not os.path.exists(GOLD_TRAIN):
         pytest.skip(f"no dataset checkout at {DATASET_DIR}")
-    with open(GOLD_TRAIN, encoding="utf-8") as f:
-        return {r["record_id"]: r for r in map(json.loads, f)}
+    records = {}
+    for split in ("train", "val", "test"):   # q-S-l now sits in test with its twin qh-S-l
+        with open(GOLD_TRAIN.replace("_train.jsonl", f"_{split}.jsonl"), encoding="utf-8") as f:
+            records.update({r["record_id"]: r for r in map(json.loads, f)})
+    return records
 
 
 @pytest.mark.parametrize("record_id,root,stem,tense,person,gender,number", GOLD_CELLS)
