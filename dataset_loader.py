@@ -320,8 +320,8 @@ def load_unified(dataset_dir, split, sources=("book",), stats=None, path=None):
                 continue
             if t in UNIFIED_ROOTLESS_TYPES + NAME_TYPES:
                 root = None
-            elif not r.get("root") and t == "noun":
-                root = None          # the dataset loads a noun without root only when rootless_nouns.tsv lists it
+            elif not r.get("root") and t in ("noun", "adjective"):
+                root = None          # the dataset loads these without root only when rootless_nouns.tsv or rootless_derived.tsv lists them
             elif not r.get("root"):
                 stats["not loaded: row has no root"] += 1
                 continue
