@@ -292,6 +292,15 @@ def load_book_forms(dataset_dir, split, stats=None):
 
 # ------------------------------------------------------------------ the unified rows (all books and the gold, one schema)
 
+def read_rootless_derived(unified_dir):
+    """Forms of rootless_derived.tsv (form, base, ref) in `unified_dir`: the adjectives that load without a root."""
+    path = os.path.join(unified_dir, "rootless_derived.tsv")
+    if not os.path.exists(path):
+        return set()
+    with open(path, encoding="utf-8") as f:
+        return {l.split("\t")[0] for l in f.read().splitlines()[1:] if l.strip()}
+
+
 def load_unified(dataset_dir, split, sources=("book",), stats=None, path=None):
     """Pairs of data/unified/geez_morphology_rows.jsonl for one split ("train", "val" or "test"). Only rows with an
     empty status load (CHECK, CONFLICT, NO_ROOT, FLAGGED and EXCLUDED rows stay in the file). `sources` picks
@@ -305,6 +314,7 @@ def load_unified(dataset_dir, split, sources=("book",), stats=None, path=None):
     path = os.path.join(dataset_dir, path or UNIFIED_FILE)
     if not os.path.exists(path):
         return []
+    derived = read_rootless_derived(os.path.dirname(path))
     pairs = []
     with open(path, encoding="utf-8") as f:
         for line in f:
@@ -320,8 +330,8 @@ def load_unified(dataset_dir, split, sources=("book",), stats=None, path=None):
                 continue
             if t in UNIFIED_ROOTLESS_TYPES + NAME_TYPES:
                 root = None
-            elif not r.get("root") and t in ("noun", "adjective"):
-                root = None          # the dataset loads these without root only when rootless_nouns.tsv or rootless_derived.tsv lists them
+            elif not r.get("root") and (t == "noun" or (t == "adjective" and r["form"] in derived)):
+                root = None          # a noun of rootless_nouns.tsv, or an adjective of rootless_derived.tsv
             elif not r.get("root"):
                 stats["not loaded: row has no root"] += 1
                 continue

@@ -106,3 +106,22 @@ def test_load_unified(tmp_path):
     assert [p["id"] for p in both] == ["u1", "u2", "u3"]
     assert [p["id"] for p in dataset_loader.load_unified(str(tmp_path), "val")] == ["u5"]
     assert dataset_loader.load_unified(str(tmp_path / "missing"), "train") == []
+
+
+def test_load_unified_rootless_adjective(tmp_path):
+    def adj(i, form):
+        return {"id": i, "form": form, "root": None, "word_class": "adjective", "stem": None, "tense": None, "person": None,
+                "gender": "m", "number": "s", "object": None, "possessor": None, "negated": False, "source": "book",
+                "book": "b", "page": 1, "status": "", "split": "train"}
+    d = tmp_path / "data" / "unified"
+    d.mkdir(parents=True)
+    with open(d / "geez_morphology_rows.jsonl", "w", encoding="utf-8") as f:
+        for r in (adj("u1", "ኀነፋዊ"), adj("u2", "ሰማያዊ")):
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    (d / "rootless_derived.tsv").write_text("form\tbase\tref\nኀነፋዊ\tኀነፊ\tp\n", encoding="utf-8")
+    import collections
+    stats = collections.Counter()
+    tr = dataset_loader.load_unified(str(tmp_path), "train", stats=stats)
+    assert [p["id"] for p in tr] == ["u1"]                       # listed loads, unlisted is rejected
+    assert tr[0]["root"] is None
+    assert stats["not loaded: row has no root"] == 1
