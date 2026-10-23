@@ -15,11 +15,18 @@ import shutil
 import tempfile
 import unicodedata
 
+import pytest
+
 import geez_script
 import split_heldout_synthetic as H
 from conftest import DATASET_DIR
 
 PARADIGMS = os.path.join(DATASET_DIR, "data", "paradigms")
+
+# Tests that read the dataset checkout: --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)
+needs_dataset = pytest.mark.skipif(
+    not os.path.isdir(PARADIGMS),
+    reason=f"no geez-dataset checkout at {DATASET_DIR}; set GEEZ_DATASET_DIR or pass --dataset_dir")
 GOLD_FILES = {"train": "merho_ges_gold_train.jsonl", "val": "merho_ges_gold_val.jsonl", "test": "merho_ges_gold_test.jsonl"}
 
 # ((record_id, row, variant), (record_id, row, variant)): two gold forms that differ only by labiovelar or twin letters
@@ -49,6 +56,7 @@ def _gold_form(recs, record_id, row, variant):
     return H.form_variants(recs[record_id]["table_data"][row]["geez_form"])[variant]
 
 
+@needs_dataset
 def test_gold_pairs_fold_to_one_form():
     recs = _gold_records()
     for n, (a, b) in enumerate(GOLD_FOLD_PAIRS):
@@ -81,6 +89,7 @@ def test_fold_tables_and_vowel_order():
     assert geez_script.fold_spelling("q-t-l 3ms") == "q-t-l 3ms" and geez_script.fold_spelling("") == ""
 
 
+@needs_dataset
 def test_fold_is_idempotent():
     letters = "".join(chr(cp) for cp in range(0x1200, 0x1380))
     once = geez_script.fold_spelling(letters)
@@ -150,6 +159,7 @@ def test_split_drops_near_duplicates_from_training_pair_only():
         assert sum(len(v) for v in H.near_duplicate_lines(ds).values()) == 1
 
 
+@needs_dataset
 def test_dataset_training_pair_has_no_near_duplicate_after_split():
     """The dataset's training pair, split again with its gold val/test files, has no line that folds to a gold form,
     and the lines it keeps are the dataset's lines in order."""

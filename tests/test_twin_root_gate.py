@@ -14,12 +14,19 @@ import subprocess
 import sys
 import tempfile
 
+import pytest
+
 import geez_script
 import split_heldout_synthetic as H
 from conftest import DATASET_DIR
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PARADIGMS = os.path.join(DATASET_DIR, "data", "paradigms")
+
+# Tests that read the dataset checkout: --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset (conftest.py)
+needs_dataset = pytest.mark.skipif(
+    not os.path.isdir(PARADIGMS),
+    reason=f"no geez-dataset checkout at {DATASET_DIR}; set GEEZ_DATASET_DIR or pass --dataset_dir")
 GOLD_FILES = {"train": "merho_ges_gold_train.jsonl", "val": "merho_ges_gold_val.jsonl", "test": "merho_ges_gold_test.jsonl"}
 
 # (gold train record_id, gold val/test record_id): the record roots differ only by labiovelar or twin codes
@@ -43,6 +50,7 @@ def _record_roots():
     return roots
 
 
+@needs_dataset
 def test_gold_root_pairs_fold_to_one_root():
     roots = _record_roots()
     for train_id, eval_id in GOLD_ROOT_PAIRS:
@@ -128,5 +136,6 @@ def test_check_fails_on_a_folded_root_in_the_training_pair():
         assert "folded root is a folded gold val/test root: 2" in bad.stdout
 
 
+@needs_dataset
 def test_dataset_training_pair_has_no_folded_gold_root():
     assert H.folded_root_lines(DATASET_DIR) == {}
