@@ -296,6 +296,38 @@ def score(pairs, system, predictions=None):
     return totals, examples
 
 
+def no_root_report(scored):
+    """Answers of 'root: none', apart from the root accuracy. `scored` is the list `score` fills
+    (gold and predicted per pair). -> dict with
+      gold_none: pairs whose gold root is none, and how many the reply called none (recall, Wilson 95%);
+      false_none: pairs with a real gold root that the reply called none (count and rate);
+      precision: of all 'none' replies, how many were right."""
+    gold_none = [r for r in scored if r["gold"]["root"] is None]
+    gold_real = [r for r in scored if r["gold"]["root"] is not None]
+    said_none = lambda r: not r["predicted"].get("root")
+    hit = sum(said_none(r) for r in gold_none)
+    false_none = sum(said_none(r) for r in gold_real)
+    replies = hit + false_none
+    return {"gold_none": len(gold_none), "predicted_none": hit,
+            "recall": hit / len(gold_none) if gold_none else None, "recall_wilson95": wilson(hit, len(gold_none)),
+            "gold_real": len(gold_real), "false_none": false_none,
+            "false_none_rate": false_none / len(gold_real) if gold_real else None,
+            "none_replies": replies, "precision": hit / replies if replies else None,
+            "precision_wilson95": wilson(hit, replies)}
+
+
+def print_no_root_report(rep):
+    def ci(lo_hi):
+        lo, hi = lo_hi
+        return f"  95% CI {100 * lo:.1f}-{100 * hi:.1f}" if lo is not None else ""
+    print("\nNo-root answers ('root: none'):")
+    print(f"   recall    {pct(rep['predicted_none'], rep['gold_none'])}{ci(rep['recall_wilson95'])}"
+          "   gold root none, reply none")
+    print(f"   false     {pct(rep['false_none'], rep['gold_real'])}   gold root real, reply none")
+    print(f"   precision {pct(rep['predicted_none'], rep['none_replies'])}{ci(rep['precision_wilson95'])}"
+          "   'none' replies that were right")
+
+
 def pct(c, n):
     return f"{100 * c / n:5.1f}% ({c}/{n})" if n else "   n/a"
 
@@ -338,6 +370,7 @@ def main():
     name = args.system + (" (no neural)" if args.no_neural else "")
     cols = ["root", "type", "stem", "tense", "person", "gender", "number", "object", "possessor", "negated", "exact"]
     results, predictions = {}, ([] if args.predictions_out else None)
+    no_root = {}
 
     train_folded = folded_train_roots(args.dataset_dir) if os.path.exists(dataset_loader.gold_file_path(args.dataset_dir, "train")) else None
     for split in args.split:
@@ -363,7 +396,11 @@ def main():
         if surplus:
             print(f"{surplus} pair(s) repeat a spelling that has another analysis in this split: exact accuracy of a "
                   f"single-answer system cannot exceed {100 * (1 - surplus / len(pairs)):.1f}%")
-        totals, examples = score(pairs, system, predictions)
+        scored = []
+        totals, examples = score(pairs, system, scored)
+        if predictions is not None:
+            predictions += scored
+        no_root[split] = no_root_report(scored)
         totals["ALL"]["duplicate_surplus"] = [surplus, len(pairs)]
         results[split] = {g: dict(t) for g, t in totals.items()}
 
@@ -390,6 +427,8 @@ def main():
         show(sorted(g for g in totals if g.startswith("tense:")))
         show(sorted(g for g in totals if g.startswith("tier:")))
 
+        print_no_root_report(no_root[split])
+
         print("\nSample misses:")
         for item, pred in examples:
             print(f"  {item['surface']}  gold: {item['root']} {item['type']} {item['stem']} {item['tense']} "
@@ -413,6 +452,7 @@ def main():
         with open(args.out_json, "w", encoding="utf-8") as f:
             json.dump({"system": name, "model_dir": args.model_dir if args.system == "byt5" else None,
                        "dataset_dir": os.path.abspath(args.dataset_dir), "root_exact_match": summary,
+                       "no_root": no_root,
                        "by_group": results}, f, ensure_ascii=False, indent=1)
     if args.predictions_out:
         with open(args.predictions_out, "w", encoding="utf-8") as f:

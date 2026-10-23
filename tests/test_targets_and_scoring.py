@@ -70,3 +70,17 @@ def test_root_counts_per_split():
     totals, _ = E.score(pairs, _Seq(), rows)
     assert totals["ALL"]["root"] == [2, 3] and totals["ALL"]["rows"] == [0, 3]
     assert [r["correct"]["root"] for r in rows] == [True, False, True]
+
+
+def test_no_root_report():
+    def row(gold, said):
+        return {"gold": {"root": gold}, "predicted": {"root": said}}
+    scored = [row(None, None), row(None, None), row(None, "ቀ-ተ-ለ"),        # 3 gold none, 2 answered none
+              row("ቀ-ተ-ለ", None), row("ቀ-ተ-ለ", "ቀ-ተ-ለ"), row("ገ-ብ-ረ", "ገ-ብ-ረ"), row("ነ-ገ-ረ", "ነ-ገ-ረ")]
+    rep = E.no_root_report(scored)
+    assert (rep["gold_none"], rep["predicted_none"]) == (3, 2)
+    assert abs(rep["recall"] - 2 / 3) < 1e-9 and rep["recall_wilson95"] == E.wilson(2, 3)
+    assert (rep["gold_real"], rep["false_none"], rep["false_none_rate"]) == (4, 1, 0.25)
+    assert rep["none_replies"] == 3 and abs(rep["precision"] - 2 / 3) < 1e-9
+    empty = E.no_root_report([])
+    assert empty["recall"] is None and empty["precision"] is None and empty["recall_wilson95"] == (None, None)
