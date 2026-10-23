@@ -44,6 +44,8 @@ NOMINAL_TYPES = ("noun", "adjective")
 UNIFIED_ROOTED_TYPES = ("infinitive", "gerund", "verbal_noun", "nominal")
 UNIFIED_ROOTLESS_TYPES = ("pronoun", "demonstrative", "preposition", "particle", "numeral", "adverb")
 UNIFIED_TYPES = UNIFIED_ROOTED_TYPES + UNIFIED_ROOTLESS_TYPES
+# names: a word without root, target 'root: none | type: proper_noun | ...'
+NAME_TYPES = ("proper_noun",)
 # Classes of the words-without-root file that the unified rows do not use; rootless, generic target shape.
 CLOSED_CLASS_EXTRA_TYPES = ("name", "loanword")
 ROOTLESS_TYPES = UNIFIED_ROOTLESS_TYPES + CLOSED_CLASS_EXTRA_TYPES
@@ -128,29 +130,53 @@ def read_flagged_rows(dataset_dir):
     return {(r["split"], r["record_id"], int(r["row"]), r["form"]) for r in rows}
 
 
+def read_rootless_gold(dataset_dir, split):
+    """{form: unified row} of the gold rows of the unified file (data/unified/geez_morphology_rows.jsonl) in `split`
+    that load (empty status) with no root: names, nouns listed in rootless_nouns.tsv and the rootless classes. The
+    gold paradigm file often leaves their class out; the unified row carries the reviewed class and labels."""
+    path = os.path.join(dataset_dir, UNIFIED_FILE)
+    out = {}
+    if not os.path.exists(path):
+        return out
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            r = json.loads(line)
+            if r.get("source") == "gold" and r.get("split") == split and not r.get("status") and not r.get("root"):
+                out.setdefault(r["form"], r)
+    return out
+
+
 def read_records(path):
     with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
 
 
-def file_pairs(records, split, flagged=(), stats=None):
+def file_pairs(records, split, flagged=(), stats=None, rootless=None):
     """The pairs of one split's records, in file order. `flagged` holds (split, record_id, row, form)
     keys; `stats` (a Counter) gets the loaded / not-loaded counts.
 
     Each pair is a dict: form, root, type, tense, person, gender, number, stem, object, record,
     record_id, row. Nouns and adjectives have tense, person, stem and object set to None."""
     stats = stats if stats is not None else collections.Counter()
-    out = []
+    out, seen_rootless = [], set()
     for rec in records:
         rid = record_id(rec)
         rec_root = "" if rec.get("root_unsettled") else (rec.get("root") or "")
         for j, row in enumerate(rec.get("table_data", [])):
             words, other = clean_variants(row.get("geez_form"))
             root = row.get("root") or rec_root
+            typ = row.get("type") or "verb"
             if not root:
-                stats["not loaded: row has no root"] += len(words) + len(other)
-                continue
-            problem = root_problem(root)
+                # a word the dataset loads without root (a name, a noun of rootless_nouns.tsv, a rootless class)
+                # loads with root None ('root: none') and the class and labels of its unified row
+                rootless = rootless or {}
+                keep = [v for v in words if v in rootless and v not in seen_rootless]   # once, as its unified row
+                seen_rootless.update(keep)
+                stats["not loaded: row has no root"] += len(words) + len(other) - len(keep)
+                words, other, root = keep, [], None
+                if not keep:
+                    continue
+            problem = root and root_problem(root)
             if problem:
                 raise ValueError(f"{split} record {rid} row {j}: root {root!r}: {problem} "
                                  "(run the dataset's scripts/check_dataset.py)")
@@ -161,10 +187,14 @@ def file_pairs(records, split, flagged=(), stats=None):
                 if v in other:
                     raise ValueError(f"{split} record {rid} row {j}: form {v!r} is not one Ge'ez word "
                                      "(run the dataset's scripts/check_dataset.py)")
-                typ = row.get("type") or "verb"
                 pair = {"form": v, "root": root, "type": typ, "gender": row.get("gender") or "",
                         "number": row.get("number") or "", "record": rec, "record_id": rid, "row": j}
-                if typ in NOMINAL_TYPES:
+                if root is None:
+                    u = rootless[v]
+                    pair.update(type=u["word_class"], gender=u.get("gender") or "", number=u.get("number") or "",
+                                tense=u.get("tense"), person=u.get("person"), stem=u.get("stem"),
+                                object=u.get("object") or "", possessor=u.get("possessor") or "")
+                elif typ in NOMINAL_TYPES:
                     pair.update(tense=None, person=None, stem=None, object=None)
                 else:
                     pair.update(tense=row.get("tense") or "", person=row.get("person") or "",
@@ -177,7 +207,37 @@ def file_pairs(records, split, flagged=(), stats=None):
 def load_gold_split(dataset_dir, split, stats=None):
     """The pairs of data/paradigms/merho_ges_gold_<split>.jsonl, flagged rows left out."""
     records = read_records(gold_file_path(dataset_dir, split))
-    return file_pairs(records, split, read_flagged_rows(dataset_dir), stats)
+    rootless = read_rootless_gold(dataset_dir, split)
+    pairs = file_pairs(records, split, read_flagged_rows(dataset_dir), stats, rootless)
+    # a rootless gold word the dataset moved to another split (its paradigm record sits in another gold file)
+    # loads in the split of its unified row; a form this split already has from the file is not added again
+    stats = stats if stats is not None else collections.Counter()
+    have = {p["form"] for p in pairs}
+    for other in SPLITS:
+        if other == split:
+            continue
+        rid_rows = {}
+        for form, u in rootless.items():
+            if form in have:
+                continue
+            rid, _, row = (u.get("source_ref") or "").partition(":")
+            rid_rows[form] = (rid, int(row) if row.isdigit() else None, u)
+        if not rid_rows:
+            break
+        if not os.path.exists(gold_file_path(dataset_dir, other)):
+            continue
+        for rec in read_records(gold_file_path(dataset_dir, other)):
+            rid = record_id(rec)
+            for form, (want, row, u) in list(rid_rows.items()):
+                if rid == want:
+                    pairs.append({"form": form, "root": None, "type": u["word_class"], "gender": u.get("gender") or "",
+                                  "number": u.get("number") or "", "tense": u.get("tense"), "person": u.get("person"),
+                                  "stem": u.get("stem"), "object": u.get("object") or "",
+                                  "possessor": u.get("possessor") or "", "record": rec, "record_id": rid, "row": row})
+                    stats["loaded"] += 1
+                    have.add(form)
+                    del rid_rows[form]
+    return pairs
 
 
 # ------------------------------------------------------------------ forms printed in the other books
@@ -243,11 +303,13 @@ def load_unified(dataset_dir, split, sources=("book",), stats=None, path=None):
                 stats[f"not loaded: status {r['status']}"] += 1
                 continue
             t = r["word_class"]
-            if t not in TYPES + UNIFIED_TYPES:
+            if t not in TYPES + UNIFIED_TYPES + NAME_TYPES:
                 stats[f"not loaded: class {t}"] += 1
                 continue
-            if t in UNIFIED_ROOTLESS_TYPES:
+            if t in UNIFIED_ROOTLESS_TYPES + NAME_TYPES:
                 root = None
+            elif not r.get("root") and t == "noun":
+                root = None          # the dataset loads a noun without root only when rootless_nouns.tsv lists it
             elif not r.get("root"):
                 stats["not loaded: row has no root"] += 1
                 continue
@@ -287,12 +349,12 @@ def target_text(pair):
         return f"root: {pair['root']}"
     tail = (f" | possessor: {pair['possessor']}" if pair.get("possessor") and pair["type"] not in UNIFIED_TYPES else "") + \
            (" | negated: yes" if pair.get("negated") else "")
-    if pair["type"] in UNIFIED_TYPES + CLOSED_CLASS_EXTRA_TYPES:
+    if pair["type"] in UNIFIED_TYPES + CLOSED_CLASS_EXTRA_TYPES + NAME_TYPES:
         parts = [f"root: {pair.get('root') or NO_ROOT}", f"type: {pair['type']}"]
         parts += [f"{k}: {pair[k]}" for k in GENERIC_FIELDS if pair.get(k)]
         return " | ".join(parts) + (" | negated: yes" if pair.get("negated") else "")
     if pair["type"] in NOMINAL_TYPES:
-        parts = [f"root: {pair['root']}", f"type: {pair['type']}"]
+        parts = [f"root: {pair.get('root') or NO_ROOT}", f"type: {pair['type']}"]
         if pair["type"] == "adjective" and pair.get("gender"):
             parts.append(f"gender: {pair['gender']}")
         parts.append(f"number: {pair['number']}")
@@ -382,8 +444,8 @@ def load_words_without_root(dataset_dir, stats=None, path=WORDS_WITHOUT_ROOT_FIL
     (target "root: none"). A word is left out when it is a gold val/test form (or in the synthetic generator's
     blocked forms file), a gold val/test form up to spelling (folded with geez_script.fold_spelling and looked up
     in split_heldout_synthetic.gold_eval_forms_folded, the rule that drops near-duplicate synthetic lines), or a
-    form of the gold train file whose row has a root. Rows of the gold train file that have no root are not read
-    as pairs (load_gold_split), so they do not count here."""
+    form of the gold train file whose row has a root. Gold train words without root (load_gold_split gives them
+    root None) do not count here."""
     import generate_synthetic_data
     import split_heldout_synthetic
 
@@ -391,7 +453,8 @@ def load_words_without_root(dataset_dir, stats=None, path=WORDS_WITHOUT_ROOT_FIL
     eval_forms = split_heldout_synthetic.gold_eval_forms(dataset_dir) | generate_synthetic_data.read_blocked_forms_file()
     folded_eval_forms = split_heldout_synthetic.gold_eval_forms_folded(dataset_dir)
     gold_train = gold_file_path(dataset_dir, "train")
-    gold_train_forms = {p["form"] for p in load_gold_split(dataset_dir, "train")} if os.path.exists(gold_train) else set()
+    gold_train_forms = ({p["form"] for p in load_gold_split(dataset_dir, "train") if p["root"]}
+                        if os.path.exists(gold_train) else set())
     with open(path, encoding="utf-8", newline="") as f:
         kinds = {r["word"]: r.get("kind") for r in csv.DictReader(f, delimiter="\t", quoting=csv.QUOTE_NONE)}
     out = []

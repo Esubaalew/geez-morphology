@@ -104,3 +104,41 @@ def test_trainer_reads_synthetic_as_written():
     assert sorted(x["input_text"] for x in samples) == ["analyze: ቀተለ", "analyze: ቃርሐ", "analyze: ታረጰ"]
     assert any(x["target_text"].startswith("root: ተ-ረ-ጰ |") for x in samples)
 
+
+
+def _unified(tmp, rows):
+    os.makedirs(os.path.join(tmp, "data", "unified"), exist_ok=True)
+    base = {"root": None, "stem": None, "tense": None, "person": None, "gender": None, "number": "s", "object": None,
+            "possessor": None, "negated": False, "status": "", "book": "b", "page": 1}
+    with open(os.path.join(tmp, G.UNIFIED_FILE), "w", encoding="utf-8") as f:
+        for r in rows:
+            f.write(json.dumps(dict(base, **r), ensure_ascii=False) + "\n")
+
+
+def test_names_and_rootless_nouns_load_for_training_and_eval():
+    with tempfile.TemporaryDirectory() as tmp:
+        para = os.path.join(tmp, "data", "paradigms")
+        os.makedirs(para)
+        with open(os.path.join(para, "merho_ges_gold_train.jsonl"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(rec("", [verb("ሙሴ"), verb("ታቦት"), verb("ነገረ"), verb("ራግማ")]), ensure_ascii=False) + "\n")
+        open(os.path.join(para, "merho_ges_gold_val.jsonl"), "w").close()
+        _unified(tmp, [
+            {"id": "u1", "form": "ሙሴ", "word_class": "proper_noun", "gender": "m", "source": "gold", "split": "train",
+             "source_ref": "aaaaaaaaaaaa:0"},
+            {"id": "u2", "form": "ታቦት", "word_class": "noun", "source": "gold", "split": "train", "source_ref": "aaaaaaaaaaaa:1"},
+            {"id": "u3", "form": "ነገረ", "word_class": "noun", "source": "gold", "split": "train", "status": "NO_ROOT",
+             "source_ref": "aaaaaaaaaaaa:2"},
+            {"id": "u4", "form": "ራግማ", "word_class": "noun", "source": "gold", "split": "val", "source_ref": "aaaaaaaaaaaa:3"},
+            {"id": "u5", "form": "ኖኅ", "word_class": "proper_noun", "source": "book", "split": "train"},
+            {"id": "u6", "form": "ማይ", "word_class": "noun", "source": "book", "split": "train"},
+            {"id": "u7", "form": "ነገረ", "word_class": "verb", "source": "book", "split": "train"}])
+        stats = collections.Counter()
+        train = G.load_gold_split(tmp, "train", stats)
+        assert [(p["form"], p["root"], p["type"]) for p in train] == [("ሙሴ", None, "proper_noun"), ("ታቦት", None, "noun")]
+        assert stats["not loaded: row has no root"] == 2                       # ነገረ (NO_ROOT), ራግማ (a val word)
+        assert [(p["form"], p["type"]) for p in G.load_gold_split(tmp, "val")] == [("ራግማ", "noun")]
+        assert G.target_text(train[0]) == "root: none | type: proper_noun | gender: m | number: s"
+        assert G.target_text(train[1]) == "root: none | type: noun | number: s"
+        book = G.load_unified(tmp, "train", ("book",))
+        assert [(p["form"], p["root"]) for p in book] == [("ኖኅ", None), ("ማይ", None)]   # a verb without root still drops
+        assert G.target_text(book[1]) == "root: none | type: noun | number: s"

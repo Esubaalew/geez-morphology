@@ -168,7 +168,7 @@ def folded_train_roots(dataset_dir):
     split train. The splits are disjoint by exact root; a held-out root that folds onto one of these is a spelling
     variant of a training root (ሠ/ሰ, ጸ/ፀ, ሀ/ሐ/ኀ, labiovelar and plain, ...), and the fold is wide, so the group is an
     upper bound on real variants."""
-    roots = {p["root"] for p in dataset_loader.load_gold_split(dataset_dir, "train")}
+    roots = {p["root"] for p in dataset_loader.load_gold_split(dataset_dir, "train") if p["root"]}
     roots |= {p["root"] for p in dataset_loader.load_unified(dataset_dir, "train", ("book",)) if p["root"]}
     return {geez_script.fold_spelling(r) for r in roots}
 

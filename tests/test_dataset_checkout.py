@@ -38,7 +38,8 @@ def test_loader_counts_match_check_dataset(gold):
     out = subprocess.run([sys.executable, CHECKER], cwd=DATASET, capture_output=True, text=True).stdout
     m = re.search(r"pairs that load: train (\d+), val (\d+), test (\d+)", out)
     assert m, out
-    assert {s: len(p) for s, p in gold.items()} == dict(zip(G.SPLITS, map(int, m.groups())))
+    # the checker counts the pairs with a root; words without root (names, rootless nouns) load as well
+    assert {s: sum(1 for x in p if x["root"]) for s, p in gold.items()} == dict(zip(G.SPLITS, map(int, m.groups())))
 
 
 def test_flagged_rows_do_not_load(gold):
@@ -49,7 +50,7 @@ def test_flagged_rows_do_not_load(gold):
 
 
 def test_a_root_is_in_one_gold_split(gold):
-    roots = {split: {p["root"] for p in pairs} for split, pairs in gold.items()}
+    roots = {split: {p["root"] for p in pairs if p["root"]} for split, pairs in gold.items()}   # None: no root
     assert not roots["train"] & roots["val"]
     assert not roots["train"] & roots["test"]
     assert not roots["val"] & roots["test"]
@@ -57,7 +58,7 @@ def test_a_root_is_in_one_gold_split(gold):
 
 def test_synthetic_train_has_no_val_or_test_root(gold):
     eval_roots = set(H.gold_eval_roots(DATASET))
-    assert {p["root"] for s in ("val", "test") for p in gold[s]} <= eval_roots
+    assert {p["root"] for s in ("val", "test") for p in gold[s] if p["root"]} <= eval_roots
     with open(os.path.join(DATASET, "data", "paradigms", H.TRAIN), encoding="utf-8") as f:
         train_roots = {H.line_root(json.loads(line)) for line in f}
     assert train_roots and not train_roots & eval_roots

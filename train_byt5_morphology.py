@@ -145,7 +145,7 @@ def load_data(dataset_dir: str, limit: int = 0, stats: Optional[Dict] = None) ->
     if gold_file:
         pairs = dataset_loader.load_gold_split(dataset_dir, "train", stats)
         for p in pairs:
-            source = "gold_nominal" if p["type"] in dataset_loader.NOMINAL_TYPES else "gold_verb"
+            source = "gold_verb" if p["type"] == "verb" else "gold_nominal"   # names, rootless words: nominal
             samples.append({"input_text": dataset_loader.input_text(p["form"]),
                             "target_text": dataset_loader.target_text(p), "is_gold": True,
                             "task": dataset_loader.task_of(p), "source": source})

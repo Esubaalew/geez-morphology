@@ -88,7 +88,8 @@ class HeldOut:
                     roots.add(geez_script.first_order_root(p["root"]))
             for p in dataset_loader.load_gold_split(dataset_dir, split):
                 self.forms.add(p["form"])
-                roots.add(geez_script.first_order_root(p["root"]))
+                if p["root"]:
+                    roots.add(geez_script.first_order_root(p["root"]))
         roots |= {geez_script.first_order_root(to_ethiopic_root("-".join(s)))
                   for s in generate_synthetic_data.read_held_out_roots_file()}
         roots |= {r for r in dataset_loader.held_out_synthetic_roots(dataset_dir) if r}
@@ -249,8 +250,8 @@ def build(dataset_dir, opts):
 
     gold = dataset_loader.load_gold_split(dataset_dir, "train", stats)
     gold = leak_gate(gold, held, stats, "gold")
-    sources["gold_verb"] = ([p for p in gold if p["type"] not in dataset_loader.NOMINAL_TYPES], opts.gold_upsample)
-    sources["gold_nominal"] = ([p for p in gold if p["type"] in dataset_loader.NOMINAL_TYPES], opts.gold_nominal_upsample)
+    sources["gold_verb"] = ([p for p in gold if p["type"] == "verb"], opts.gold_upsample)
+    sources["gold_nominal"] = ([p for p in gold if p["type"] != "verb"], opts.gold_nominal_upsample)
     gold_forms = {p["form"] for p in gold}
 
     unified = [] if opts.no_unified else dataset_loader.load_unified(dataset_dir, "train", ("book",), stats)
