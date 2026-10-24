@@ -2,7 +2,7 @@
 # Source: geez-dataset commit c7bc587, data/paradigms/merho_ges_gold_test.jsonl (blob 4d69608),
 # the test file as extracted. Each record's "root", every "/" alternative, read as consonants
 # (geez_config.root_symbols) and written in 1st-order Ge'ez letters.
-# 185 roots, one per line, sorted. The synthetic files in the dataset were generated
+# 184 roots, one per line, sorted (ተ-በ-ዐ removed 24 Oct 2026: its forms are training data). The synthetic files in the dataset were generated
 # without these roots. The sha256 of this file is in README.md and tests/test_heldout_roots_file.py.
 ሀ-ለ-ወ
 ለ-ሀ-ቀ
@@ -75,7 +75,6 @@
 በ-ረ-ሀ
 በ-ከ-የ
 በ-ዘ-ወ
-ተ-በ-ዐ
 ተ-ከ-ለ
 ኀ-መ-የ
 ኀ-ሠ-ሠ

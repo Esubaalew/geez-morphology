@@ -19,7 +19,7 @@ synthetic_morphology_analyze.jsonl (the same lines keyed by surface form). They 
    corrected roots (inferred_root) used.
 
 Roots of the gold test split are left out (see --keep_test_roots), so the
-gold score measures unseen roots. By default these are the 185 roots in
+gold score measures unseen roots. By default these are the 184 roots in
 data/heldout_test_roots.txt (see below); --test_file takes them from a
 gold test file instead. By default the generator writes into the dataset folder: output goes to
 <dataset>/output and is copied to <dataset>/data/paradigms (what train_byt5_morphology.py reads).

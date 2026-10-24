@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import generate_synthetic_data as gen  # noqa: E402
 
-SHA256 = "8a6b64053cddd0d54301acc4142e3aa9e2b25cc88bb6334ce5a05dd061b7c88d"
+SHA256 = "fb28600f9e0d79bafb62965ae80c87dd7b0d5dc92c8a97dfa7269864880b5930"
 
 
 def test_file_is_unchanged():
@@ -19,8 +19,8 @@ def test_file_is_unchanged():
         assert hashlib.sha256(f.read()).hexdigest() == SHA256
 
 
-def test_185_roots():
+def test_184_roots():
     roots = gen.read_held_out_roots_file()
-    assert len(roots) == 185
+    assert len(roots) == 184
     assert all(2 <= len(r) <= 5 for r in roots)
     assert ("q", "t", "l") not in roots and ("w", "d", "d") in roots   # ወ-ደ-ደ is a c7bc587 test root
