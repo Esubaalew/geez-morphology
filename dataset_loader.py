@@ -35,6 +35,10 @@ import geez_script  # noqa: E402
 
 SPLITS = ("train", "val", "test")
 DATASET_DIR_ENV = "GEEZ_DATASET_DIR"
+# Sibling checkout names next to this repo. `git clone .../geez-dataset` makes the first;
+# some local checkouts use the second. The GitHub name is tried first and is never skipped
+# when both exist.
+SIBLING_DATASET_NAMES = ("geez-dataset", "geez-dataset-v1")
 PARADIGMS_DIR = os.path.join("data", "paradigms")
 FLAGGED_ROWS_FILE = "merho_ges_gold_flagged_rows.tsv"
 TYPES = ("verb", "noun", "adjective")
@@ -62,10 +66,72 @@ TASK_PREFIXES = {ANALYZE_TASK: "analyze: ", ROOT_ONLY_TASK: "root: "}
 NO_ROOT = "none"
 
 
+def sibling_dataset_dirs(script_dir=None):
+    """Absolute paths of the common sibling checkout names, GitHub name first."""
+    base = SCRIPT_DIR if script_dir is None else script_dir
+    return [os.path.normpath(os.path.join(base, "..", name)) for name in SIBLING_DATASET_NAMES]
+
+
 def default_dataset_dir():
     """Where the geez-dataset checkout is when no --dataset_dir is given: $GEEZ_DATASET_DIR if set,
-    else ../geez-dataset next to this repo (the folder `git clone .../geez-dataset` makes)."""
-    return os.environ.get(DATASET_DIR_ENV) or os.path.normpath(os.path.join(SCRIPT_DIR, "..", "geez-dataset"))
+    else the first existing sibling folder (`geez-dataset`, then `geez-dataset-v1`). If neither
+    sibling exists, the GitHub clone name `../geez-dataset` is returned so argparse defaults stay
+    safe; call require_dataset_dir() when a checkout is required."""
+    env = os.environ.get(DATASET_DIR_ENV)
+    if env:
+        return env
+    for path in sibling_dataset_dirs():
+        if os.path.isdir(path):
+            return path
+    return sibling_dataset_dirs()[0]
+
+
+def missing_default_dataset_message(tried=None):
+    """Error text when neither common sibling checkout exists."""
+    tried = list(tried) if tried is not None else sibling_dataset_dirs()
+    listed = "\n".join(f"  {p}" for p in tried)
+    return (
+        "No geez-dataset checkout found next to this repo. Tried:\n"
+        f"{listed}\n"
+        f"Set {DATASET_DIR_ENV} or pass --dataset_dir."
+    )
+
+
+def require_dataset_dir(dataset_dir=None):
+    """Return an existing dataset checkout directory, or raise FileNotFoundError.
+
+    None uses the same rule as default_dataset_dir(). When the default siblings were
+    searched and neither exists, the error names both tried paths and how to set
+    GEEZ_DATASET_DIR / --dataset_dir. An explicit missing path is reported as that
+    path, unless it is the unused GitHub sibling default (then both names are listed).
+    """
+    if dataset_dir is None:
+        env = os.environ.get(DATASET_DIR_ENV)
+        if env:
+            if os.path.isdir(env):
+                return env
+            raise FileNotFoundError(
+                f"Dataset directory not found: {os.path.abspath(env)} "
+                f"(from {DATASET_DIR_ENV}). Pass --dataset_dir to override."
+            )
+        tried = sibling_dataset_dirs()
+        for path in tried:
+            if os.path.isdir(path):
+                return path
+        raise FileNotFoundError(missing_default_dataset_message(tried))
+
+    if os.path.isdir(dataset_dir):
+        return dataset_dir
+
+    env = os.environ.get(DATASET_DIR_ENV)
+    tried = sibling_dataset_dirs()
+    abs_given = os.path.abspath(dataset_dir)
+    if not env and abs_given == os.path.abspath(tried[0]):
+        raise FileNotFoundError(missing_default_dataset_message(tried))
+    raise FileNotFoundError(
+        f"Dataset directory not found: {abs_given}. "
+        f"Set {DATASET_DIR_ENV} or pass --dataset_dir."
+    )
 
 
 def gold_file_name(split):

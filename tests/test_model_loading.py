@@ -1,6 +1,8 @@
-"""train_byt5_morphology.model_to_load: the final model at the top of the trainer's output folder wins over
-its checkpoint-<step> folders (save_total_limit keeps older checkpoints than the final step).
-The analyzer finds its model the same way (analyzer.find_model_dir) and stops when there is none."""
+"""train_byt5_morphology.model_to_load: the newest of the top-level final model and
+checkpoint-<step> folders. A finished run's top-level model still wins over older
+save_total_limit checkpoints; a resumed/extended run's newer checkpoint wins over a
+stale top-level model. The analyzer finds its model the same way (analyzer.find_model_dir)
+and stops when there is none."""
 import os
 import sys
 import tempfile
@@ -22,6 +24,38 @@ def test_final_model_then_latest_checkpoint():
         open(os.path.join(out, "config.json"), "w").close()
         assert T.model_to_load(out) == out
         assert T.model_to_load(os.path.join(out, "checkpoint-900")) == os.path.join(out, "checkpoint-900")
+
+
+def test_newer_checkpoint_wins_over_stale_final_model():
+    with tempfile.TemporaryDirectory() as out:
+        open(os.path.join(out, "config.json"), "w").close()
+        with open(os.path.join(out, "trainer_state.json"), "w") as f:
+            f.write('{"global_step": 1000}')
+        os.makedirs(os.path.join(out, "checkpoint-2000"))
+        open(os.path.join(out, "checkpoint-2000", "config.json"), "w").close()
+        assert T.model_to_load(out) == os.path.join(out, "checkpoint-2000")
+
+
+def test_finished_run_top_level_wins_over_older_checkpoint():
+    with tempfile.TemporaryDirectory() as out:
+        os.makedirs(os.path.join(out, "checkpoint-1000"))
+        open(os.path.join(out, "checkpoint-1000", "config.json"), "w").close()
+        open(os.path.join(out, "config.json"), "w").close()
+        with open(os.path.join(out, "trainer_state.json"), "w") as f:
+            f.write('{"global_step": 2000}')
+        assert T.model_to_load(out) == out
+
+
+def test_newer_checkpoint_mtime_wins_when_top_level_has_no_step():
+    with tempfile.TemporaryDirectory() as out:
+        open(os.path.join(out, "config.json"), "w").close()
+        os.utime(os.path.join(out, "config.json"), (1_000_000, 1_000_000))
+        ckpt = os.path.join(out, "checkpoint-500")
+        os.makedirs(ckpt)
+        cfg = os.path.join(ckpt, "config.json")
+        open(cfg, "w").close()
+        os.utime(cfg, (2_000_000, 2_000_000))
+        assert T.model_to_load(out) == ckpt
 
 
 def test_default_names():

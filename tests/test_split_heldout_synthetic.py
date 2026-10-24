@@ -46,3 +46,19 @@ def test_split_moves_val_test_root_lines_in_order():
 def test_trainer_reads_the_clean_train_file_only():
     assert T.SYNTHETIC_FILE == os.path.join("data", "paradigms", "synthetic_morphology_train.jsonl")
     assert H.HELDOUT_DIR not in T.SYNTHETIC_FILE
+
+
+def test_split_errors_when_mirror_lengths_diverge():
+    with tempfile.TemporaryDirectory() as tmp:
+        lines = _setup(tmp)
+        full = os.path.join(tmp, "full")
+        with open(os.path.join(full, H.ANALYZE), "a", encoding="utf-8") as fa:
+            fa.write(lines[0][1])
+        try:
+            H.split(full, os.path.join(tmp, "ds"))
+        except SystemExit as e:
+            msg = str(e)
+            assert "different lengths" in msg
+            assert H.TRAIN in msg and H.ANALYZE in msg
+            return
+        raise AssertionError("expected SystemExit when mirror pair lengths diverge")

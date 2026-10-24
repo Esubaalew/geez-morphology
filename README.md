@@ -14,7 +14,7 @@ The rule engine, rules-only analyzer, CLI and generator use only the Python stan
 
 ## Data
 
-The code reads [geez-dataset](https://github.com/Esubaalew/geez-dataset), found via `--dataset_dir`, else `$GEEZ_DATASET_DIR`, else `../geez-dataset`:
+The code reads [geez-dataset](https://github.com/Esubaalew/geez-dataset), found via `--dataset_dir`, else `$GEEZ_DATASET_DIR`, else the first existing sibling `../geez-dataset` or `../geez-dataset-v1`. If neither sibling exists, scripts exit and name both tried paths:
 
 ```bash
 git clone https://github.com/Esubaalew/geez-dataset ../geez-dataset

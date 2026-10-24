@@ -54,9 +54,12 @@ def propose(headword, root):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir())
+    ap.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
+                    help="Checkout of the geez-dataset repo "
+                         "(default: $GEEZ_DATASET_DIR, else ../geez-dataset or ../geez-dataset-v1)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
+    args.dataset_dir = dataset_loader.require_dataset_dir(args.dataset_dir)
     fixes = verb_classes.root_fixes(args.dataset_dir)
     counts = collections.Counter()
     with open(args.out, "w", encoding="utf-8", newline="") as f:

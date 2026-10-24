@@ -1,4 +1,4 @@
-# Gold test roots left out of the synthetic training data (generate_synthetic_fixed.py).
+# Gold test roots left out of the synthetic training data (generate_synthetic_data.py).
 # Source: geez-dataset commit c7bc587, data/paradigms/merho_ges_gold_test.jsonl (blob 4d69608),
 # the test file as extracted. Each record's "root", every "/" alternative, read as consonants
 # (geez_config.root_symbols) and written in 1st-order Ge'ez letters.

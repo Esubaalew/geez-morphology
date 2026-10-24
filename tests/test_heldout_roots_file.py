@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import generate_synthetic_data as gen  # noqa: E402
 
-SHA256 = "fb28600f9e0d79bafb62965ae80c87dd7b0d5dc92c8a97dfa7269864880b5930"
+SHA256 = "37f1b327c7969295f0dd49f26eb3a752db8386f494743f0beec2fb947c3507fe"
 
 
 def test_file_is_unchanged():

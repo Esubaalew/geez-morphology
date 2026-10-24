@@ -46,6 +46,7 @@ import json
 import os
 import re
 import sys
+from itertools import zip_longest
 
 import geez_script
 
@@ -235,7 +236,14 @@ def split(full_dir, dataset_dir):
     tr, an, htr, han = [], [], [], []
     moved = collections.Counter()
     with open(os.path.join(full_dir, TRAIN), encoding="utf-8") as ft, open(os.path.join(full_dir, ANALYZE), encoding="utf-8") as fa:
-        for n, (lt, la) in enumerate(zip(ft, fa), 1):
+        for n, (lt, la) in enumerate(zip_longest(ft, fa), 1):
+            if lt is None or la is None:
+                shorter, longer = (TRAIN, ANALYZE) if lt is None else (ANALYZE, TRAIN)
+                sys.exit(
+                    f"[!] {TRAIN} and {ANALYZE} have different lengths: "
+                    f"{shorter} ended after {n - 1} lines, {longer} has more. "
+                    "Not a mirror pair (zip would have truncated silently)."
+                )
             d, a = json.loads(lt), json.loads(la)
             if d.get("surface_form") != a.get("surface_form") or d.get("features") != a.get("analysis"):
                 sys.exit(f"[!] {TRAIN} and {ANALYZE} differ at line {n}: not a mirror pair")

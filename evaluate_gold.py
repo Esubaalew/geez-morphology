@@ -3,7 +3,7 @@
 Score a system on the Merho Ges gold val and test splits of a geez-dataset checkout.
 
 Systems:
-  --system byt5    the trained ByT5 model alone (default; the final model in --model_dir)
+  --system byt5    the trained ByT5 model alone (default; newest model in --model_dir)
   --system hybrid  HybridAnalyzer: fast path -> pattern matcher -> ByT5 fallback
                    (add --no_neural to switch the ByT5 fallback off)
 
@@ -42,7 +42,13 @@ if SCRIPT_DIR not in sys.path:
 
 import geez_script
 import dataset_loader  # reads the gold files; shared with train_byt5_morphology.py
-from train_byt5_morphology import DEFAULT_OUTPUT_DIR as DEFAULT_MODEL_DIR, model_to_load
+from train_byt5_morphology import (
+    DEFAULT_NUM_BEAMS,
+    DEFAULT_OUTPUT_DIR as DEFAULT_MODEL_DIR,
+    decode_generate_kwargs,
+    model_to_load,
+    pick_device,
+)
 
 FIELDS = ["root", "type", "stem", "tense", "person", "gender", "number", "object", "possessor", "negated"]
 UNIFIED_SPLITS = {"unified_val": "val", "unified_test": "test"}
@@ -208,14 +214,14 @@ def load_gold_pairs(dataset_dir, split, stats=None):
 
 
 class ByT5System:
-    def __init__(self, model_dir):
+    def __init__(self, model_dir, num_beams=None):
         import torch
         from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
         chkpt = model_to_load(model_dir)
         print(f"Loading model from: {chkpt}")
         self.torch = torch
-        self.device = ("cuda" if torch.cuda.is_available() else
-                       "mps" if torch.backends.mps.is_available() else "cpu")
+        self.device = pick_device()
+        self.num_beams = DEFAULT_NUM_BEAMS if num_beams is None else num_beams
         self.tok = AutoTokenizer.from_pretrained(chkpt)
         self.model = AutoModelForSeq2SeqLM.from_pretrained(chkpt).to(self.device)
         self.model.eval()
@@ -223,7 +229,7 @@ class ByT5System:
     def predict(self, surface):
         inp = self.tok(dataset_loader.input_text(surface), return_tensors="pt").to(self.device)
         with self.torch.no_grad():
-            out = self.model.generate(**inp, max_length=128, num_beams=2)
+            out = self.model.generate(**inp, **decode_generate_kwargs(num_beams=self.num_beams))
         text = self.tok.decode(out[0], skip_special_tokens=True)
         pred = parse_prediction(text)
         return {"root": pred.get("root"), **normalize_row(pred), "tier": "byt5", "raw": text}   # no "type:" = verb
@@ -405,7 +411,7 @@ def main():
                     help="The trainer's --output_dir (default: byt5_morphology_model/), or one checkpoint-<step> folder")
     ap.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
                     help="Checkout of the geez-dataset repo the model was trained on "
-                         "(default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
+                         "(default: $GEEZ_DATASET_DIR, else ../geez-dataset or ../geez-dataset-v1)")
     ap.add_argument("--split", nargs="+", choices=["val", "test", "books", "unified_val", "unified_test"], default=["val", "test"],
                     help="Gold splits to score (default: val test); books = data/lexicon/book_forms.jsonl rows of the "
                          "other books whose root or form is a gold val/test one (never trained on); "
@@ -424,11 +430,15 @@ def main():
     ap.add_argument("--strict", action="store_true",
                     help="Make the old strict per-row score the main one (each pair against its own reading only). "
                          "Both scores are always reported; this only picks which one fills the tables")
+    ap.add_argument("--num_beams", type=int, default=DEFAULT_NUM_BEAMS,
+                    help="Beam width for ByT5 decode (default: %(default)s; "
+                         "train_byt5_morphology.py uses the same default for checkpoint selection)")
     args = ap.parse_args()
-    args.dataset_dir = os.path.abspath(args.dataset_dir)
+    args.dataset_dir = os.path.abspath(dataset_loader.require_dataset_dir(args.dataset_dir))
 
     # The system first: the hybrid analyzer stops with a clear error when the dataset has no dictionary.
-    system = ByT5System(args.model_dir) if args.system == "byt5" else HybridSystem(args.dataset_dir, args.model_dir, args.no_neural)
+    system = (ByT5System(args.model_dir, args.num_beams) if args.system == "byt5"
+              else HybridSystem(args.dataset_dir, args.model_dir, args.no_neural))
     system = CachedSystem(system)   # both scores below reuse one reply per spelling
     for split in args.split:
         path = (os.path.join(args.dataset_dir, dataset_loader.BOOK_FORMS_FILE) if split == "books"

@@ -2,8 +2,9 @@
 
     python -m pytest tests/ --dataset_dir /path/to/geez-dataset
 
-Without --dataset_dir: $GEEZ_DATASET_DIR, else ../geez-dataset next to this repo (the same rule as the
-scripts). Tests that need a checkout are skipped when there is none at that place.
+Without --dataset_dir: $GEEZ_DATASET_DIR, else the first existing sibling ../geez-dataset or
+../geez-dataset-v1 (the same rule as the scripts). Tests that need a checkout are skipped when
+there is none at that place.
 Test files read the folder as `from conftest import DATASET_DIR`.
 """
 import os
@@ -19,7 +20,7 @@ DATASET_DIR = None   # set in pytest_configure, before the test files are import
 def pytest_addoption(parser):
     parser.addoption("--dataset_dir", default=None,
                      help="geez-dataset checkout for the tests that need one "
-                          "(default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
+                          "(default: $GEEZ_DATASET_DIR, else ../geez-dataset or ../geez-dataset-v1)")
 
 
 def pytest_configure(config):

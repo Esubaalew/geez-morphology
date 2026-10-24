@@ -70,6 +70,42 @@ import verb_classes
 from engine import InterdigitationEngine, slots_from_spec
 import engine as engine_module   # NON_HOLLOW is extended from the dictionary triples
 
+ENGINE_FAILURE_PRINT_LIMIT = 20
+
+
+def record_engine_failure(failures, phase, cons, detail, exc):
+    """Append one engine failure so except blocks do not only increment a count."""
+    root = "-".join(cons) if isinstance(cons, (list, tuple)) else cons
+    failures.append({
+        "phase": phase,
+        "root": root,
+        "detail": detail,
+        "error_type": type(exc).__name__,
+        "error": str(exc),
+    })
+    return failures[-1]
+
+
+def format_engine_failures(failures, limit=ENGINE_FAILURE_PRINT_LIMIT):
+    """Human-readable list of recorded engine failures (first `limit`, then counts)."""
+    if not failures:
+        return ""
+    lines = ["Engine failure details (exceptions that would otherwise be only a count):"]
+    for i, item in enumerate(failures[:limit], 1):
+        detail = f" {item['detail']}" if item.get("detail") else ""
+        err = item["error"].replace("\n", " ")
+        lines.append(
+            f"  [{i}] {item['phase']} root {item['root']}{detail}: {item['error_type']}: {err}"
+        )
+    if len(failures) > limit:
+        lines.append(f"  ({len(failures) - limit} more not shown)")
+    by_type = {}
+    for item in failures:
+        by_type[item["error_type"]] = by_type.get(item["error_type"], 0) + 1
+    lines.append("  By error type: " + ", ".join(f"{k}={v}" for k, v in sorted(by_type.items())))
+    return "\n".join(lines)
+
+
 OBJECT_SUFFIXES = [
     {"key": "1cs", "person": "1", "number": "s", "gender": None, "suffix": "ኒ"},
     {"key": "2ms", "person": "2", "number": "s", "gender": "m", "suffix": "ከ"},
@@ -370,7 +406,7 @@ def generate_extended_dataset(
     allowed_roots = read_allowed_roots_file(allowed_roots_file)
     blocked_forms = read_blocked_forms_file(blocked_forms_file)
     if dataset_dir is None:
-        dataset_dir = dataset_loader.default_dataset_dir()
+        dataset_dir = dataset_loader.require_dataset_dir()
     if output_dir is None:
         output_dir = os.path.join(dataset_dir, "output")
     os.makedirs(output_dir, exist_ok=True)
@@ -518,6 +554,7 @@ def generate_extended_dataset(
     total_objects = 0
     total_negatives = 0
     failed_forms = 0
+    engine_failures = []
     skipped_templates = 0
     skipped_objects = 0
     duplicates_dropped = 0
@@ -729,8 +766,11 @@ def generate_extended_dataset(
                             obj_base[(cons, form)] = engine.generate(cons, slots_from_spec(aug_spec), stem=p["features"].get("stem", "basic"))
                         base_forms_for_augmentation.append((form, feat, cons))
 
-                except Exception:
+                except Exception as exc:
                     failed_forms += 1
+                    record_engine_failure(
+                        engine_failures, "triliteral", cons, p.get("pattern_spec"), exc
+                    )
 
         print(f"  Phase 1 base paradigms: {total_base:,} pairs")
 
@@ -792,8 +832,11 @@ def generate_extended_dataset(
 
                         if (root_pairs + aug_offset) % AUGMENT_EVERY_QUAD == 0:
                             base_forms_for_augmentation.append((form, feat, cons))
-                    except Exception:
+                    except Exception as exc:
                         failed_forms += 1
+                        record_engine_failure(
+                            engine_failures, "quadriliteral", cons, q_temp.get("spec"), exc
+                        )
 
             print(f"  Phase 2 quadriliteral forms: {total_quads:,} pairs")
 
@@ -868,6 +911,8 @@ def generate_extended_dataset(
     print(f"Left out (gold form): {n_blocked:8,}  (surface form is a gold val/test form, {os.path.basename(blocked_forms_file)})")
     print(f"Total Output Pairs:   {total_pairs - n_blocked:8,}")
     print(f"Engine failures:      {failed_forms:8,}")
+    if engine_failures:
+        print(format_engine_failures(engine_failures))
     print(f"Duplicate pairs dropped (jussive = subjunctive): {duplicates_dropped:,}")
     print(f"Forms with unassigned code points skipped (labiovelar + u/o): {unassigned_forms:,}")
     print(f"Unchecked weak templates skipped: {skipped_templates:,}")
@@ -937,7 +982,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate synthetic morphology data for Classical Ge'ez. "
                                      "By default it writes into the dataset folder; see --no_mirror and --output_dir.")
     parser.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
-                        help="Checkout of the geez-dataset repo (default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
+                        help="Checkout of the geez-dataset repo "
+                             "(default: $GEEZ_DATASET_DIR, else ../geez-dataset or ../geez-dataset-v1)")
     parser.add_argument("--output_dir", default=None, help="Output directory (default: <dataset>/output)")
     parser.add_argument("--no_objects", action="store_true", help="Exclude object pronominal suffixes")
     parser.add_argument("--no_negative", action="store_true", help="Exclude negative prefix")
@@ -956,7 +1002,7 @@ if __name__ == "__main__":
                         help="Write the training lines dropped as near-duplicates of gold val/test forms to this JSONL file")
     args = parser.parse_args()
 
-    resolved_dataset_dir = os.path.abspath(args.dataset_dir)
+    resolved_dataset_dir = os.path.abspath(dataset_loader.require_dataset_dir(args.dataset_dir))
     if args.keep_test_roots:
         held_out = set()
     elif args.test_file:

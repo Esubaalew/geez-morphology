@@ -158,7 +158,7 @@ def main():
     parser = argparse.ArgumentParser(description="Analyze, generate and look up Classical Ge'ez verbs.")
     parser.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
                         help="Checkout of the geez-dataset repo, for the dictionary "
-                             "(default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
+                             "(default: $GEEZ_DATASET_DIR, else ../geez-dataset or ../geez-dataset-v1)")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # analyze
@@ -187,6 +187,8 @@ def main():
     p_lookup.add_argument("word", help="Ge'ez lemma or word")
 
     args = parser.parse_args()
+    if args.command != "generate":
+        args.dataset_dir = dataset_loader.require_dataset_dir(args.dataset_dir)
     if args.command == "analyze":
         cmd_analyze(args)
     elif args.command == "lemmatize":

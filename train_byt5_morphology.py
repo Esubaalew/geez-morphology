@@ -47,7 +47,7 @@ two. Output folder (--output_dir, default byt5_morphology_model/):
   run_info.json        git commits, data sha256, pair counts and arguments of the run
   config.json, model.safetensors, tokenizer files
                        the final model, written when training finishes; evaluate_gold.py
-                       and the analyzer load this one
+                       and the analyzer load the newest of this and checkpoint-<step>
 If --output_dir already holds a checkpoint-*, training resumes from the
 latest one; --resume_from can point at a checkpoint (or a folder of
 checkpoints) somewhere else, e.g. a previous Kaggle run's output. On SIGTERM or
@@ -97,6 +97,11 @@ SOURCES = ("synthetic", "gold_verb", "gold_nominal", "dictionary", "word_without
 DEFAULT_GOLD_UPSAMPLE = 4
 DEFAULT_GOLD_NOMINAL_UPSAMPLE = 5
 ROOT_ACCURACY_MAX_NEW_TOKENS = 32   # bytes; "root: " and a 4-radical root take 21
+# Decode shared by checkpoint selection (eval_root_accuracy) and evaluate_gold.py scoring.
+# Beam-2 is the default so the checkpoint kept for root accuracy is decoded the same way
+# as the published gold metric. Pass --num_beams 1 for greedy.
+DEFAULT_NUM_BEAMS = 2
+DEFAULT_GENERATE_MAX_LENGTH = 128
 
 
 # ----------------------------------------------------------------------------- data
@@ -305,15 +310,32 @@ def root_accuracy(predict, items: List[tuple], batch_size: int) -> float:
 
 # ----------------------------------------------------------------------------- run helpers
 
-def pick_device(requested: str = "auto") -> str:
-    import torch
+def pick_device(requested: str = "auto", torch_module=None) -> str:
+    if torch_module is None:
+        import torch
+    else:
+        torch = torch_module
     if requested != "auto":
         return requested
     if torch.cuda.is_available():
         return "cuda"
-    if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
+    mps = getattr(torch.backends, "mps", None)
+    if mps is not None and mps.is_available():
         return "mps"
     return "cpu"
+
+
+def decode_generate_kwargs(num_beams=None, max_length=None, max_new_tokens=None):
+    """model.generate kwargs shared by checkpoint selection and evaluate_gold scoring."""
+    kwargs = {
+        "num_beams": DEFAULT_NUM_BEAMS if num_beams is None else num_beams,
+        "do_sample": False,
+    }
+    if max_new_tokens is not None:
+        kwargs["max_new_tokens"] = max_new_tokens
+    else:
+        kwargs["max_length"] = DEFAULT_GENERATE_MAX_LENGTH if max_length is None else max_length
+    return kwargs
 
 
 def latest_checkpoint(folder: Optional[str]) -> Optional[str]:
@@ -330,17 +352,53 @@ def latest_checkpoint(folder: Optional[str]) -> Optional[str]:
     return best
 
 
+def _trainer_global_step(folder: str) -> Optional[int]:
+    path = os.path.join(folder, "trainer_state.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            step = json.load(f).get("global_step")
+        return int(step) if step is not None else None
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+
+
+def _model_mtime(folder: str) -> float:
+    latest = 0.0
+    for name in ("model.safetensors", "pytorch_model.bin", "config.json"):
+        path = os.path.join(folder, name)
+        if os.path.exists(path):
+            latest = max(latest, os.path.getmtime(path))
+    return latest or (os.path.getmtime(folder) if os.path.isdir(folder) else 0.0)
+
+
 def model_to_load(model_dir: str) -> str:
-    """The model to load from a training output folder: the final model at the top of model_dir
-    (written when training finished), else its latest checkpoint-<step> folder (a run that stopped
-    early), else model_dir itself. Used by evaluate_gold.py and the analyzer."""
-    if os.path.exists(os.path.join(model_dir, "config.json")):
+    """The model to load from a training output folder: the newest among the final model
+    at the top of model_dir (config.json, written when a run finished) and its
+    checkpoint-<step> folders. A higher step wins when it is known (the checkpoint-N
+    name, or trainer_state.json global_step at the top); otherwise the newer
+    modification time wins, so a stale top-level model does not beat a newer checkpoint
+    after a resume/extend. When steps and times tie, the top-level model is kept (a
+    finished run's save_total_limit checkpoints can be older than the final step).
+    Used by evaluate_gold.py and the analyzer."""
+    if not os.path.isdir(model_dir):
         return model_dir
-    subdirs = [os.path.join(model_dir, d) for d in os.listdir(model_dir)
-               if CHECKPOINT_RE.match(d)] if os.path.isdir(model_dir) else []
-    if subdirs:
-        return sorted(subdirs, key=lambda x: int(x.rsplit("-", 1)[-1]))[-1]
-    return model_dir
+    top = model_dir if os.path.exists(os.path.join(model_dir, "config.json")) else None
+    ckpts = []
+    for name in os.listdir(model_dir):
+        if CHECKPOINT_RE.match(name) and os.path.isdir(os.path.join(model_dir, name)):
+            ckpts.append(os.path.join(model_dir, name))
+    latest = max(ckpts, key=lambda p: int(CHECKPOINT_RE.match(os.path.basename(p)).group(1))) if ckpts else None
+    if top and latest:
+        top_step = _trainer_global_step(top)
+        latest_step = int(CHECKPOINT_RE.match(os.path.basename(latest)).group(1))
+        if top_step is not None:
+            return latest if latest_step > top_step else top
+        if _model_mtime(latest) > _model_mtime(top):
+            return latest
+        return top
+    return latest or top or model_dir
 
 
 def resolve_resume(output_dir: str, resume_from: Optional[str]) -> Optional[str]:
@@ -409,7 +467,8 @@ def install_signal_handlers() -> None:
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Fine-tune ByT5-small on Ge'ez verb morphology (resumable).")
     p.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
-                   help="Checkout of the geez-dataset repo (default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
+                   help="Checkout of the geez-dataset repo (default: $GEEZ_DATASET_DIR, "
+                        "else ../geez-dataset or ../geez-dataset-v1)")
     p.add_argument("--output_dir", default=DEFAULT_OUTPUT_DIR,
                    help="Where the checkpoints, run_info.json and the final model go (default: byt5_morphology_model/)")
     p.add_argument("--resume_from", default=None,
@@ -428,6 +487,9 @@ def parse_args(argv=None):
     p.add_argument("--max_eval_samples", type=int, default=0, help="Cap the eval split (0 = all)")
     p.add_argument("--num_workers", type=int, default=0, help="DataLoader workers")
     p.add_argument("--device", choices=["auto", "cuda", "mps", "cpu"], default="auto")
+    p.add_argument("--num_beams", type=int, default=DEFAULT_NUM_BEAMS,
+                   help="Beam width for checkpoint-selection decode (eval_root_accuracy); "
+                        f"evaluate_gold.py uses the same default ({DEFAULT_NUM_BEAMS})")
     p.add_argument("--load_only", action="store_true", help="Load and split the data, print counts, exit")
     p.add_argument("--export_dir", default=None,
                    help="Write the loaded pairs to this folder (train_pairs.jsonl, eval_pairs_synthetic.jsonl, "
@@ -482,7 +544,7 @@ def parse_args(argv=None):
 def main(argv=None) -> int:
     args = parse_args(argv)
     ROOT_ONLY_TASKS["on"] = args.root_only_tasks
-    args.dataset_dir = os.path.abspath(args.dataset_dir)
+    args.dataset_dir = os.path.abspath(dataset_loader.require_dataset_dir(args.dataset_dir))
     args.output_dir = os.path.abspath(args.output_dir)
 
     load_stats = collections.Counter()
@@ -702,7 +764,8 @@ def main(argv=None) -> int:
         model.eval()
         enc = tokenizer(texts, padding=True, return_tensors="pt").to(model.device)
         with torch.no_grad():
-            out = model.generate(**enc, max_new_tokens=ROOT_ACCURACY_MAX_NEW_TOKENS, num_beams=1, do_sample=False)
+            out = model.generate(**enc, **decode_generate_kwargs(
+                num_beams=args.num_beams, max_new_tokens=ROOT_ACCURACY_MAX_NEW_TOKENS))
         model.train(was_training)
         return tokenizer.batch_decode(out, skip_special_tokens=True)
 
@@ -762,7 +825,8 @@ def main(argv=None) -> int:
         for word in ["ይቀትሉ", "ተቀተለት", "ይባርኩ", "ይቀድሱ", "ቀተለ"]:
             inp = tokenizer(dataset_loader.input_text(word), return_tensors="pt").to(model.device)
             with torch.no_grad():
-                out = model.generate(**inp, max_length=128, num_beams=2, repetition_penalty=1.5)
+                out = model.generate(**inp, **decode_generate_kwargs(num_beams=args.num_beams),
+                                     repetition_penalty=1.5)
             print(f"  {word} -> {tokenizer.decode(out[0], skip_special_tokens=True)}")
     return 0
 

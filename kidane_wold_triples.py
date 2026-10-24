@@ -326,11 +326,13 @@ def parse_args(argv=None):
     p.add_argument("dataset", nargs="?", default=None,
                    help="Checkout of the geez-dataset repo (same as --dataset_dir)")
     p.add_argument("--dataset_dir", default=None,
-                   help="Checkout of the geez-dataset repo (default: $GEEZ_DATASET_DIR, else ../geez-dataset)")
+                   help="Checkout of the geez-dataset repo "
+                        "(default: $GEEZ_DATASET_DIR, else ../geez-dataset or ../geez-dataset-v1)")
     args = p.parse_args(argv)
     if args.dataset and args.dataset_dir and args.dataset != args.dataset_dir:
         p.error("give the dataset folder once, as a positional argument or with --dataset_dir")
-    args.dataset_dir = args.dataset_dir or args.dataset or dataset_loader.default_dataset_dir()
+    args.dataset_dir = dataset_loader.require_dataset_dir(
+        args.dataset_dir or args.dataset or dataset_loader.default_dataset_dir())
     return args
 
 

@@ -60,9 +60,12 @@ def heldout(dataset_dir):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir())
+    ap.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
+                    help="Checkout of the geez-dataset repo "
+                         "(default: $GEEZ_DATASET_DIR, else ../geez-dataset or ../geez-dataset-v1)")
     ap.add_argument("--train", required=True, help="train_pairs.jsonl written by the trainer's --export_dir")
     args = ap.parse_args()
+    args.dataset_dir = dataset_loader.require_dataset_dir(args.dataset_dir)
     held = heldout(args.dataset_dir)
     exact_roots = {s: {r for _, r in v if r} for s, v in held.items()}
     exact_pairs = {s: {(f, r) for f, r in v} for s, v in held.items()}

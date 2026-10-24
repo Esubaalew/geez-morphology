@@ -40,6 +40,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import dataset_loader  # noqa: E402
 import training_mixture as tm  # noqa: E402
 
 INPUT_BUCKETS = (32, 64, 128)
@@ -172,7 +173,9 @@ def add_data_args(p):
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--dataset_dir", default=os.environ.get("GEEZ_DATASET_DIR", "../geez-dataset"))
+    p.add_argument("--dataset_dir", default=dataset_loader.default_dataset_dir(),
+                   help="Checkout of the geez-dataset repo "
+                        "(default: $GEEZ_DATASET_DIR, else ../geez-dataset or ../geez-dataset-v1)")
     p.add_argument("--output_dir", required=True)
     p.add_argument("--stage", choices=["finetune", "dapt"], default="finetune")
     p.add_argument("--dapt_corpus", default=None, help="Text from build_dapt_corpus.py (built on the fly if missing)")
@@ -780,7 +783,7 @@ def _launch_xla(args, argv):
 
 def main(argv=None):
     args = parse_args(argv)
-    args.dataset_dir = os.path.abspath(args.dataset_dir)
+    args.dataset_dir = os.path.abspath(dataset_loader.require_dataset_dir(args.dataset_dir))
     args.output_dir = os.path.abspath(args.output_dir)
     if args.device == "auto":
         try:

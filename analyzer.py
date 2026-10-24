@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple, Any, Set
 
 import geez_script
-import dataset_loader  # default_dataset_dir(): --dataset_dir, else $GEEZ_DATASET_DIR, else ../geez-dataset
+import dataset_loader  # default_dataset_dir(): --dataset_dir, else $GEEZ_DATASET_DIR, else sibling checkout
 from train_byt5_morphology import DEFAULT_OUTPUT_DIR as DEFAULT_MODEL_DIR, model_to_load
 from engine import InterdigitationEngine, slots_from_spec, Pattern
 import verb_classes  # checked Type B/C, final-weak, initial-w paradigms
@@ -28,8 +28,8 @@ DICTIONARY_FILE = os.path.join("data", "lexicon", "geez_amharic_dictionary.jsonl
 
 def find_model_dir(model_dir: Optional[str] = None) -> str:
     """The ByT5 model folder, found the way evaluate_gold.py finds it: model_dir (default
-    byt5_morphology_model/, the trainer's --output_dir), its final model, else its latest
-    checkpoint-<step>. Raises FileNotFoundError when there is no model there."""
+    byt5_morphology_model/, the trainer's --output_dir), then the newest of its final model
+    and checkpoint-<step> folders. Raises FileNotFoundError when there is no model there."""
     folder = model_to_load(os.path.abspath(model_dir or DEFAULT_MODEL_DIR))
     if not os.path.exists(os.path.join(folder, "config.json")):
         raise FileNotFoundError(
@@ -138,19 +138,22 @@ class GeezMorphologicalAnalyzer:
     def __init__(self, patterns_path: Optional[str] = None, dictionary_path: Optional[str] = None,
                  dataset_dir: Optional[str] = None):
         """dataset_dir: the geez-dataset checkout (the scripts' --dataset_dir). When it is None the
-        usual default is used: $GEEZ_DATASET_DIR, else ../geez-dataset. The dictionary
-        (<dataset_dir>/data/lexicon/geez_amharic_dictionary.jsonl, or dictionary_path) must exist:
-        without it the analyzer would run with no lexicon and give much worse answers, so a
-        missing dictionary is an error, not a silent fallback."""
+        usual default is used: $GEEZ_DATASET_DIR, else ../geez-dataset or ../geez-dataset-v1. The
+        dictionary (<dataset_dir>/data/lexicon/geez_amharic_dictionary.jsonl, or dictionary_path)
+        must exist: without it the analyzer would run with no lexicon and give much worse answers,
+        so a missing dictionary is an error, not a silent fallback."""
         base_dir = os.path.dirname(os.path.abspath(__file__))   # holds the template files
-        self.dataset_dir = os.path.abspath(dataset_dir or dataset_loader.default_dataset_dir())
+        if dataset_dir is None:
+            self.dataset_dir = os.path.abspath(dataset_loader.require_dataset_dir())
+        else:
+            self.dataset_dir = os.path.abspath(dataset_dir)
         if dictionary_path is None:
             dictionary_path = os.path.join(self.dataset_dir, DICTIONARY_FILE)
         if not os.path.exists(dictionary_path):
             raise FileNotFoundError(
                 f"Dictionary not found: {dictionary_path}. The analyzer needs a geez-dataset checkout: "
                 "pass --dataset_dir (dataset_dir=...), or set $GEEZ_DATASET_DIR, or clone the dataset "
-                "to ../geez-dataset.")
+                "to ../geez-dataset or ../geez-dataset-v1.")
 
         # Load patterns
         if patterns_path is None:
@@ -994,7 +997,8 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
         from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
         if self.device is None:
-            self.device = "mps" if torch.backends.mps.is_available() else "cpu"
+            mps = getattr(torch.backends, "mps", None)
+            self.device = "mps" if mps is not None and mps.is_available() else "cpu"
 
         self._tokenizer = AutoTokenizer.from_pretrained(self.model_dir)
         self._model = AutoModelForSeq2SeqLM.from_pretrained(self.model_dir).to(self.device)
