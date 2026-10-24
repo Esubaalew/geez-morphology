@@ -45,14 +45,16 @@ TYPES = ("verb", "noun", "adjective")
 NOMINAL_TYPES = ("noun", "adjective")
 # The other word classes of data/unified (the unified row table): they have their own target shape (target_text).
 # Rooted: the root is read; rootless: the word has no root and the target says "root: none".
-UNIFIED_ROOTED_TYPES = ("infinitive", "gerund", "verbal_noun", "nominal")
-UNIFIED_ROOTLESS_TYPES = ("pronoun", "demonstrative", "preposition", "particle", "numeral", "adverb")
+UNIFIED_ROOTED_TYPES = ("infinitive", "gerund", "verbal_noun", "nominal", "numeral")
+UNIFIED_ROOTLESS_TYPES = ("pronoun", "demonstrative", "preposition", "particle", "adverb")
 UNIFIED_TYPES = UNIFIED_ROOTED_TYPES + UNIFIED_ROOTLESS_TYPES
-# names: a word without root, target 'root: none | type: proper_noun | ...'
+# Names may carry a documented root or have no root.
 NAME_TYPES = ("proper_noun",)
 # Classes of the words-without-root file that the unified rows do not use; rootless, generic target shape.
 CLOSED_CLASS_EXTRA_TYPES = ("name", "loanword")
 ROOTLESS_TYPES = UNIFIED_ROOTLESS_TYPES + CLOSED_CLASS_EXTRA_TYPES
+# Settled nouns, derived adjectives and names may have no root; rooted rows retain it.
+OPTIONAL_ROOT_TYPES = NOMINAL_TYPES + NAME_TYPES
 UNIFIED_FILE = os.path.join("data", "unified", "geez_morphology_rows.jsonl")
 # Label fields of the generic target shape, in the order they are written.
 GENERIC_FIELDS = ("tense", "person", "gender", "number", "stem", "object", "possessor")
@@ -227,7 +229,8 @@ def rootless_labels(u):
     """The class and labels a rootless pair takes from its unified row."""
     return {"type": u["word_class"], "gender": u.get("gender") or "", "number": u.get("number") or "",
             "tense": u.get("tense"), "person": u.get("person"), "stem": u.get("stem"),
-            "object": u.get("object") or "", "possessor": u.get("possessor") or ""}
+            "object": u.get("object") or "", "possessor": u.get("possessor") or "",
+            "negated": bool(u.get("negated"))}
 
 
 def file_pairs(records, split, flagged=(), stats=None, rootless=None):
@@ -267,7 +270,8 @@ def file_pairs(records, split, flagged=(), stats=None, rootless=None):
                     raise ValueError(f"{split} record {rid} row {j}: form {v!r} is not one Ge'ez word "
                                      "(run the dataset's scripts/check_dataset.py)")
                 pair = {"form": v, "root": root, "type": typ, "gender": row.get("gender") or "",
-                        "number": row.get("number") or "", "record": rec, "record_id": rid, "row": j}
+                        "number": row.get("number") or "", "record": rec, "record_id": rid, "row": j,
+                        "possessor": row.get("possessor") or "", "negated": bool(row.get("negated"))}
                 if root is None:
                     # every reading of the spelling loads (a homograph has two or more unified rows)
                     for u in readings(rootless[v]):
@@ -404,8 +408,10 @@ def load_unified(dataset_dir, split, sources=("book",), stats=None, path=None):
             if t not in TYPES + UNIFIED_TYPES + NAME_TYPES:
                 stats[f"not loaded: class {t}"] += 1
                 continue
-            if t in UNIFIED_ROOTLESS_TYPES + NAME_TYPES:
+            if t in UNIFIED_ROOTLESS_TYPES:
                 root = None
+            elif t in NAME_TYPES:
+                root = r.get("root") or None
             elif not r.get("root") and t == "adjective" and r.get("base_id") and r["form"] not in derived:
                 if base_forms is None:
                     base_forms = _unified_forms(dataset_dir)

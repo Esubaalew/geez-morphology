@@ -79,6 +79,7 @@ from typing import Dict, List, Optional
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 
+import geez_script
 from geez_script import to_ethiopic_root  # one shared definition
 import dataset_loader  # reads the gold files; shared with evaluate_gold.py
 
@@ -250,6 +251,19 @@ def counts_by_source(samples: List[Dict]) -> Dict[str, int]:
     return {k: found[k] for k in SOURCES if found[k]}
 
 
+def filter_heldout_samples(samples, heldout_pairs):
+    """Protect held-out evaluation forms across every source, including gold homographs.
+
+    The legacy trainer allows spelling variants of roots, but never the same exact root or
+    a held-out form (including its spelling variants). Keep that policy consistent across sources.
+    """
+    forms = {geez_script.fold_spelling(form) for form, _ in heldout_pairs}
+    roots = {root for _, root in heldout_pairs if root}
+    return [s for s in samples
+            if geez_script.fold_spelling(s["input_text"].split(":", 1)[-1].strip()) not in forms
+            and root_in_output(s["target_text"]) not in roots]
+
+
 def export_row(sample: Dict) -> Dict:
     """The line --export_dir writes for a sample. A full-analysis sample keeps its input_text, target_text and
     is_gold; a root-only sample keeps all its fields."""
@@ -384,6 +398,12 @@ def model_to_load(model_dir: str) -> str:
     Used by evaluate_gold.py and the analyzer."""
     if not os.path.isdir(model_dir):
         return model_dir
+    # The TPU trainer exports its selected model in best/, without a model at the run root.
+    best = os.path.join(model_dir, "best")
+    if os.path.exists(os.path.join(best, "config.json")) and not os.path.exists(os.path.join(model_dir, "config.json")) \
+            and not any(CHECKPOINT_RE.match(name) and os.path.isdir(os.path.join(model_dir, name))
+                        for name in os.listdir(model_dir)):
+        return best
     top = model_dir if os.path.exists(os.path.join(model_dir, "config.json")) else None
     ckpts = []
     for name in os.listdir(model_dir):
@@ -473,6 +493,9 @@ def parse_args(argv=None):
                    help="Where the checkpoints, run_info.json and the final model go (default: byt5_morphology_model/)")
     p.add_argument("--resume_from", default=None,
                    help="checkpoint-N folder, or a folder of them, to resume from when output_dir has none")
+    p.add_argument("--init_from", default=None,
+                   help="Model or run folder whose weights start a new fine-tune (e.g. the selected A2 checkpoint); "
+                        "a resume checkpoint takes precedence")
     p.add_argument("--sample_limit", type=int, default=0, help="Use N synthetic pairs (0 = all, the default)")
     p.add_argument("--batch_size", type=int, default=16, help="Per-device batch size")
     p.add_argument("--grad_accum", type=int, default=1,
@@ -595,6 +618,14 @@ def main(argv=None) -> int:
     if dictionary_train or without_root or book_forms or unified_upsampled:
         train_samples = train_samples + dictionary_train + without_root + book_forms + unified_upsampled
         random.Random(args.seed).shuffle(train_samples)
+    from scripts.audit_train_leakage import heldout
+    held_pairs = [p for pairs in heldout(args.dataset_dir).values() for p in pairs]
+    n_before = len(train_samples)
+    train_samples = filter_heldout_samples(train_samples, held_pairs)
+    eval_samples = filter_heldout_samples(eval_samples, held_pairs)
+    dictionary_eval = filter_heldout_samples(dictionary_eval, held_pairs)
+    if n_before != len(train_samples):
+        print(f"Dropped {n_before - len(train_samples)} training samples matching held-out forms or roots.")
     if args.max_eval_samples and args.max_eval_samples < len(eval_samples):
         eval_samples = eval_samples[:args.max_eval_samples]
     if args.max_eval_samples and args.max_eval_samples < len(dictionary_eval):
@@ -676,7 +707,8 @@ def main(argv=None) -> int:
           f"{args.batch_size * args.grad_accum * n_devices}")
 
     resume = resolve_resume(args.output_dir, args.resume_from)
-    print(f"Resuming from: {resume}" if resume else "Starting from the pretrained model (no checkpoint found).")
+    init_model = model_to_load(args.init_from or MODEL_NAME)
+    print(f"Resuming from: {resume}" if resume else f"Starting from: {init_model}")
 
     total_steps = optimizer_steps(len(train_samples), args.batch_size, args.grad_accum, n_devices,
                                   args.epochs, args.max_steps)
@@ -713,6 +745,7 @@ def main(argv=None) -> int:
         "device": device, "n_devices": n_devices, "precision": "fp32",
         "optimizer_steps": total_steps, "warmup_steps": warmup_steps,
         "resumed_from": resume,
+        "initialized_from": init_model,
         "versions": {"python": sys.version.split()[0], "torch": torch.__version__,
                      "transformers": __import__("transformers").__version__},
         "args": vars(args),
@@ -728,7 +761,7 @@ def main(argv=None) -> int:
         json.dump(run_info, f, ensure_ascii=False, indent=2)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+    model = AutoModelForSeq2SeqLM.from_pretrained(init_model)
 
     eval_every = args.eval_steps or (args.save_steps if args.metric_for_best_model else 0)
     training_args = Seq2SeqTrainingArguments(

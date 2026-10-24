@@ -15,6 +15,16 @@ import analyzer  # noqa: E402
 import train_byt5_morphology as T  # noqa: E402
 
 
+def test_tpu_run_selects_exported_best_model(tmp_path):
+    best = tmp_path / "best"
+    best.mkdir()
+    (best / "config.json").write_text("{}")
+    assert T.model_to_load(str(tmp_path)) == str(best)
+    assert analyzer.find_model_dir(str(tmp_path)) == str(best)
+    (tmp_path / "config.json").write_text("{}")
+    assert T.model_to_load(str(tmp_path)) == str(tmp_path)
+
+
 def test_final_model_then_latest_checkpoint():
     with tempfile.TemporaryDirectory() as out:
         for step in (900, 1000):
@@ -61,6 +71,7 @@ def test_newer_checkpoint_mtime_wins_when_top_level_has_no_step():
 def test_default_names():
     assert os.path.basename(T.DEFAULT_OUTPUT_DIR) == "byt5_morphology_model"
     assert T.parse_args([]).output_dir == T.DEFAULT_OUTPUT_DIR
+    assert T.parse_args(["--init_from", "a2/best"]).init_from == "a2/best"
     assert set(T.EXPORT_FILES.values()) == {"train_pairs.jsonl", "eval_pairs_synthetic.jsonl",
                                             "eval_pairs_dictionary_nominal.jsonl"}
 

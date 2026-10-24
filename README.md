@@ -64,6 +64,26 @@ Main flags (defaults in brackets):
 
 `train_tpu.py` trains the same model with PyTorch/XLA on TPU; run it with `--load_only` first to see counts.
 
+For a new fine-tune from an existing selected model (such as A2), use a fresh `--output_dir` and
+`--init_from /path/to/selected/model` with either trainer. This loads its weights with a new optimizer.
+`--resume_from` continues an interrupted run with its saved optimizer and training position instead.
+The regular trainer also accepts a run folder and resolves its model or TPU `best/` export.
+
+The A2 continuation profile uses a fresh optimizer, learning rate `1e-4`, fp32, gradient checkpointing,
+global batch 256, and up to 1,000 steps with a five-hour training budget. It scores and exports the initial
+weights before training and keeps them as `best/` unless a later checkpoint improves the same dev score.
+Historical Run A and A2 training exposures are excluded from dev selection; this is a conservative historical
+filter, not an independently collected benchmark. To verify data loading locally:
+
+```bash
+python3 a2_finetune.py --dataset_dir ../geez-dataset --init_from /path/to/A2/best \
+  --output_dir runs/a2-corrected --load_only
+```
+
+`scripts/prepare_kaggle_finetune.py` builds a private Kaggle bundle from the local repositories and the
+verified A2 checkpoint. It includes local fixes, file hashes, source revisions, the exposure manifest and
+Kaggle metadata, and prints the dataset-upload and GPU-launch commands. Weights stay outside Git.
+
 ## Evaluate
 
 ```bash

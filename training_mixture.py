@@ -82,7 +82,9 @@ class HeldOut:
         self.forms = set(sh.gold_eval_forms(dataset_dir)) | generate_synthetic_data.read_blocked_forms_file()
         roots = set(sh.gold_eval_roots(dataset_dir))
         for split in ("val", "test"):
-            for p in dataset_loader.load_unified(dataset_dir, split, ("book",)):
+            unified = dataset_loader.load_unified(dataset_dir, split, ("book",))
+            unified += dataset_loader.load_unified(dataset_dir, split, ("clitic_rule",), path=CLITIC_FILE)
+            for p in unified:
                 self.forms.add(p["form"])
                 if p["root"]:
                     roots.add(geez_script.first_order_root(p["root"]))
@@ -308,19 +310,61 @@ def build(dataset_dir, opts):
     return train, [sample(p, "synthetic_slice") for p in syn_slice], report
 
 
-def dev_samples(dataset_dir, cap=0, gold_only=False, pos_task=True):
+def exclude_checkpoint_exposure(pairs, manifest_path, stats=None):
+    """Conservatively exclude forms/roots eligible for training in a checkpoint's lineage.
+
+    A manifest is not proof that every eligible example was visited, nor does this filter
+    establish an independently collected benchmark. Dataset split assignments are unchanged.
+    """
+    stats = stats if stats is not None else {}
+    with open(manifest_path, encoding="utf-8") as f:
+        manifest = json.load(f)
+    if manifest.get("schema_version") != 1 or not isinstance(manifest.get("forms"), list) \
+            or not isinstance(manifest.get("roots"), list):
+        raise ValueError("Exposure manifest must have schema_version 1 and forms/roots lists")
+    if not all(isinstance(s, str) and s for s in manifest["forms"] + manifest["roots"]):
+        raise ValueError("Exposure manifest forms and roots must be nonempty strings")
+    forms = {geez_script.fold_spelling(form) for form in manifest["forms"]}
+    roots = {geez_script.fold_spelling(geez_script.first_order_root(root))
+             for root in manifest["roots"] if root != dataset_loader.NO_ROOT}
+    stats.update(exposure_manifest=os.path.abspath(manifest_path),
+                 exposure_coverage=manifest.get("coverage", "unspecified"),
+                 pairs_before_exposure_filter=len(pairs), pairs_excluded_seen_form=0,
+                 pairs_excluded_seen_root=0)
+    kept = []
+    for pair in pairs:
+        if geez_script.fold_spelling(pair["form"]) in forms:
+            stats["pairs_excluded_seen_form"] += 1
+        elif pair.get("root") and pair["root"] != dataset_loader.NO_ROOT and \
+                geez_script.fold_spelling(geez_script.first_order_root(pair["root"])) in roots:
+            stats["pairs_excluded_seen_root"] += 1
+        else:
+            kept.append(pair)
+    stats["pairs_after_exposure_filter"] = len(kept)
+    return kept
+
+
+def dev_samples(dataset_dir, cap=0, gold_only=False, pos_task=True, seen_manifest=None, stats=None):
     """Analyze (and pos) samples of the gold val pairs plus the unified book val rows, a seeded sample of `cap`
     pairs when cap > 0. Each keeps "dev" = gold_val or unified_val."""
     pairs = [dict(p, dev="gold_val") for p in dataset_loader.load_gold_split(dataset_dir, "val")]
     if not gold_only:
         pairs += [dict(p, dev="unified_val") for p in dataset_loader.load_unified(dataset_dir, "val", ("book",))]
+    stats = stats if stats is not None else {}
+    if seen_manifest:
+        pairs = exclude_checkpoint_exposure(pairs, seen_manifest, stats)
+    else:
+        stats.update(pairs_before_exposure_filter=len(pairs), pairs_after_exposure_filter=len(pairs),
+                     pairs_excluded_seen_form=0, pairs_excluded_seen_root=0)
     if cap and cap < len(pairs):
         keep = sorted(random.Random(SEED).sample(range(len(pairs)), cap))
         pairs = [pairs[i] for i in keep]
+    stats["pairs_after_cap"] = len(pairs)
     out = []
     for p in pairs:
         for task in [dataset_loader.ANALYZE_TASK] + ([POS_TASK] if pos_task else []):
             out.append(dict(sample(p, p["dev"], task), dev=p["dev"]))
+    stats["dev_samples"] = len(out)
     return out
 
 

@@ -35,7 +35,6 @@ def test_parse_no_root_reply(text):
 @pytest.mark.parametrize("text", [
     "root: ",                                       # empty root
     "root: q-t-l",                                  # not Ethiopic
-    "root: none | type: noun | number: s",         # "none" only in the root-only shape
     f"root: {ROOT} | type: noun",                   # nominal without number
     f"root: {ROOT} | root: {ROOT}",                 # duplicate key
 ])

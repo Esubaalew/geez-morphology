@@ -62,7 +62,6 @@ def test_target_text_parses_back(p, text):
 
 
 @pytest.mark.parametrize("text", [
-    "root: none | type: noun | number: s",                       # a noun needs a root
     "root: ቀ-ተ-ለ | type: pronoun",                               # a pronoun has no root
     "root: ቀ-ተ-ለ | type: widget",                                # unknown class
     "root: none | type: preposition | stem: basic | mood: x",    # unknown key
@@ -125,3 +124,55 @@ def test_load_unified_rootless_adjective(tmp_path):
     assert [p["id"] for p in tr] == ["u1"]                       # listed loads, unlisted is rejected
     assert tr[0]["root"] is None
     assert stats["not loaded: row has no root"] == 1
+
+
+@pytest.mark.parametrize('typ,root', [
+    ('numeral', 'ወ-ሐ-ደ'),
+    ('proper_noun', 'ሰ-ለ-መ'),
+    ('proper_noun', None),
+    ('noun', None),
+    ('adjective', None),
+])
+def test_optional_roots_roundtrip_and_inference(typ, root):
+    p = pair(root=root, type=typ, number='s')
+    text = dataset_loader.target_text(p)
+    parsed = analyzer.parse_neural_output(text)
+    assert parsed is not None
+    assert parsed['root'] == root
+    a = analyzer.HybridAnalyzer.__new__(analyzer.HybridAnalyzer)
+    a.engine = a.lemma_spec = None
+    results = a._analysis_from_reply('ሰላም', text)
+    assert len(results) == 1
+    assert results[0].pos == typ
+    assert bool(results[0].root_consonants) == bool(root)
+
+
+def test_unified_preserves_numeral_and_name_roots(tmp_path):
+    folder = tmp_path / 'data' / 'unified'
+    folder.mkdir(parents=True)
+    rows = [dict(id=f'u{i}', form='አሐዱ', root=root, word_class=typ, source='book',
+                 split='train', status='', number='s')
+            for i, (typ, root) in enumerate([
+                ('numeral', 'ወ-ሐ-ደ'), ('proper_noun', 'ሰ-ለ-መ'), ('proper_noun', None)])]
+    (folder / 'geez_morphology_rows.jsonl').write_text(
+        ''.join(json.dumps(r, ensure_ascii=False) + '\n' for r in rows), encoding='utf-8')
+    loaded = dataset_loader.load_unified(str(tmp_path), 'train')
+    assert [p['root'] for p in loaded] == [r['root'] for r in rows]
+    assert analyzer.parse_neural_output('root: none | type: numeral') is None
+
+
+def test_gold_loader_retains_possessor_and_negation():
+    records = [{'root': 'መ-ደ-ረ', 'record_id': 'possessed', 'table_data': [
+        {'geez_form': 'እምድሩ', 'type': 'noun', 'number': 's', 'possessor': '3ms', 'negated': True}]}]
+    p, = dataset_loader.file_pairs(records, 'test')
+    text = dataset_loader.target_text(p)
+    assert text == 'root: መ-ደ-ረ | type: noun | number: s | possessor: 3ms | negated: yes'
+    parsed = analyzer.parse_neural_output(text)
+    assert parsed['possessor'] == '3ms' and parsed['negated']
+
+
+def test_rootless_gold_retains_negation():
+    records = [{'root': None, 'record_id': 'rootless', 'table_data': [{'geez_form': 'አልቦ'}]}]
+    rows = {'አልቦ': {'word_class': 'particle', 'negated': True}}
+    p, = dataset_loader.file_pairs(records, 'test', rootless=rows)
+    assert dataset_loader.target_text(p) == 'root: none | type: particle | negated: yes'

@@ -23,7 +23,8 @@ HAS_DATA = os.path.exists(os.path.join(DATASET_DIR or "", TM.SYNTHETIC_FILE))
 def test_byte_ids_round_trip_and_eos():
     ids = TT.encode("analyze: ቀተለ", 64)
     assert ids[-1] == TT.EOS and TT.decode(ids) == "analyze: ቀተለ"
-    assert len(TT.encode("ቀ" * 100, 32)) == 32
+    with pytest.raises(ValueError, match="bucket holds"):
+        TT.encode("ቀ" * 100, 32)
 
 
 def test_buckets_and_fixed_batch_shapes():
@@ -175,3 +176,57 @@ def test_sharded_token_loss_matches_unsharded_gradient():
     sharded.backward()
     assert torch.allclose(sharded, reference)
     assert torch.allclose(shards.grad, ref_grad)
+
+
+def test_long_analysis_buckets_preserve_negation_and_all_bytes():
+    torch = pytest.importorskip("torch")
+    text = "generate: root: ጠ-ፈ-አ | tense: subjunctive | person: 3 | gender: m | number: s | stem: causative | object: 3mp | negated: yes"
+    samples = [{"input_text": text, "target_text": "x" * 140}]
+    chunk, a, b = TT.make_batches(samples, 2, 42, 0)[0]
+    assert a >= len(text.encode()) + 1 and b >= 141
+    inp, _, lab = TT.tensors(samples, chunk, a, b, torch)
+    assert TT.decode(inp[0].tolist()) == text
+    assert TT.decode(lab[0].tolist()) == "x" * 140
+
+
+def test_steps_per_epoch_counts_bucket_batches():
+    # Two groups of 127 each drop 63 rows, unlike floor(254 / 64).
+    samples = [{"input_text": "x", "target_text": "y"}] * 127 + [
+        {"input_text": "x" * 50, "target_text": "y"}] * 127
+    assert len(samples) // 64 == 3
+    actual = TT.training_batches(samples, None, 64, 42, 0)
+    assert len(actual) == 2
+    # Small groups get padded, so item-count division can undercount too.
+    actual = TT.training_batches(samples[:1] + samples[-1:], None, 64, 42, 0)
+    assert len(actual) == 2
+
+
+def test_dapt_short_corpus_and_last_chunk_are_kept(tmp_path):
+    corpus = tmp_path / "corpus.txt"
+    corpus.write_text("x" * 230)
+    assert len(TT.dapt_samples(corpus, 0, 42)) == 1
+    corpus.write_text("x" * 231)
+    items = TT.dapt_samples(corpus, 0, 42)
+    assert len(items) == 2
+    batches = TT.training_batches([], len(items), 64, 42, 0)
+    assert len(batches) == 1
+    assert sorted(i for i in batches[0][0] if i >= 0) == [0, 1]
+    assert batches[0][0].count(-1) == 62
+    corpus.write_text("")
+    with pytest.raises(ValueError, match="No training samples"):
+        TT.training_batches([], len(TT.dapt_samples(corpus, 0, 42)), 64, 42, 0)
+
+
+def test_dapt_corruption_never_discards_masked_bytes(tmp_path):
+    corpus = tmp_path / "corpus.txt"
+    corpus.write_text("x" * 230)
+    for seed in range(200):
+        [(inp, tgt)] = TT.dapt_samples(corpus, 0, seed)
+        assert len(inp) <= TT.DAPT_INPUT and len(tgt) <= TT.DAPT_TARGET
+        assert sum(i == ord("x") + 3 for i in inp + tgt) == 230
+
+
+@pytest.mark.parametrize("flag", ["--per_core_batch", "--gradient_accumulation", "--epochs", "--eval_every", "--save_every", "--log_every"])
+def test_invalid_training_loop_options_fail_before_start(flag):
+    with pytest.raises(SystemExit):
+        TT.parse_args(["--output_dir", "x", flag, "0"])

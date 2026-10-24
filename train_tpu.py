@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Train ByT5 on Ge'ez morphology on a TPU VM (PyTorch/XLA, one process per TPU core, data parallel), on CUDA,
-or on the CPU (for a dry run). Two stages:
+or on the CPU (for a dry run). CUDA supports torchrun with one DDP worker per GPU. Two stages:
 
   --stage finetune   the multitask mixture of training_mixture.py (analyze:, generate:, pos:)
   --stage dapt       span corruption on the Ge'ez corpora (build_dapt_corpus.py), then use --init_from with
@@ -17,7 +17,9 @@ greedy output, so the scores are the greedy exact-match and root accuracy, at fi
   dev_exact   full analysis equal to the gold target
   dev_root    root field equal (the bytes before the first " |")
   dev_pos     the pos: task's "type: <class>" equal
-and dev_score = (dev_root + dev_exact) / 2 picks best/. At the end best/ is reloaded and dev_report.json gets the
+and dev_score = (dev_root + dev_exact) / 2 picks best/. With --baseline_first, the starting weights participate
+at step zero and remain best/ unless training improves that score. --dev_seen_manifest filters known historical
+training exposure before dev sampling and scoring. At the end best/ is reloaded and dev_report.json gets the
 greedy-decoded scores per dev slice and per class, with the class confusion of the pos: task.
 
 Output (--output_dir, lean): best/ (bf16 safetensors + config, the model to use), resume/ (fp32 weights, optimizer,
@@ -27,6 +29,7 @@ cleanly (saving resume/) when --time_budget_hours is reached or on SIGTERM.
 """
 import argparse
 import collections
+import contextlib
 import json
 import math
 import os
@@ -55,7 +58,9 @@ STOP = {"signal": None}
 # ----------------------------------------------------------------------------- bytes
 
 def encode(text, max_len):
-    ids = [b + 3 for b in text.encode("utf-8")][:max_len - 1]
+    ids = [b + 3 for b in text.encode("utf-8")]
+    if len(ids) + 1 > max_len:
+        raise ValueError(f"Text needs {len(ids) + 1} byte tokens, but its bucket holds {max_len}")
     return ids + [EOS]
 
 
@@ -73,11 +78,14 @@ def bucket(n, sizes):
     for s in sizes:
         if n <= s:
             return s
-    return sizes[-1]
+    # Extend the static shape vocabulary for long analyses instead of losing labels.
+    return 1 << (n - 1).bit_length()
 
 
 def make_batches(samples, rows, seed, epoch, drop_last=True):
     """Lists of (sample indices, input len, target len), each `rows` long, in a seeded order per epoch."""
+    if rows <= 0:
+        raise ValueError("Batch rows must be positive")
     groups = collections.defaultdict(list)
     for i, s in enumerate(samples):
         a = bucket(len(s["input_text"].encode()) + 1, INPUT_BUCKETS)
@@ -114,13 +122,20 @@ def tensors(samples, chunk, a, b, torch):
 
 def corrupt(ids, rng, noise=0.15, mean_span=20):
     n = len(ids)
+    if not n:
+        return [], []
     n_noise = max(1, round(n * noise))
     n_spans = max(1, round(n_noise / mean_span))
     starts = sorted(rng.sample(range(n), min(n_spans, n)))
     mask = [False] * n
+    remaining = n_noise
     for s in starts:
         for j in range(s, min(n, s + max(1, int(rng.expovariate(1 / mean_span))))):
-            mask[j] = True
+            if not remaining:
+                break
+            if not mask[j]:
+                mask[j] = True
+                remaining -= 1
     inp, tgt, sent, prev = [], [], SENTINEL_FIRST, False
     for i, m in enumerate(mask):
         if m and not prev:
@@ -137,10 +152,30 @@ def dapt_samples(path, epoch, seed):
     rng = random.Random(seed * 7919 + epoch)
     chunk = 230
     out = []
-    for k in range(0, len(data) - chunk, chunk):
+    for k in range(0, len(data), chunk):
         inp, tgt = corrupt(data[k:k + chunk], rng)
-        out.append((inp[:DAPT_INPUT - 1] + [EOS], tgt[:DAPT_TARGET - 1] + [EOS]))
+        if len(inp) >= DAPT_INPUT or len(tgt) >= DAPT_TARGET:
+            raise ValueError("Span corruption exceeds the DAPT tensor shape")
+        out.append((inp + [EOS], tgt + [EOS]))
     return out
+
+
+def dapt_batches(n_items, rows, seed, epoch):
+    """Keep a short corpus/remainder with zero-weight padding, including on many workers."""
+    if rows <= 0:
+        raise ValueError("Batch rows must be positive")
+    order = list(range(n_items))
+    random.Random(seed + epoch).shuffle(order)
+    return [(order[k:k + rows] + [-1] * max(0, rows - len(order[k:k + rows])), DAPT_INPUT, DAPT_TARGET)
+            for k in range(0, len(order), rows)]
+
+
+def training_batches(train, dapt_count, rows, seed, epoch):
+    batches = (dapt_batches(dapt_count, rows, seed, epoch) if dapt_count is not None
+               else make_batches(train, rows, seed, epoch))
+    if not batches:
+        raise ValueError("No training samples: provide a non-empty corpus or training mixture")
+    return batches
 
 
 # ----------------------------------------------------------------------------- args
@@ -187,13 +222,16 @@ def parse_args(argv=None):
                    help="multi: one process per TPU chip; single: one process on one chip (fallback)")
     p.add_argument("--expected_world_size", type=int, default=-1,
                    help="Fail unless the runtime uses exactly this many workers. Default -1: the detected TPU chip "
-                        "count (8 on a TPU v3-8), or 1 off TPU; 0 disables the check")
+                       "count (8 on a TPU v3-8), or torchrun WORLD_SIZE off TPU; 0 disables the check")
     p.add_argument("--max_grad_norm", type=float, default=1.0,
                    help="Clip the gradient norm to this (0 = no clipping; the norm is still checked for NaN/inf)")
     p.add_argument("--skip_nonfinite_batches", type=int, default=0,
                    help="Skip up to N optimizer steps whose loss or gradient is NaN/inf (no update), then stop; "
                         "0 = stop at the first one")
     p.add_argument("--skip_final_report", action="store_true", help="Skip slow autoregressive report in a runtime pilot")
+    p.add_argument("--baseline_first", action="store_true",
+                   help="Evaluate and export the starting model before training; replace best/ only on improvement")
+    p.add_argument("--gradient_checkpointing", action="store_true", help="Trade extra computation for lower GPU memory use")
     p.add_argument("--bf16", choices=["auto", "yes", "no"], default="auto")
     p.add_argument("--per_core_batch", type=int, default=64)
     p.add_argument("--gradient_accumulation", type=int, default=1)
@@ -206,13 +244,21 @@ def parse_args(argv=None):
     p.add_argument("--save_every", type=int, default=1000)
     p.add_argument("--log_every", type=int, default=50)
     p.add_argument("--dev_cap", type=int, default=0, help="Seeded sample of N dev pairs (0 = all)")
+    p.add_argument("--dev_seen_manifest", "--seen_manifest", default=None,
+                   help="Historical training exposure manifest; remove known-seen forms/roots from dev")
     p.add_argument("--report_cap", type=int, default=0, help="Greedy-decode at most N dev rows at the end (0 = all)")
     p.add_argument("--time_budget_hours", type=float, default=8.0)
     p.add_argument("--train_limit", type=int, default=0, help="Dry runs: a seeded sample of N training samples")
     p.add_argument("--load_only", action="store_true", help="Build the mixture, write reports and the audit, exit")
     p.add_argument("--export_dir", default=None, help="Also write train_pairs.jsonl / dev_pairs.jsonl here")
     add_data_args(p)
-    return p.parse_args(argv)
+    args = p.parse_args(argv)
+    for name in ("per_core_batch", "gradient_accumulation", "epochs", "eval_every", "save_every", "log_every"):
+        if getattr(args, name) <= 0:
+            p.error(f"--{name} must be positive")
+    if args.max_steps < 0:
+        p.error("--max_steps must be nonnegative")
+    return args
 
 
 # ----------------------------------------------------------------------------- data + audit (rank 0 writes)
@@ -233,7 +279,10 @@ def prepare(args, write=True):
     train, _, report = tm.build(args.dataset_dir, args)
     if args.train_limit and args.train_limit < len(train):      # dry runs: a seeded sample of the mixture
         train = random.Random(args.seed).sample(train, args.train_limit)
-    dev = tm.dev_samples(args.dataset_dir, args.dev_cap, pos_task=args.pos_task)
+    dev_filter_stats = {}
+    dev = tm.dev_samples(args.dataset_dir, args.dev_cap, pos_task=args.pos_task,
+                         seen_manifest=args.dev_seen_manifest, stats=dev_filter_stats)
+    report["dev_exposure_filter"] = dev_filter_stats
     if write:
         os.makedirs(args.output_dir, exist_ok=True)
         with open(os.path.join(args.output_dir, "mixture_report.json"), "w", encoding="utf-8") as f:
@@ -242,9 +291,11 @@ def prepare(args, write=True):
         os.makedirs(export, exist_ok=True)
         tm.write_jsonl(os.path.join(export, "train_pairs.jsonl"), train)
         tm.write_jsonl(os.path.join(export, "dev_pairs.jsonl"), dev)
-        audit = subprocess.run([sys.executable, os.path.join(HERE, "scripts", "audit_train_leakage.py"),
-                                "--dataset_dir", args.dataset_dir, "--train", os.path.join(export, "train_pairs.jsonl")],
-                               capture_output=True, text=True)
+        audit_cmd = [sys.executable, os.path.join(HERE, "scripts", "audit_train_leakage.py"),
+                                "--dataset_dir", args.dataset_dir, "--train", os.path.join(export, "train_pairs.jsonl")]
+        if args.unified_file:
+            audit_cmd += ["--unified_file", args.unified_file]
+        audit = subprocess.run(audit_cmd, capture_output=True, text=True)
         with open(os.path.join(args.output_dir, "leak_audit.txt"), "w", encoding="utf-8") as f:
             f.write(audit.stdout + audit.stderr)
         print(audit.stdout.strip().splitlines()[-1] if audit.stdout.strip() else audit.stderr, flush=True)
@@ -387,10 +438,15 @@ def train_step(model, opt, micro_batches, *, torch, device, world, all_sum, auto
     micro_losses = []
     for inp, att, lab in micro_batches:
         inp, att, lab = inp.to(device), att.to(device), lab.to(device)
-        with autocast():
-            logits = model(input_ids=inp, attention_mask=att, labels=lab).logits
-            micro_loss = token_loss(logits, lab, torch, world=world, count=global_count)
-        micro_loss.backward()
+        # DDP averages gradients; token_loss multiplies by world to recover the global token mean.
+        # Synchronize only the last microbatch of an accumulated update.
+        last_micro = len(micro_losses) == len(micro_batches) - 1
+        ddp_sync = model.no_sync() if hasattr(model, "no_sync") and not last_micro else contextlib.nullcontext()
+        with ddp_sync:
+            with autocast():
+                logits = model(input_ids=inp, attention_mask=att, labels=lab).logits
+                micro_loss = token_loss(logits, lab, torch, world=world, count=global_count)
+            micro_loss.backward()
         micro_losses.append(micro_loss.detach())
         loss = loss + micro_loss.detach()
         if sync:
@@ -445,12 +501,40 @@ def greedy(model, inp, att, max_len, torch, sync=None):
 
 # ----------------------------------------------------------------------------- the run
 
+def distributed_layout(env=None):
+    """torchrun supplies all three values; ordinary CPU/CUDA runs use one worker."""
+    env = os.environ if env is None else env
+    world, rank, local = (int(env.get(k, d)) for k, d in (("WORLD_SIZE", "1"), ("RANK", "0"), ("LOCAL_RANK", "0")))
+    if world < 1 or not 0 <= rank < world or local < 0:
+        raise ValueError("Invalid torchrun WORLD_SIZE/RANK/LOCAL_RANK")
+    return world, rank, local
+
+
+def bf16_enabled(requested, device, torch):
+    """T4 GPUs do not support bf16: auto must keep them in fp32."""
+    supported = device == "xla" or (device == "cuda" and torch.cuda.is_bf16_supported())
+    if requested == "yes" and device == "cuda" and not supported:
+        raise ValueError("This CUDA device does not support bf16; use --bf16 no")
+    return requested == "yes" or (requested == "auto" and supported)
+
+
+def establish_baseline(state, metrics):
+    """Step zero participates in model selection, so a regression never replaces the initial model."""
+    baseline = dict(metrics, step=0, baseline=True)
+    state["baseline"] = baseline
+    state["best"] = baseline["dev_score"]
+    state["best_step"] = 0
+    state["history"].append(baseline)
+    return baseline
+
+
 def run(rank, args):
     import torch
     from transformers import AutoModelForSeq2SeqLM
     from transformers.optimization import Adafactor
 
     xla = args.device == "xla"
+    dist = None
     if xla:
         import torch_xla
         import torch_xla.core.xla_model as xm
@@ -462,14 +546,24 @@ def run(rank, args):
         device = torch_xla.device() if hasattr(torch_xla, "device") else xm.xla_device()
         sync = xm.mark_step
     else:
-        world, rank = 1, 0
-        device = torch.device("cuda" if args.device == "cuda" else "cpu")
+        world, rank, local = distributed_layout()
+        if args.device == "cuda":
+            torch.cuda.set_device(local)
+            device = torch.device("cuda", local)
+        else:
+            device = torch.device("cpu")
+        if world > 1:
+            import torch.distributed as dist
+            if not dist.is_initialized():
+                import datetime
+                dist.init_process_group("nccl" if args.device == "cuda" else "gloo",
+                                        timeout=datetime.timedelta(minutes=30))
         sync = None
     master = rank == 0
-    check_world_size(args.expected_world_size, world, detect_chip_count() if xla else 1)
+    check_world_size(args.expected_world_size, world, detect_chip_count() if xla else distributed_layout()[0])
     random.seed(args.seed)
     torch.manual_seed(args.seed)
-    use_bf16 = args.bf16 == "yes" or (args.bf16 == "auto" and args.device in ("xla", "cuda"))
+    use_bf16 = bf16_enabled(args.bf16, args.device, torch)
 
     def log(*a):
         if master:
@@ -478,11 +572,16 @@ def run(rank, args):
     def all_sum(t):
         if xla and world > 1:
             return xm.all_reduce(xm.REDUCE_SUM, t)
+        if dist is not None:
+            t = t.clone()
+            dist.all_reduce(t)
         return t
 
     def barrier(tag):
         if xla:
             xm.rendezvous(tag)
+        elif dist is not None:
+            dist.barrier()
 
     train, dev, report = prepare(args, write=master) if master else prepare(args, write=False)
     barrier("data")
@@ -498,23 +597,49 @@ def run(rank, args):
     physical_rows = args.per_core_batch * world
     rows = physical_rows * args.gradient_accumulation
     protocol = {"gradient_accumulation": args.gradient_accumulation, "world": world, "rows": rows}
+    saved_rng = None
     if resume_dir:
         ck = torch.load(os.path.join(resume_dir, "state.pt"), map_location="cpu", weights_only=False)
         check_resume(ck, protocol)
         model.load_state_dict(ck["model"])
         state = ck["state"]
+        saved_rng = ck.get("rng")
         log(f"resumed from {resume_dir} at step {state['step']}")
     model.to(device)
+    if args.gradient_checkpointing:
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        model.config.use_cache = False
     opt = Adafactor(model.parameters(), lr=args.lr, scale_parameter=False, relative_step=False, warmup_init=False)
     if resume_dir:
         opt.load_state_dict(ck["opt"])
         del ck
+        previous_best = os.path.join(os.path.dirname(resume_dir), "best")
+        local_best = os.path.join(args.output_dir, "best")
+        if master and os.path.abspath(previous_best) != os.path.abspath(local_best) and not os.path.exists(local_best):
+            if state["best"] >= 0 and not os.path.isdir(previous_best):
+                raise FileNotFoundError(f"Resume state selects a best model, but {previous_best} is missing")
+            if os.path.isdir(previous_best):
+                import shutil
+                shutil.copytree(previous_best, local_best)
+        barrier("resume_best")
+    net = model
+    if dist is not None:
+        from torch.nn.parallel import DistributedDataParallel
+        net = DistributedDataParallel(model, device_ids=[local] if args.device == "cuda" else None,
+                                      broadcast_buffers=False)
+    # Restore each worker's dropout stream after model initialization and DDP setup.
+    torch.manual_seed(args.seed + rank)
+    if saved_rng:
+        rng = saved_rng[rank]
+        random.setstate(rng["python"])
+        torch.set_rng_state(rng["torch"])
+        if args.device == "cuda" and rng.get("cuda") is not None:
+            torch.cuda.set_rng_state(rng["cuda"], device)
+        if xla and rng.get("xla") is not None:
+            xm.set_rng_state(rng["xla"])
 
-    if args.stage == "dapt":
-        n_items = len(dapt_samples(args.dapt_corpus, 0, args.seed))
-    else:
-        n_items = len(train)
-    steps_per_epoch = max(1, n_items // rows)
+    dapt_count = len(dapt_samples(args.dapt_corpus, 0, args.seed)) if args.stage == "dapt" else None
+    steps_per_epoch = len(training_batches(train, dapt_count, rows, args.seed, 0))
     total = args.max_steps or int(math.ceil(steps_per_epoch * args.epochs))
     log(f"device {args.device} x{world}, bf16 {use_bf16}, global batch {rows}, steps/epoch {steps_per_epoch}, "
         f"total steps {total}")
@@ -562,6 +687,19 @@ def run(rank, args):
         return res
 
     def save_resume():
+        local_rng = {"python": random.getstate(), "torch": torch.get_rng_state(),
+                     "cuda": torch.cuda.get_rng_state(device) if args.device == "cuda" else None,
+                     "xla": xm.get_rng_state() if xla else None}
+        if dist is not None:
+            rng = [None] * world
+            dist.all_gather_object(rng, local_rng)
+        elif xla and world > 1:
+            # CPU RNG states are rank-specific; XLA's tensor RNG is captured as an integer.
+            import pickle
+            payloads = xm.rendezvous("resume_rng", pickle.dumps(local_rng))
+            rng = [pickle.loads(payload) for payload in payloads]
+        else:
+            rng = [local_rng]
         cpu = {k: v.detach().to("cpu") for k, v in model.state_dict().items()}
         if xla:
             optsd = xm._maybe_convert_to_cpu(opt.state_dict()) if hasattr(xm, "_maybe_convert_to_cpu") else opt.state_dict()
@@ -570,12 +708,13 @@ def run(rank, args):
         if master:
             d = os.path.join(args.output_dir, "resume")
             os.makedirs(d, exist_ok=True)
-            torch.save({"model": cpu, "opt": optsd, "state": state, "protocol": protocol}, os.path.join(d, "state.pt.tmp"))
+            torch.save({"model": cpu, "opt": optsd, "state": state, "protocol": protocol, "rng": rng},
+                       os.path.join(d, "state.pt.tmp"))
             os.replace(os.path.join(d, "state.pt.tmp"), os.path.join(d, "state.pt"))
         barrier("resume")
 
     def save_best():
-        cpu = {k: v.detach().to("cpu").to(torch.bfloat16) for k, v in model.state_dict().items()}
+        cpu = {k: v.detach().to("cpu").to(torch.bfloat16).clone() for k, v in model.state_dict().items()}
         if master:
             d = os.path.join(args.output_dir, "best")
             from safetensors.torch import save_file
@@ -586,10 +725,23 @@ def run(rank, args):
             model.config.save_pretrained(d)
             try:
                 from transformers import AutoTokenizer
-                AutoTokenizer.from_pretrained(args.model_name).save_pretrained(d)
+                AutoTokenizer.from_pretrained(src).save_pretrained(d)
             except Exception as e:     # the tokenizer has no weights; ByT5 ids are bytes + 3
                 print(f"[!] tokenizer files not saved: {e}", flush=True)
         barrier("best")
+
+    if args.baseline_first and not resume_dir:
+        if args.stage != "finetune" or not dev:
+            raise ValueError("--baseline_first requires a finetune run with a non-empty dev set")
+        baseline = establish_baseline(state, evaluate())
+        if master:
+            with open(os.path.join(args.output_dir, "baseline.json"), "w") as f:
+                json.dump(baseline, f, indent=1)
+            with open(os.path.join(args.output_dir, "eval_log.jsonl"), "a") as f:
+                f.write(json.dumps(baseline) + "\n")
+        save_best()
+        save_resume()
+        log("baseline " + json.dumps(baseline))
 
     # ---- training loop
     model.train()
@@ -600,11 +752,8 @@ def run(rank, args):
     while not done:
         if args.stage == "dapt":
             items = dapt_samples(args.dapt_corpus, state["epoch"], args.seed)
-            order = list(range(len(items)))
-            random.Random(args.seed + state["epoch"]).shuffle(order)
-            batches = [(order[k:k + rows], DAPT_INPUT, DAPT_TARGET) for k in range(0, len(order) - rows + 1, rows)]
-        else:
-            batches = make_batches(train, rows, args.seed, state["epoch"])
+        batches = training_batches(train, len(items) if args.stage == "dapt" else None,
+                                   rows, args.seed, state["epoch"])
         for bi in range(state["batch"], len(batches)):
             chunk, a, b = batches[bi]
             micro_batches = []
@@ -619,7 +768,7 @@ def run(rank, args):
             for g in opt.param_groups:
                 g["lr"] = lr_at(state["step"])
             # All microbatches are normalized by one global target-token count (token_loss).
-            loss, flags = train_step(model, opt, micro_batches, torch=torch, device=device, world=world,
+            loss, flags = train_step(net, opt, micro_batches, torch=torch, device=device, world=world,
                                      all_sum=all_sum, autocast=autocast, max_norm=args.max_grad_norm, sync=sync,
                                      reduce_gradients=xm.reduce_gradients if xla else None)
             if flags is not None:
@@ -652,16 +801,19 @@ def run(rank, args):
                         f.write(json.dumps(m) + "\n")
                 if m["dev_score"] > state["best"]:
                     state["best"] = m["dev_score"]
+                    state["best_step"] = state["step"]
                     save_best()
                     log(f"best/ updated (dev_score {m['dev_score']:.4f})")
-            if state["step"] % args.save_every == 0 or last or out_of_time or STOP["signal"]:
+            stop_requested = bool(all_sum(torch.tensor(int(bool(STOP["signal"])), device=device)).item() > 0)
+            if state["step"] % args.save_every == 0 or last or out_of_time or stop_requested:
                 if args.stage == "dapt":
                     save_best()        # the dapt stage keeps its latest weights as best/
                 save_resume()
-            if last or out_of_time or STOP["signal"]:
+            if last or out_of_time or stop_requested:
                 done = True
-                if out_of_time or STOP["signal"]:
-                    log(f"stopping at step {state['step']} ({'time budget' if out_of_time else STOP['signal']}); "
+                if out_of_time or stop_requested:
+                    reason = "time budget" if out_of_time else STOP["signal"] or "signal received by another worker"
+                    log(f"stopping at step {state['step']} ({reason}); "
                         "rerun with --resume_from to continue")
                 break
         else:
@@ -676,11 +828,14 @@ def run(rank, args):
     has_best = bool(all_sum(torch.tensor(int(os.path.exists(os.path.join(args.output_dir, "best"))), device=device)).item() > 0)
     has_stop = bool(all_sum(torch.tensor(int(bool(STOP["signal"])), device=device)).item() > 0)
     if args.stage == "finetune" and dev and not has_stop and has_best and not args.skip_final_report:
-        del opt, model
+        del net, opt, model
         import gc
         gc.collect()
-        final_report(args, dev, torch, device, sync, rank=rank, world=world, master=master, xm=xm if xla else None)
+        final_report(args, dev, torch, device, sync, rank=rank, world=world, master=master, xm=xm if xla else None,
+                     distributed=dist)
     barrier("end")
+    if dist is not None:
+        dist.destroy_process_group()
 
 
 def git_head(d):
@@ -690,7 +845,7 @@ def git_head(d):
         return None
 
 
-def final_report(args, dev, torch, device, sync, rank=0, world=1, master=True, xm=None):
+def final_report(args, dev, torch, device, sync, rank=0, world=1, master=True, xm=None, distributed=None):
     """Greedy-decoded dev scores of best/ per dev slice and class, sharded across all ranks in lockstep."""
     from transformers import AutoModelForSeq2SeqLM
     import analyzer
@@ -719,6 +874,10 @@ def final_report(args, dev, torch, device, sync, rank=0, world=1, master=True, x
     if xm is not None and world > 1:
         gathered = xm.rendezvous("final_report_gather", json.dumps(local_decoded, ensure_ascii=False).encode("utf-8"))
         all_decoded = [item for payload in gathered for item in json.loads(payload.decode("utf-8"))]
+    elif distributed is not None and world > 1:
+        gathered = [None] * world
+        distributed.all_gather_object(gathered, local_decoded)
+        all_decoded = [item for part in gathered for item in part]
     else:
         all_decoded = local_decoded
     if not master:

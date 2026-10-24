@@ -55,6 +55,9 @@ def heldout(dataset_dir):
             out[split].append((p["form"], p["root"]))
         for p in dataset_loader.load_unified(dataset_dir, split, ("book",)):
             out[split].append((p["form"], p["root"]))
+        for p in dataset_loader.load_unified(dataset_dir, split, ("clitic_rule",),
+                                            path=os.path.join("data", "clitics", "clitic_forms.jsonl")):
+            out[split].append((p["form"], p["root"]))
     return out
 
 
@@ -64,12 +67,16 @@ def main():
                     help="Checkout of the geez-dataset repo "
                          "(default: $GEEZ_DATASET_DIR, else ../geez-dataset or ../geez-dataset-v1)")
     ap.add_argument("--train", required=True, help="train_pairs.jsonl written by the trainer's --export_dir")
+    ap.add_argument("--unified_file", default=None, help="Unified rows file used to build the training mixture")
     args = ap.parse_args()
     args.dataset_dir = dataset_loader.require_dataset_dir(args.dataset_dir)
+    if args.unified_file:
+        dataset_loader.UNIFIED_FILE = args.unified_file
     held = heldout(args.dataset_dir)
     exact_roots = {s: {r for _, r in v if r} for s, v in held.items()}
     exact_pairs = {s: {(f, r) for f, r in v} for s, v in held.items()}
     exact_forms = {s: {f for f, _ in v} for s, v in held.items()}
+    folded_forms = {s: {fold(f) for f, _ in v} for s, v in held.items()}
     form_any = collections.Counter()
     folded_roots = {s: {fold(r) for r in rs} for s, rs in exact_roots.items()}
     n = 0
@@ -100,15 +107,18 @@ def main():
                     form_exact[s] += 1
                 if form in exact_forms[s]:
                     form_any[s] += 1
+                elif fold(form) in folded_forms[s]:
+                    form_variant[s] += 1
     print(f"training pairs: {n}; distinct training roots: {len(train_roots)}")
     for s in sorted(held):
         print(f"held-out {s}: {len(held[s])} pairs, {len(exact_roots[s])} roots")
         print(f"   training pairs with the same root: {root_exact[s]}   same form and root: {form_exact[s]}   (must be 0)")
         print(f"   training pairs with a {s} form (any root): {form_any[s]}   (reported; 0 with the trainer's leak gate)")
+        print(f"   training pairs with a spelling variant of a {s} form: {form_variant[s]}   (must be 0)")
         print(f"   training pairs whose root is only a spelling variant of a {s} root (folded): {root_variant[s]}   (reported)")
     for e in examples:
         print("  overlap:", e)
-    bad = sum(root_exact.values()) + sum(form_exact.values()) + sum(form_any.values())
+    bad = sum(root_exact.values()) + sum(form_exact.values()) + sum(form_any.values()) + sum(form_variant.values())
     print("RESULT:", "CLEAN (exact roots and pairs)" if not bad else f"{bad} overlap(s)")
     sys.exit(1 if bad else 0)
 

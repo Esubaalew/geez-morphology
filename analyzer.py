@@ -890,7 +890,7 @@ class GeezMorphologicalAnalyzer:
 NEURAL_FIELDS = ("root", "tense", "person", "gender", "number", "stem")   # verb target
 NEURAL_NOMINAL_FIELDS = ("root", "type", "number")                       # + optional gender
 NOMINAL_TYPES = ("noun", "adjective")
-GENERIC_TYPES = dataset_loader.UNIFIED_TYPES + dataset_loader.CLOSED_CLASS_EXTRA_TYPES          # the generic target shape (dataset_loader.target_text)
+GENERIC_TYPES = dataset_loader.UNIFIED_TYPES + dataset_loader.CLOSED_CLASS_EXTRA_TYPES + dataset_loader.NAME_TYPES          # the generic target shape (dataset_loader.target_text)
 GENERIC_KEYS = {"root", "type", "negated"} | set(dataset_loader.GENERIC_FIELDS)
 NO_VALUE = ("", "none", "null")
 ROOT_ONLY = dataset_loader.ROOT_ONLY_TASK   # type of a root-only reply
@@ -907,7 +907,7 @@ def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
 
     Each key appears at most once; the keys must be exactly one shape's (no others). The root
     must be non-empty and made only of Ethiopic letters (hyphens and spaces between them are
-    allowed); only the root-only shape may have "none" (or another NO_VALUE word) as its root.
+    allowed); rootless classes, settled rootless nominals and names may have "none" as their root.
     Empty values and "None" mean "no value" for the other fields. Returns a dict with root (None
     for "root: none"), type ("verb", "noun", "adjective" or ROOT_ONLY), tense, person, gender,
     number, stem, object and "root_consonants" (fields a shape does not have are None; no
@@ -937,10 +937,12 @@ def parse_neural_output(text: str) -> Optional[Dict[str, Any]]:
             if out["root"].lower() not in NO_VALUE[1:]:
                 return None                       # a rootless class has no root
             out["root"] = None
-        elif out["root"].lower() in NO_VALUE[1:]:
+        elif out["root"].lower() in NO_VALUE[1:] and out["type"] not in dataset_loader.OPTIONAL_ROOT_TYPES:
             return None
     else:
         return None
+    if out["type"] in dataset_loader.OPTIONAL_ROOT_TYPES and out["root"].lower() in NO_VALUE[1:]:
+        out["root"] = None
     letters = (out["root"] or "").replace("-", "").replace(" ", "")
     if not letters and out["root"] is not None:
         return None
@@ -1024,7 +1026,7 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
         parsed = parse_neural_output(pred_text)
         if parsed is None:
             return []
-        if parsed["root"] is None and parsed["type"] not in dataset_loader.ROOTLESS_TYPES:
+        if parsed["root"] is None and parsed["type"] not in dataset_loader.ROOTLESS_TYPES + dataset_loader.OPTIONAL_ROOT_TYPES:
             return []
         root_tuple = tuple(parsed["root_consonants"])
         lemma = word
@@ -1033,7 +1035,7 @@ class HybridAnalyzer(GeezMorphologicalAnalyzer):
                 lemma = self.engine.generate(root_tuple, self.lemma_spec)
             except (KeyError, ValueError, IndexError) as e:
                 logging.getLogger(__name__).debug("no lemma for %s: %s", root_tuple, e)
-        pos_types = NOMINAL_TYPES + dataset_loader.UNIFIED_TYPES + dataset_loader.CLOSED_CLASS_EXTRA_TYPES
+        pos_types = NOMINAL_TYPES + GENERIC_TYPES
         return [MorphologicalAnalysis(
             surface_form=word,
             root_consonants=root_tuple,
