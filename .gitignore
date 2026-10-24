@@ -1,0 +1,28 @@
+# OS and editor files
+.DS_Store
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+env/
+
+# Local secrets
+.env*
+*.env
+
+# Model checkpoints and weights (kept locally, never committed)
+checkpoints*/
+byt5_morphology_model/
+*.safetensors
+*.pt
+*.bin
+runs/
+wandb/
+
+# Training logs
+*.log
+kidane_wold_build/

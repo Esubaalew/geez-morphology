@@ -1,0 +1,259 @@
+"""
+Ge'ez script tables for the root-and-pattern engine.
+
+Contents:
+  1. Vowel inventory: the 7 Ethiopic vowel orders with abstract labels.
+  2. Consonant inventory: abstract symbol -> base code point.
+  3. Renderer: (consonant, vowel) -> Ethiopic character via Unicode
+     vowel-order arithmetic (code point = base + order).
+  4. Decomposer: character -> (consonant, vowel), inverse of renderer.
+  5. Guttural spelling variants and root helpers.
+  6. Spelling fold: labiovelar letters made plain and twin letters merged, for matching forms.
+
+Prose in this repository names the vowel orders 1st to 7th (ግዕዝ ... ሳብዕ). The code uses
+indices 0-6: index 0 = 1st order ... index 5 = 6th order (ሳድስ), index 6 = 7th order.
+  0: a (ሀ)   1: u (ሁ)   2: i (ሂ)   3: A (ሃ)
+  4: e (ሄ)   5: I (ህ)   6: o (ሆ)
+"""
+
+import unicodedata
+
+# Abstract vowel labels -> vowel order index (0 = 1st order ... 6 = 7th order)
+VOWEL_ORDERS = {
+    "a": 0,
+    "u": 1,
+    "i": 2,
+    "A": 3,
+    "e": 4,
+    "I": 5,
+    "o": 6,
+}
+
+ORDER_TO_VOWEL = {v: k for k, v in VOWEL_ORDERS.items()}
+
+# Abstract consonant symbol -> base codepoint (the "a"-order character).
+CONSONANTS = {
+    "h1": 0x1200,
+    "l":  0x1208,
+    "h2": 0x1210,
+    "m":  0x1218,
+    "s2": 0x1220,
+    "r":  0x1228,
+    "s":  0x1230,
+    "sh": 0x1238,
+    "q":  0x1240,
+    "qh": 0x1248,
+    "b":  0x1260,
+    "t":  0x1270,
+    "ch": 0x1278,
+    "kh": 0x1280,
+    "khw": 0x1288,  # ኈ xʷ (labiovelar)
+    "n":  0x1290,
+    "ny": 0x1298,
+    "a":  0x12A0,
+    "k":  0x12A8,
+    "kh2": 0x12B0,
+    "w":  0x12C8,
+    "a2": 0x12D0,
+    "z":  0x12D8,
+    "zh": 0x12E0,
+    "y":  0x12E8,
+    "d":  0x12F0,
+    "g":  0x1308,
+    "gw": 0x1310,   # ጐ gʷ (labiovelar)
+    "T":  0x1320,
+    "p":  0x1330,
+    "S":  0x1338,
+    "S2": 0x1340,
+    "f":  0x1348,
+    "p2": 0x1350,
+}
+
+# Note: "qh" (ቈ) and "kh2" (ኰ) are labiovelars qʷ and kʷ, not aspirates; the
+# names are kept because the dictionary roots use them. Labiovelar rows have no
+# u or o order, so render_unit(qh/kh2/gw/khw, "u" or "o") gives an unassigned
+# code point; the generator drops such forms.
+
+BASE_TO_CONSONANT = {v: k for k, v in CONSONANTS.items()}
+
+
+def render_unit(consonant: str, vowel: str) -> str:
+    """
+    Render an abstract (consonant, vowel) pair to an Ethiopic character
+    using Unicode vowel-order arithmetic.
+    """
+    if consonant not in CONSONANTS:
+        raise ValueError(f"Unknown consonant symbol: {consonant!r}")
+    if vowel not in VOWEL_ORDERS:
+        raise ValueError(f"Unknown vowel label: {vowel!r}")
+    return chr(CONSONANTS[consonant] + VOWEL_ORDERS[vowel])
+
+
+def decompose_char(ch: str):
+    """
+    Inverse of render_unit: Ethiopic character -> (consonant, vowel).
+    Returns (consonant_symbol, vowel_label), or (None, None) if the
+    character is not a recognized consonant+vowel syllable.
+    Code point arithmetic: base = (cp // 8) * 8, order = cp % 8.
+    """
+    if len(ch) != 1:
+        return (None, None)
+    cp = ord(ch)
+    if not (0x1200 <= cp <= 0x137F):
+        return (None, None)
+    order = cp % 8
+    if order > 6:
+        return (None, None)
+    base = (cp // 8) * 8
+    consonant = BASE_TO_CONSONANT.get(base)
+    if consonant is None:
+        return (None, None)
+    return (consonant, ORDER_TO_VOWEL[order])
+
+
+# After a guttural, 1st and 4th order are spelling variants (docs/grammar_rules.md section 3).
+# Generation writes the 1st order; comparison treats both as equal.
+GUTTURAL_4TH_TO_1ST = str.maketrans("ኣዓሓኃሃ", "አዐሐኀሀ")
+GUTTURAL_SYMBOLS = ("a", "a2", "h1", "h2", "kh")
+
+
+def normalize_guttural_4th(s: str) -> str:
+    """ኣ ዓ ሓ ኃ ሃ -> አ ዐ ሐ ኀ ሀ; nothing else changes."""
+    return s.translate(GUTTURAL_4TH_TO_1ST) if s else s
+
+
+def gutturals_equal(a: str, b: str) -> bool:
+    return normalize_guttural_4th(a) == normalize_guttural_4th(b)
+
+
+# Spelling fold. Two forms that differ only by a labiovelar letter against its plain letter, or by one twin
+# letter against the other, are the same word for leak checks. The fold keeps the vowel order of every letter.
+# It is for comparing forms only: roots and stored forms are never changed.
+TWIN_ROWS = {"s2": "s", "S2": "S", "h2": "h1", "kh": "h1", "a2": "a"}
+LABIOVELAR_VOWELS = ("WAA", "WEE", "WA", "WI", "WE")
+
+
+def _ethiopic_syllables_by_name() -> dict:
+    """{Unicode name without "ETHIOPIC SYLLABLE ": letter} over the Ethiopic block."""
+    prefix = "ETHIOPIC SYLLABLE "
+    out = {}
+    for cp in range(0x1200, 0x1380):
+        name = unicodedata.name(chr(cp), "")
+        if name.startswith(prefix):
+            out[name[len(prefix):]] = chr(cp)
+    return out
+
+
+def _labiovelar_to_plain() -> dict:
+    """{labiovelar letter: plain letter of the same vowel order}, from the Unicode names.
+
+    A labiovelar row is a consonant name C with its own CWI and CWE syllables (QWA QWI QWAA QWEE QWE);
+    its plain letter is C plus the vowel (QA QI QAA QEE QE). Letters named C + WA alone (the
+    8th letter of a row, e.g. LWA) are not labiovelar rows and are left out.
+    """
+    by_name = _ethiopic_syllables_by_name()
+    table = {}
+    for syllable, letter in by_name.items():
+        for vowel in LABIOVELAR_VOWELS:
+            if syllable.endswith(vowel):
+                cons = syllable[: -len(vowel)]
+                plain = cons + vowel[1:]
+                if cons and cons + "WI" in by_name and cons + "WE" in by_name and plain in by_name:
+                    table[letter] = by_name[plain]
+                break
+    return table
+
+
+def _twin_to_one_row() -> dict:
+    """{twin letter: letter of the kept row, same vowel order} for the 7 vowel orders of TWIN_ROWS."""
+    return {chr(CONSONANTS[twin] + order): chr(CONSONANTS[kept] + order)
+            for twin, kept in TWIN_ROWS.items() for order in range(7)}
+
+
+LABIOVELAR_TO_PLAIN = _labiovelar_to_plain()
+TWIN_TO_ONE_ROW = _twin_to_one_row()
+SPELLING_FOLD = {ord(a): TWIN_TO_ONE_ROW.get(b, b) for a, b in LABIOVELAR_TO_PLAIN.items()}
+SPELLING_FOLD.update({ord(a): b for a, b in TWIN_TO_ONE_ROW.items()})
+
+
+def fold_spelling(s: str) -> str:
+    """s with every labiovelar letter made plain and every twin letter in its kept row, vowel orders kept.
+
+    Labiovelar letters fold first, so a labiovelar letter of a twin row lands in the kept row.
+    """
+    return s.translate(SPELLING_FOLD) if s else s
+
+
+def decompose_string(s: str):
+    """Decompose each character; returns list of (consonant, vowel) or (None, None)."""
+    return [decompose_char(ch) for ch in s]
+
+
+# Scholarly transliteration used in the Merho Ges gold roots -> Ethiopic letter.
+TRANSLIT_TO_ETHIOPIC = {
+    "ʾ": "አ", "ʼ": "አ", "'": "አ", "ʔ": "አ",
+    "ʿ": "ዐ", "ʻ": "ዐ", "ʕ": "ዐ",
+    "h": "ሀ", "ḥ": "ሐ", "ħ": "ሐ", "ḫ": "ኀ",
+    "ś": "ሠ", "ṣ": "ጸ", "ḍ": "ፀ", "ṣ́": "ፀ", "ṭ": "ጠ",
+    "qʷ": "ቈ", "qw": "ቈ", "ḳʷ": "ቈ", "kʷ": "ኰ", "gʷ": "ጐ", "ḫʷ": "ኈ",
+}
+
+
+def to_ethiopic_root(root_str: str) -> str:
+    """Root string -> hyphenated Ethiopic first-order letters, e.g. ቀ-ተ-ለ.
+
+    Accepts Ethiopic roots ("ሰ-ነ-አ-ወ", "m-r-ḥ (መ-ር-ሐ)"), consonant symbols
+    ("q-t-l", "h2-S-b"; case matters: T = ጠ but t = ተ, S = ጸ but s = ሰ,
+    S2 = ፀ but s2 = ሠ), and the scholarly transliteration of the gold roots
+    ("ṭ-y-b", "m-m-ʿ"). Unknown parts are kept as written.
+    """
+    if not root_str:
+        return ""
+    if any(0x1200 <= ord(c) <= 0x137F for c in root_str):
+        return "-".join(c for c in root_str if 0x1200 <= ord(c) <= 0x137F)
+    out = []
+    for p in root_str.split("(")[0].split("-"):
+        p = p.strip()
+        if not p:
+            continue
+        if p in CONSONANTS:                      # exact, case-sensitive first
+            out.append(render_unit(p, "a"))
+        elif p in TRANSLIT_TO_ETHIOPIC:
+            out.append(TRANSLIT_TO_ETHIOPIC[p])
+        elif p.lower() in CONSONANTS:
+            out.append(render_unit(p.lower(), "a"))
+        else:
+            out.append(p)
+    return "-".join(out)
+
+
+def first_order_root(root_str: str) -> str:
+    """Root -> every letter in the 1st order of its own series (a root label is
+    consonants only), e.g. ን-ስ-ሕ-ለ-ል -> ነ-ሰ-ሐ-ለ-ለ, ር-እ-የ -> ረ-አ-የ, ሦ -> ሠ.
+
+    Labialized series stay labialized: ቍ -> ቈ, ኵ -> ኰ, ጒ -> ጐ, ኍ -> ኈ. A 7th-order
+    ቆ/ኮ/ጎ is taken as written, i.e. in the plain series (ቀ/ከ/ገ). Latin roots go
+    through to_ethiopic_root first. Letters that
+    are not in the consonant table (e.g. ጘ) are kept as written.
+    """
+    out = []
+    for part in to_ethiopic_root(root_str).split("-"):
+        cons = decompose_char(part)[0] if len(part) == 1 else None
+        out.append(render_unit(cons, "a") if cons else part)
+    return "-".join(out)
+
+
+def root_symbols(root_str: str) -> tuple:
+    """Root in any script -> tuple of consonant symbols, e.g. ("q", "t", "l").
+
+    Parts that are not a known letter are kept as written, so a bad root
+    stays visibly bad instead of silently losing a radical.
+    """
+    out = []
+    for part in to_ethiopic_root(root_str).split("-"):
+        part = part.strip()
+        if not part:
+            continue
+        cons = decompose_char(part)[0] if len(part) == 1 else None
+        out.append(cons or part)
+    return tuple(out)

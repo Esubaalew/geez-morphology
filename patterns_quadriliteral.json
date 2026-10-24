@@ -1,0 +1,540 @@
+[
+  {
+    "features": {
+      "tense": "past",
+      "person": "3",
+      "gender": "m",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2a-C3a",
+    "examples": [
+      "ደንገፀ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "past",
+      "person": "3",
+      "gender": "f",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2a-C3a-[ት]",
+    "examples": [
+      "ደንገፀት"
+    ]
+  },
+  {
+    "features": {
+      "tense": "past",
+      "person": "3",
+      "gender": "m",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2a-C3u",
+    "examples": [
+      "ደንገፁ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "past",
+      "person": "3",
+      "gender": "f",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2a-C3A",
+    "examples": [
+      "ደንገፃ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "past",
+      "person": "2",
+      "gender": "m",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2a-C3I-[ከ]",
+    "examples": [
+      "ደንገፅከ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "past",
+      "person": "2",
+      "gender": "f",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2a-C3I-[ኪ]",
+    "examples": [
+      "ደንገፅኪ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "past",
+      "person": "2",
+      "gender": "m",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2a-C3I-[ክሙ]",
+    "examples": [
+      "ደንገፅክሙ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "past",
+      "person": "2",
+      "gender": "f",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2a-C3I-[ክን]",
+    "examples": [
+      "ደንገፅክን"
+    ]
+  },
+  {
+    "features": {
+      "tense": "past",
+      "person": "1",
+      "gender": "c",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2a-C3I-[ኩ]",
+    "examples": [
+      "ደንገፅኩ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "past",
+      "person": "1",
+      "gender": "c",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2a-C3I-[ነ]",
+    "examples": [
+      "ደንገፅነ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "present",
+      "person": "3",
+      "gender": "m",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ይ]-C0a-C1a-C2I-C3I",
+    "examples": [
+      "ይደነግፅ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "present",
+      "person": "3",
+      "gender": "f",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ት]-C0a-C1a-C2I-C3I",
+    "examples": [
+      "ትደነግፅ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "present",
+      "person": "3",
+      "gender": "m",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ይ]-C0a-C1a-C2I-C3u",
+    "examples": [
+      "ይደነግፁ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "present",
+      "person": "3",
+      "gender": "f",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ይ]-C0a-C1a-C2I-C3A",
+    "examples": [
+      "ይደነግፃ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "present",
+      "person": "2",
+      "gender": "m",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ት]-C0a-C1a-C2I-C3I",
+    "examples": [
+      "ትደነግፅ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "present",
+      "person": "2",
+      "gender": "f",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ት]-C0a-C1a-C2I-C3i",
+    "examples": [
+      "ትደነግፂ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "present",
+      "person": "2",
+      "gender": "m",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ት]-C0a-C1a-C2I-C3u",
+    "examples": [
+      "ትደነግፁ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "present",
+      "person": "2",
+      "gender": "f",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ት]-C0a-C1a-C2I-C3A",
+    "examples": [
+      "ትደነግፃ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "present",
+      "person": "1",
+      "gender": "c",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[እ]-C0a-C1a-C2I-C3I",
+    "examples": [
+      "እደነግፅ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "present",
+      "person": "1",
+      "gender": "c",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ን]-C0a-C1a-C2I-C3I",
+    "examples": [
+      "ንደነግፅ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "subjunctive",
+      "person": "3",
+      "gender": "m",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2I-C3I",
+    "examples": [
+      "ይደንግፅ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "subjunctive",
+      "person": "3",
+      "gender": "f",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ት]-C0a-C1I-C2I-C3I",
+    "examples": [
+      "ትደንግፅ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "subjunctive",
+      "person": "3",
+      "gender": "m",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2I-C3u",
+    "examples": [
+      "ይደንግፁ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "subjunctive",
+      "person": "1",
+      "gender": "c",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[እ]-C0a-C1I-C2I-C3I",
+    "examples": [
+      "እደንግፅ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "subjunctive",
+      "person": "1",
+      "gender": "c",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ን]-C0a-C1I-C2I-C3I",
+    "examples": [
+      "ንደንግፅ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "imperative",
+      "person": "2",
+      "gender": "m",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2I-C3I",
+    "examples": [
+      "ደንግፅ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "imperative",
+      "person": "2",
+      "gender": "f",
+      "number": "s",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2I-C3i",
+    "examples": [
+      "ደንግፂ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "imperative",
+      "person": "2",
+      "gender": "m",
+      "number": "p",
+      "stem": "basic",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2I-C3u",
+    "examples": [
+      "ደንግፁ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "past",
+      "person": "3",
+      "gender": "m",
+      "number": "s",
+      "stem": "passive",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ተ]-C0a-C1I-C2a-C3a",
+    "examples": [
+      "ተደንገፀ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "present",
+      "person": "3",
+      "gender": "m",
+      "number": "s",
+      "stem": "passive",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ይ]-[ት]-C0a-C1I-C2a-C3I",
+    "examples": [
+      "ይትደንገፅ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "past",
+      "person": "3",
+      "gender": "m",
+      "number": "s",
+      "stem": "causative",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[አ]-C0a-C1I-C2a-C3a",
+    "examples": [
+      "አደንገፀ"
+    ]
+  },
+  {
+    "features": {
+      "tense": "present",
+      "person": "3",
+      "gender": "m",
+      "number": "s",
+      "stem": "causative",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ያ]-C0a-C1I-C2a-C3I",
+    "examples": [
+      "ያደንገፅ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ት]-C0a-C1I-C2I-C3I",
+    "source": "grammar_reference",
+    "examples": [
+      "ትደንግፅ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "s",
+      "person": "2",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ት]-C0a-C1I-C2I-C3i",
+    "source": "grammar_reference",
+    "examples": [
+      "ትደንግፂ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "3",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ይ]-C0a-C1I-C2I-C3A",
+    "source": "grammar_reference",
+    "examples": [
+      "ይደንግፃ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "m",
+      "number": "p",
+      "person": "2",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ት]-C0a-C1I-C2I-C3u",
+    "source": "grammar_reference",
+    "examples": [
+      "ትደንግፁ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "2",
+      "stem": "basic",
+      "tense": "subjunctive",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "[ት]-C0a-C1I-C2I-C3A",
+    "source": "grammar_reference",
+    "examples": [
+      "ትደንግፃ"
+    ]
+  },
+  {
+    "features": {
+      "gender": "f",
+      "number": "p",
+      "person": "2",
+      "stem": "basic",
+      "tense": "imperative",
+      "verb_type": "quadriliteral"
+    },
+    "pattern_spec": "C0a-C1I-C2I-C3A",
+    "source": "grammar_reference",
+    "examples": [
+      "ደንግፃ"
+    ]
+  }
+]

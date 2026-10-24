@@ -1,0 +1,10 @@
+# Final-y roots whose 3rd-person basic perfect has radical 2 in the 1st order (docs/grammar_rules.md section 4.2).
+# CONFIRMED roots are in verb_classes.Y_PAST_C2_FIRST, PENDING roots in verb_classes.Y_PAST_C2_FIRST_PENDING.
+root	root_ethiopic	status	past_3ms_6th_order	past_3ms	past_1cs
+l-f-y	ለ-ፈ-የ	CONFIRMED	ለፍየ	ለፈየ	ለፈይኩ
+l-q-y	ለ-ቀ-የ	CONFIRMED	ለቅየ	ለቀየ	ለቀይኩ
+m-l-y	መ-ለ-የ	CONFIRMED	መልየ	መለየ	መለይኩ
+s-t-y	ሰ-ተ-የ	CONFIRMED	ሰትየ	ሰተየ	ሰተይኩ
+a-b-y	አ-በ-የ	CONFIRMED	አብየ	አበየ	አበይኩ
+m-s-y	መ-ሰ-የ	PENDING	መስየ	መሰየ	መሰይኩ
+s-b-y	ሰ-በ-የ	PENDING	ሰብየ	ሰበየ	ሰበይኩ

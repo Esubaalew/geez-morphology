@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "geez-morphology"
+abstract: "Morphological analysis and generation for Classical Ge'ez verbs: a root-and-pattern rule engine, a hybrid analyzer, a synthetic data generator and ByT5 fine-tuning."
+type: software
+authors:
+  - given-names: Esubalew
+    family-names: Chekol
+repository-code: "https://github.com/Esubaalew/geez-morphology"
+license: Apache-2.0
